@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Registrati — Libreria Diffusa</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <a href="#main" class="skip-link">Vai al contenuto principale</a>
+
+  <header class="site-header" role="banner">
+    <div class="site-header__inner">
+      <a href="index.html" class="site-logo">
+        <span class="site-logo__mark" aria-hidden="true"></span>
+        <span>Libreria&nbsp;Diffusa</span>
+      </a>
+      <nav class="site-nav" role="navigation">
+        <a href="index.html">Home</a>
+        <a href="login.html">Accedi</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <section class="section container" style="max-width: 620px;">
+      <span class="eyebrow">unisciti al catalogo diffuso</span>
+      <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">Crea il tuo <em style="color: var(--color-burgundy);">profilo</em></h1>
+      <p style="color: var(--color-ink-soft); margin-bottom: 2rem;">
+        Bastano pochi dati per iniziare. Puoi completare il profilo in un secondo momento.
+      </p>
+
+      <form class="form" novalidate onsubmit="event.preventDefault(); alert('Account creato (demo).'); location.href='profile.html';">
+
+        <div class="form__row">
+          <div class="form__group">
+            <label class="form__label" for="display_name">Nome visualizzato *</label>
+            <input type="text" id="display_name" class="form__input" required aria-required="true" autocomplete="name" />
+          </div>
+          <div class="form__group">
+            <label class="form__label" for="username">Username *</label>
+            <input type="text" id="username" class="form__input" required aria-required="true"
+                   pattern="^[a-z0-9_.]{3,30}$" aria-describedby="uname-help" autocomplete="username" />
+            <span class="form__help" id="uname-help">3–30 caratteri, solo lettere minuscole, numeri, punti e underscore.</span>
+          </div>
+        </div>
+
+        <div class="form__group">
+          <label class="form__label" for="email">Email *</label>
+          <input type="email" id="email" class="form__input" required aria-required="true" autocomplete="email" />
+        </div>
+
+        <div class="form__group">
+          <label class="form__label" for="password">Password *</label>
+          <input type="password" id="password" class="form__input" required aria-required="true"
+                 minlength="10" autocomplete="new-password" aria-describedby="pw-help" />
+          <span class="form__help" id="pw-help">Minimo 10 caratteri. Raccomandato: lettere, numeri e simboli.</span>
+        </div>
+
+        <div class="form__group">
+          <label class="form__label" for="city">Città / zona</label>
+          <input type="text" id="city" class="form__input" placeholder="es. Napoli, Chiaia" autocomplete="address-level2" />
+          <span class="form__help">Puoi rimandare la posizione al momento della prima pubblicazione.</span>
+        </div>
+
+        <div class="alert alert--info" role="note" style="margin: 1rem 0;">
+          <strong>Impegno privacy:</strong> i tuoi dati personali saranno usati esclusivamente
+          per il funzionamento della piattaforma. La posizione sulla mappa viene sfocata
+          di default a un raggio di 200 m. Potrai modificare questi parametri in qualsiasi
+          momento nel tuo profilo.
+        </div>
+
+        <div class="form__check">
+          <input type="checkbox" id="tos" required aria-required="true" />
+          <label for="tos">Ho letto e accetto i <a href="#">Termini di servizio</a> e la <a href="#">Privacy Policy</a>. *</label>
+        </div>
+
+        <div class="form__check">
+          <input type="checkbox" id="majority" required aria-required="true" />
+          <label for="majority">Confermo di avere almeno 18 anni. *</label>
+        </div>
+
+        <div class="form__check">
+          <input type="checkbox" id="newsletter" />
+          <label for="newsletter">Vorrei ricevere la newsletter mensile (facoltativo).</label>
+        </div>
+
+        <button type="submit" class="btn btn--primary" style="width: 100%; margin-top: 1rem;">Crea account</button>
+
+        <p style="text-align: center; color: var(--color-ink-soft); margin-top: 1rem;">
+          Hai già un account? <a href="login.html">Accedi</a>
+        </p>
+      </form>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div><h4>Libreria Diffusa</h4></div>
+      <div></div><div></div>
+      <div><h4>Info</h4><a href="#">Privacy</a></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.1.0</span></div>
+    </div>
+  </footer>
+</body>
+</html>

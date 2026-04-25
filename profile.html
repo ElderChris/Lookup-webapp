@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profilo — Libreria Diffusa</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <a href="#main" class="skip-link">Vai al contenuto principale</a>
+
+  <header class="site-header" role="banner">
+    <div class="site-header__inner">
+      <a href="index.html" class="site-logo">
+        <span class="site-logo__mark" aria-hidden="true"></span>
+        <span>Libreria&nbsp;Diffusa</span>
+      </a>
+      <button class="nav-toggle" aria-label="Apri menu" aria-expanded="false">☰</button>
+      <nav class="site-nav" role="navigation">
+        <a href="index.html">Home</a>
+        <a href="explore.html">Esplora</a>
+        <a href="add-book.html">Pubblica</a>
+        <a href="profile.html">Profilo</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="admin.html">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <section class="section container">
+      <!-- Profilo intestazione -->
+      <div class="profile-header" id="profile-header"></div>
+
+      <!-- Tab navigation -->
+      <div role="tablist" aria-label="Sezioni profilo" style="display: flex; gap: 0; border-bottom: 1px solid var(--color-line); margin-bottom: 2rem;">
+        <button role="tab" aria-selected="true" aria-controls="panel-books" id="tab-books"
+                class="tab-btn active" data-tab="books">La mia libreria</button>
+        <button role="tab" aria-selected="false" aria-controls="panel-requests" id="tab-requests"
+                class="tab-btn" data-tab="requests">Richieste ricevute</button>
+        <button role="tab" aria-selected="false" aria-controls="panel-settings" id="tab-settings"
+                class="tab-btn" data-tab="settings">Impostazioni</button>
+      </div>
+
+      <!-- Pannello: libri -->
+      <div role="tabpanel" id="panel-books" aria-labelledby="tab-books">
+        <div class="section-header" style="border-bottom: 1px solid var(--color-line); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+          <div>
+            <h2 style="font-size: 1.5rem;">La mia libreria</h2>
+            <span id="books-count" style="color: var(--color-ink-soft); font-size: .85rem;">—</span>
+          </div>
+          <a href="add-book.html" class="btn btn--primary btn--small">+ Aggiungi volume</a>
+        </div>
+        <div class="books-grid" id="my-books"></div>
+      </div>
+
+      <!-- Pannello: richieste -->
+      <div role="tabpanel" id="panel-requests" aria-labelledby="tab-requests" hidden>
+        <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem;">Richieste di prestito ricevute</h2>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Volume</th>
+              <th>Richiedente</th>
+              <th>Data</th>
+              <th>Stato</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="requests-body">
+            <!-- esempi statici di richieste ricevute -->
+            <tr>
+              <td><em>Se questo è un uomo</em></td>
+              <td>Marco De Vito</td>
+              <td>18 apr 2026</td>
+              <td><span class="badge badge--pending">In attesa</span></td>
+              <td style="display: flex; gap: .5rem;">
+                <button class="btn btn--small">Accetta</button>
+                <button class="btn btn--small btn--ghost">Rifiuta</button>
+              </td>
+            </tr>
+            <tr>
+              <td><em>Le città invisibili</em></td>
+              <td>Giulia Ferrari</td>
+              <td>15 apr 2026</td>
+              <td><span class="badge badge--active">Accettata</span></td>
+              <td><button class="btn btn--small btn--ghost">Segna restituito</button></td>
+            </tr>
+            <tr>
+              <td><em>Il sistema periodico</em></td>
+              <td>Anna Russo</td>
+              <td>12 apr 2026</td>
+              <td><span class="badge badge--removed">Conclusa</span></td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pannello: impostazioni -->
+      <div role="tabpanel" id="panel-settings" aria-labelledby="tab-settings" hidden>
+        <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem;">Impostazioni di privacy</h2>
+        <form class="form">
+
+          <div class="form__group">
+            <label class="form__label" for="visibility">Visibilità del profilo</label>
+            <select id="visibility" class="form__select">
+              <option>Pubblico — visibile a tutti gli utenti</option>
+              <option>Semi-pubblico — solo utenti registrati</option>
+              <option>Privato — solo su invito</option>
+            </select>
+          </div>
+
+          <div class="form__group">
+            <label class="form__label" for="loc-precision">Precisione della posizione sulla mappa</label>
+            <select id="loc-precision" class="form__select">
+              <option>Indirizzo preciso</option>
+              <option selected>Zona / quartiere (±200 m)</option>
+              <option>Solo città</option>
+              <option>Non mostrare posizione</option>
+            </select>
+            <span class="form__help">Raccomandiamo di non mostrare l\'indirizzo preciso.</span>
+          </div>
+
+          <div class="form__check">
+            <input type="checkbox" id="show-email" />
+            <label for="show-email">Rendi visibile la mia email ai richiedenti che accetto</label>
+          </div>
+
+          <div class="form__check">
+            <input type="checkbox" id="allow-loans" checked />
+            <label for="allow-loans">Accetto richieste di prestito</label>
+          </div>
+
+          <div class="form__check">
+            <input type="checkbox" id="allow-msg" checked />
+            <label for="allow-msg">Accetto messaggi da altri utenti</label>
+          </div>
+
+          <div class="form__check">
+            <input type="checkbox" id="newsletter" />
+            <label for="newsletter">Iscrivimi alla newsletter mensile</label>
+          </div>
+
+          <h3 style="margin-top: 2rem;">I tuoi diritti (GDPR)</h3>
+          <p style="color: var(--color-ink-soft); font-size: .9rem;">
+            In qualsiasi momento puoi:
+          </p>
+          <div style="display: flex; gap: .75rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn--ghost btn--small">Scarica i miei dati (JSON)</button>
+            <button type="button" class="btn btn--ghost btn--small">Rettifica dati</button>
+            <button type="button" class="btn btn--ghost btn--small" style="color: var(--color-burgundy); border-color: var(--color-burgundy);">Elimina account</button>
+          </div>
+
+          <div style="margin-top: 2rem;">
+            <button type="submit" class="btn btn--primary">Salva impostazioni</button>
+          </div>
+        </form>
+      </div>
+
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div><h4>Libreria Diffusa</h4><p style="color: rgba(244,239,230,.7); font-size: .9rem;">Un progetto di condivisione del patrimonio librario privato.</p></div>
+      <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
+      <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
+      <div><h4>Info</h4><a href="#">Privacy</a></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.1.0</span></div>
+    </div>
+  </footer>
+
+  <script src="js/app.js"></script>
+  <script>
+
+    // CSS inline per il tab-btn (potrebbe andare nello stylesheet)
+    const style = document.createElement('style');
+    style.textContent = `
+      .tab-btn {
+        background: transparent; border: none; border-bottom: 2px solid transparent;
+        padding: .75rem 1.5rem; font-family: var(--font-body); cursor: pointer;
+        font-size: .9rem; letter-spacing: .05em; color: var(--color-ink-soft);
+        transition: all .2s ease;
+      }
+      .tab-btn:hover { color: var(--color-ink); }
+      .tab-btn.active { color: var(--color-ink); border-bottom-color: var(--color-burgundy); }
+    `;
+    document.head.appendChild(style);
+
+    document.addEventListener('DOMContentLoaded', () => {
+
+      // Determina utente da visualizzare (?id=X) o utente corrente (default 1)
+      const id = new URLSearchParams(location.search).get('id') || 1;
+      const user = API.getUser(id);
+      if (!user) { location.href = 'index.html'; return; }
+
+      // Render header profilo
+      const initials = user.display_name.split(' ').map(w => w[0]).join('').slice(0, 2);
+      document.getElementById('profile-header').innerHTML = `
+        <div class="profile-avatar" aria-hidden="true">${initials}</div>
+        <div>
+          <h1 class="profile-name">${user.display_name}</h1>
+          <p class="profile-meta">@${user.username} · ${user.city}</p>
+          <p style="color: var(--color-ink-soft); margin-top: 1rem; max-width: 60ch;">
+            ${user.bio}
+          </p>
+          <p style="color: var(--color-ink-soft); font-size: .8rem; margin-top: .75rem; font-family: var(--font-mono); letter-spacing: .1em; text-transform: uppercase;">
+            Iscritto dal ${new Date(user.joined).toLocaleDateString('it-IT')}
+          </p>
+        </div>`;
+
+      // Render libri dell'utente
+      const books = API.getBooksByOwner(user.id);
+      document.getElementById('books-count').textContent =
+        `${books.length} volum${books.length === 1 ? 'e' : 'i'} pubblicat${books.length === 1 ? 'o' : 'i'}`;
+      UI.renderBooksGrid(document.getElementById('my-books'), books);
+
+      // Gestione tab (accessibile da tastiera)
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          // Deseleziona tutti
+          document.querySelectorAll('.tab-btn').forEach(b => {
+            b.classList.remove('active');
+            b.setAttribute('aria-selected', 'false');
+          });
+          document.querySelectorAll('[role=tabpanel]').forEach(p => p.hidden = true);
+
+          // Seleziona
+          btn.classList.add('active');
+          btn.setAttribute('aria-selected', 'true');
+          document.getElementById(`panel-${btn.dataset.tab}`).hidden = false;
+        });
+      });
+    });
+  </script>
+</body>
+</html>

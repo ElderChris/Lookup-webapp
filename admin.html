@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Amministrazione — Libreria Diffusa</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+
+  <a href="#main" class="skip-link">Vai al contenuto principale</a>
+
+  <header class="site-header" role="banner">
+    <div class="site-header__inner">
+      <a href="index.html" class="site-logo">
+        <span class="site-logo__mark" aria-hidden="true"></span>
+        <span>Libreria&nbsp;Diffusa</span>
+      </a>
+      <button class="nav-toggle" aria-label="Apri menu" aria-expanded="false">☰</button>
+      <nav class="site-nav" role="navigation">
+        <a href="index.html">Home</a>
+        <a href="explore.html">Esplora</a>
+        <a href="add-book.html">Pubblica</a>
+        <a href="profile.html">Profilo</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="admin.html">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <section class="section container">
+      <span class="eyebrow">area riservata</span>
+      <h1 style="font-size: 2.75rem; margin-bottom: 1rem;">
+        Pannello di <em style="color: var(--color-burgundy);">amministrazione</em>
+      </h1>
+      <p style="max-width: 60ch; color: var(--color-ink-soft); margin-bottom: 2rem;">
+        Moderazione contenuti, gestione utenti e monitoraggio della piattaforma.
+      </p>
+
+      <!-- KPI amministrativi -->
+      <div class="stats-grid" id="admin-kpi"></div>
+
+      <!-- Grafici amministrativi -->
+      <div class="chart-row" style="margin-top: 2rem;">
+        <div class="chart-container">
+          <h3>Crescita utenti (ultimi 6 mesi)</h3>
+          <canvas id="chart-users" role="img" aria-label="Grafico crescita utenti"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Richieste prestito per stato</h3>
+          <canvas id="chart-requests" role="img" aria-label="Grafico richieste prestito"></canvas>
+        </div>
+      </div>
+
+      <!-- Gestione utenti -->
+      <div class="section-header" style="margin-top: 3rem;">
+        <h2 style="font-size: 1.75rem;">Gestione utenti</h2>
+        <span class="section-meta">filtra e modera</span>
+      </div>
+
+      <div style="display: flex; gap: .75rem; margin-bottom: 1rem; flex-wrap: wrap;">
+        <input type="search" class="form__input" placeholder="Cerca utente…" style="max-width: 300px;" id="user-search" />
+        <select class="form__select" style="max-width: 200px;" id="user-filter">
+          <option value="">Tutti gli stati</option>
+          <option value="active">Attivi</option>
+          <option value="pending">Da verificare</option>
+          <option value="suspended">Sospesi</option>
+        </select>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nome</th>
+              <th>Email</th>
+              <th>Città</th>
+              <th>Libri</th>
+              <th>Iscritto</th>
+              <th>Stato</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="users-table"></tbody>
+        </table>
+      </div>
+
+      <!-- Moderazione contenuti -->
+      <div class="section-header" style="margin-top: 3rem;">
+        <h2 style="font-size: 1.75rem;">Ultimi libri pubblicati</h2>
+        <span class="section-meta">richiedono verifica automatica</span>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Titolo</th>
+              <th>Autore</th>
+              <th>Proprietario</th>
+              <th>Categoria</th>
+              <th>Aggiunto il</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="recent-books"></tbody>
+        </table>
+      </div>
+
+      <!-- Azioni di sistema -->
+      <div class="section-header" style="margin-top: 3rem;">
+        <h2 style="font-size: 1.75rem;">Azioni di sistema</h2>
+      </div>
+      <div style="display: flex; gap: .75rem; flex-wrap: wrap;">
+        <button class="btn" onclick="exportData()">Esporta backup (JSON)</button>
+        <button class="btn" onclick="regenerateThumbs()">Rigenera thumbnail</button>
+        <button class="btn btn--ghost" onclick="resetData()" style="color: var(--color-burgundy); border-color: var(--color-burgundy);">
+          Reset dati prototipo
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div><h4>Libreria Diffusa</h4><p style="color: rgba(244,239,230,.7); font-size: .9rem;">Un progetto di condivisione del patrimonio librario privato.</p></div>
+      <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
+      <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
+      <div><h4>Info</h4><a href="#">Privacy</a></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.1.0</span></div>
+    </div>
+  </footer>
+
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+      const stats = API.getGlobalStats();
+      const users = API.getUsers();
+      const books = API.getBooks();
+
+      // --- KPI ---
+      document.getElementById('admin-kpi').innerHTML = `
+        <div class="stat-card">
+          <div class="stat-card__label">Utenti totali</div>
+          <div class="stat-card__value">${users.length}</div>
+          <div class="stat-card__delta">+2 ultimo mese</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__label">Libri totali</div>
+          <div class="stat-card__value">${books.length}</div>
+          <div class="stat-card__delta">+${books.filter(b => new Date(b.added) > new Date('2024-04-01')).length} ultimo mese</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__label">Richieste attive</div>
+          <div class="stat-card__value">${stats.total_loan_requests}</div>
+          <div class="stat-card__delta">7 in attesa</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__label">Segnalazioni</div>
+          <div class="stat-card__value">0</div>
+          <div class="stat-card__delta">Nessuna pendente</div>
+        </div>
+      `;
+
+      // --- Grafici ---
+      Chart.defaults.font.family = "'Fraunces', Georgia, serif";
+      Chart.defaults.color = '#3d342e';
+
+      new Chart(document.getElementById('chart-users'), {
+        type: 'bar',
+        data: {
+          labels: ['Nov', 'Dic', 'Gen', 'Feb', 'Mar', 'Apr'],
+          datasets: [{
+            label: 'Nuovi iscritti',
+            data: [1, 1, 1, 1, 1, 1],
+            backgroundColor: '#7a1e2b',
+            borderRadius: 2
+          }, {
+            label: 'Totale',
+            data: [1, 2, 3, 4, 5, 6],
+            type: 'line',
+            borderColor: '#b08840',
+            backgroundColor: 'rgba(176, 136, 64, 0.1)',
+            tension: 0.3,
+            borderWidth: 2
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      });
+
+      new Chart(document.getElementById('chart-requests'), {
+        type: 'pie',
+        data: {
+          labels: ['In attesa', 'Accettate', 'Concluse', 'Rifiutate'],
+          datasets: [{
+            data: [7, 12, 45, 5],
+            backgroundColor: ['#b08840', '#6e7a5a', '#3d342e', '#7a1e2b'],
+            borderColor: '#f4efe6',
+            borderWidth: 2
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'right' } } }
+      });
+
+      // --- Tabella utenti ---
+      function renderUsers(filtered = users) {
+        const tbody = document.getElementById('users-table');
+        tbody.innerHTML = filtered.map(u => {
+          const bookCount = books.filter(b => b.owner_id === u.id).length;
+          return `
+            <tr>
+              <td style="font-family: var(--font-mono); color: var(--color-ink-soft);">#${u.id.toString().padStart(4, '0')}</td>
+              <td><a href="profile.html?id=${u.id}">${u.display_name}</a></td>
+              <td style="font-family: var(--font-mono); font-size: .8rem;">${u.email}</td>
+              <td>${u.city}</td>
+              <td style="font-family: var(--font-mono);">${bookCount}</td>
+              <td style="font-size: .85rem; color: var(--color-ink-soft);">${new Date(u.joined).toLocaleDateString('it-IT')}</td>
+              <td><span class="badge badge--active">Attivo</span></td>
+              <td style="display: flex; gap: .25rem;">
+                <button class="btn btn--small btn--ghost" title="Visualizza">👁</button>
+                <button class="btn btn--small btn--ghost" title="Modifica">✎</button>
+                <button class="btn btn--small btn--ghost" title="Sospendi" style="color: var(--color-burgundy);">✕</button>
+              </td>
+            </tr>`;
+        }).join('');
+      }
+      renderUsers();
+
+      // Filtro utenti
+      document.getElementById('user-search').addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase();
+        renderUsers(users.filter(u =>
+          u.display_name.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q) ||
+          u.city.toLowerCase().includes(q)
+        ));
+      });
+
+      // --- Tabella libri recenti ---
+      const recent = [...books].sort((a, b) => new Date(b.added) - new Date(a.added)).slice(0, 10);
+      document.getElementById('recent-books').innerHTML = recent.map(b => {
+        const owner = users.find(u => u.id === b.owner_id);
+        return `
+          <tr>
+            <td style="font-family: var(--font-mono); color: var(--color-ink-soft);">#${b.id.toString().padStart(4, '0')}</td>
+            <td><a href="book-detail.html?id=${b.id}">${b.title}</a></td>
+            <td style="font-style: italic;">${b.author}</td>
+            <td>${owner ? owner.display_name : '—'}</td>
+            <td><span class="book-card__category" style="padding: 1px 6px; font-size: .7rem;">${b.category}</span></td>
+            <td style="font-size: .85rem; color: var(--color-ink-soft);">${new Date(b.added).toLocaleDateString('it-IT')}</td>
+            <td style="display: flex; gap: .25rem;">
+              <button class="btn btn--small btn--ghost">Approva</button>
+              <button class="btn btn--small btn--ghost" style="color: var(--color-burgundy);">Rimuovi</button>
+            </td>
+          </tr>`;
+      }).join('');
+    });
+
+    // --- Azioni di sistema ---
+    function exportData() {
+      const data = {
+        users: API.getUsers(),
+        books: API.getBooks(),
+        categories: API.getCategories(),
+        exported_at: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `libreria-diffusa-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function regenerateThumbs() {
+      UI.toast('Rigenerazione thumbnail completata (demo)', 'info');
+    }
+
+    function resetData() {
+      if (confirm('Sei sicuro di voler reimpostare tutti i dati del prototipo?')) {
+        Storage.reset();
+        UI.toast('Dati reimpostati.', 'info');
+        setTimeout(() => location.reload(), 1000);
+      }
+    }
+  </script>
+</body>
+</html>
