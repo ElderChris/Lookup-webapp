@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pubblica un libro — Libreria Diffusa</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <a href="#main" class="skip-link">Vai al contenuto principale</a>
+
+  <header class="site-header" role="banner">
+    <div class="site-header__inner">
+      <a href="index.html" class="site-logo">
+        <span class="site-logo__mark" aria-hidden="true"></span>
+        <span>Libreria&nbsp;Diffusa</span>
+      </a>
+      <button class="nav-toggle" aria-label="Apri menu" aria-expanded="false">☰</button>
+      <nav class="site-nav" role="navigation">
+        <a href="index.html">Home</a>
+        <a href="explore.html">Esplora</a>
+        <a href="add-book.html">Pubblica</a>
+        <a href="profile.html">Profilo</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="admin.html">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <section class="section container">
+      <span class="eyebrow">contribuisci al catalogo</span>
+      <h1 style="font-size: 2.75rem; margin-bottom: 1rem;">Pubblica un <em style="color: var(--color-burgundy);">nuovo volume</em></h1>
+      <p style="max-width: 60ch; color: var(--color-ink-soft); margin-bottom: 2rem;">
+        Compila il modulo per aggiungere un libro alla tua collezione pubblica.
+        Tutti i campi contrassegnati con asterisco (<span aria-hidden="true">*</span>) sono obbligatori.
+      </p>
+
+      <!-- Avviso privacy iniziale -->
+      <div class="alert alert--info" role="note">
+        <strong>Privacy:</strong> i dati del libro saranno pubblicamente visibili. La tua posizione
+        viene mostrata sulla mappa con un margine di imprecisione di ~200 m per tutelare la tua privacy.
+        Puoi modificare il livello di pubblicità dal tuo profilo.
+      </div>
+
+      <form class="form" id="book-form" novalidate>
+
+        <div class="form__group">
+          <label class="form__label" for="title">Titolo *</label>
+          <input type="text" id="title" name="title" class="form__input" required
+                 aria-required="true" aria-describedby="title-help" autocomplete="off" />
+          <span class="form__help" id="title-help">Titolo completo del volume.</span>
+        </div>
+
+        <div class="form__row">
+          <div class="form__group">
+            <label class="form__label" for="author">Autore *</label>
+            <input type="text" id="author" name="author" class="form__input" required
+                   aria-required="true" autocomplete="off" />
+          </div>
+          <div class="form__group">
+            <label class="form__label" for="year">Anno di pubblicazione *</label>
+            <input type="number" id="year" name="year" class="form__input"
+                   min="1400" max="2030" required aria-required="true" />
+          </div>
+        </div>
+
+        <div class="form__row">
+          <div class="form__group">
+            <label class="form__label" for="category">Categoria *</label>
+            <select id="category" name="category" class="form__select" required aria-required="true">
+              <option value="">Seleziona…</option>
+            </select>
+          </div>
+          <div class="form__group">
+            <label class="form__label" for="language">Lingua</label>
+            <select id="language" name="language" class="form__select">
+              <option value="Italiano">Italiano</option>
+              <option value="Inglese">Inglese</option>
+              <option value="Francese">Francese</option>
+              <option value="Tedesco">Tedesco</option>
+              <option value="Spagnolo">Spagnolo</option>
+              <option value="Altro">Altro</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form__row">
+          <div class="form__group">
+            <label class="form__label" for="isbn">ISBN</label>
+            <input type="text" id="isbn" name="isbn" class="form__input"
+                   pattern="^\d{10}(\d{3})?$" aria-describedby="isbn-help" autocomplete="off" />
+            <span class="form__help" id="isbn-help">10 o 13 cifre, senza trattini.</span>
+          </div>
+          <div class="form__group">
+            <label class="form__label" for="pages">Pagine</label>
+            <input type="number" id="pages" name="pages" class="form__input" min="1" max="10000" />
+          </div>
+        </div>
+
+        <div class="form__group">
+          <label class="form__label" for="condition">Stato di conservazione</label>
+          <select id="condition" name="condition" class="form__select">
+            <option value="come nuovo">Come nuovo</option>
+            <option value="ottime condizioni">Ottime condizioni</option>
+            <option value="buone condizioni" selected>Buone condizioni</option>
+            <option value="discrete">Discrete</option>
+            <option value="da restauro">Da restauro / collezione</option>
+          </select>
+        </div>
+
+        <div class="form__group">
+          <label class="form__label" for="description">Descrizione *</label>
+          <textarea id="description" name="description" class="form__textarea" required
+                    aria-required="true" aria-describedby="desc-help"
+                    placeholder="Trama, note, perché consigli questo libro…"></textarea>
+          <span class="form__help" id="desc-help">Minimo 20 caratteri, massimo 1000.</span>
+        </div>
+
+        <!-- Upload copertina con anteprima -->
+        <div class="form__group">
+          <label class="form__label" for="cover">Copertina (facoltativa)</label>
+          <label class="form__file" for="cover">
+            <input type="file" id="cover" name="cover" accept="image/jpeg,image/png,image/webp" />
+            <span class="form__file-label">
+              <strong>Trascina qui</strong> o clicca per selezionare un\'immagine
+              <br /><small>JPG, PNG o WebP — massimo 5 MB</small>
+            </span>
+            <div class="form__file-preview" id="cover-preview">
+              <img src="" alt="Anteprima copertina caricata" />
+            </div>
+          </label>
+          <span class="form__help">
+            L\'immagine verrà automaticamente ridimensionata a più formati
+            (thumbnail 160×240, medium 400×600) per ottimizzare la visualizzazione.
+          </span>
+        </div>
+
+        <!-- Consenso pubblicazione -->
+        <div class="form__check">
+          <input type="checkbox" id="consent" required aria-required="true" />
+          <label for="consent">
+            Dichiaro di essere il proprietario di questo volume e acconsento alla sua pubblicazione nel catalogo di Libreria Diffusa. *
+          </label>
+        </div>
+
+        <div style="display: flex; gap: 1rem; align-items: center; margin-top: 1rem;">
+          <button type="submit" class="btn btn--primary">Pubblica il volume</button>
+          <a href="profile.html" class="btn btn--ghost">Annulla</a>
+        </div>
+      </form>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div><h4>Libreria Diffusa</h4><p style="color: rgba(244,239,230,.7); font-size: .9rem;">Un progetto di condivisione del patrimonio librario privato.</p></div>
+      <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
+      <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
+      <div><h4>Info</h4><a href="#">Privacy</a></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.1.0</span></div>
+    </div>
+  </footer>
+
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+      // Popolamento categorie
+      const catSelect = document.getElementById('category');
+      API.getCategories().forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        catSelect.appendChild(opt);
+      });
+
+      // Anteprima copertina con ridimensionamento lato client
+      const coverInput = document.getElementById('cover');
+      const preview = document.getElementById('cover-preview');
+
+      coverInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+          UI.toast('Il file supera il limite di 5 MB', 'error');
+          coverInput.value = '';
+          return;
+        }
+
+        // Lettura e anteprima
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          preview.style.display = 'block';
+          preview.querySelector('img').src = ev.target.result;
+
+          /* Demo di generazione miniatura tramite canvas:
+             in produzione questa operazione andrebbe replicata lato
+             server (es. con Sharp in Node.js) per garantire
+             consistenza e ridurre la banda trasmessa. */
+          generateThumbnail(ev.target.result, 160, 240);
+        };
+        reader.readAsDataURL(file);
+      });
+
+      /** Genera una thumbnail ridimensionata via Canvas */
+      function generateThumbnail(dataUrl, w, h) {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          // Rendering "cover" per non deformare
+          const ratio = Math.max(w/img.width, h/img.height);
+          const newW = img.width * ratio, newH = img.height * ratio;
+          const dx = (w - newW)/2, dy = (h - newH)/2;
+          ctx.drawImage(img, dx, dy, newW, newH);
+          // canvas.toDataURL('image/jpeg', 0.85); // → sarebbe salvata lato server
+        };
+        img.src = dataUrl;
+      }
+
+      // Submit form
+      document.getElementById('book-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const form = e.target;
+
+        // Validazione minima lato client (la validazione vera è lato server)
+        if (!form.checkValidity()) {
+          UI.toast('Compila i campi obbligatori.', 'error');
+          form.reportValidity();
+          return;
+        }
+
+        const desc = form.description.value.trim();
+        if (desc.length < 20) {
+          UI.toast('La descrizione deve contenere almeno 20 caratteri.', 'error');
+          return;
+        }
+
+        // Simulazione salvataggio
+        const newBook = API.addBook({
+          title: form.title.value.trim(),
+          author: form.author.value.trim(),
+          year: +form.year.value,
+          category: form.category.value,
+          language: form.language.value,
+          isbn: form.isbn.value.trim() || '—',
+          pages: +form.pages.value || null,
+          condition: form.condition.value,
+          description: desc,
+          owner_id: 1   // Utente corrente simulato
+        });
+
+        UI.toast('Volume pubblicato con successo!', 'info');
+        setTimeout(() => location.href = `book-detail.html?id=${newBook.id}`, 1500);
+      });
+    });
+  </script>
+</body>
+</html>

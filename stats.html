@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Statistiche — Libreria Diffusa</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Chart.js per grafici -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+
+  <a href="#main" class="skip-link">Vai al contenuto principale</a>
+
+  <header class="site-header" role="banner">
+    <div class="site-header__inner">
+      <a href="index.html" class="site-logo">
+        <span class="site-logo__mark" aria-hidden="true"></span>
+        <span>Libreria&nbsp;Diffusa</span>
+      </a>
+      <button class="nav-toggle" aria-label="Apri menu" aria-expanded="false">☰</button>
+      <nav class="site-nav" role="navigation">
+        <a href="index.html">Home</a>
+        <a href="explore.html">Esplora</a>
+        <a href="add-book.html">Pubblica</a>
+        <a href="profile.html">Profilo</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="admin.html">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <section class="section container">
+      <span class="eyebrow">dashboard pubblica</span>
+      <h1 style="font-size: 2.75rem; margin-bottom: 1rem;">Il <em style="color: var(--color-burgundy);">catalogo in numeri</em></h1>
+      <p style="max-width: 60ch; color: var(--color-ink-soft); margin-bottom: 2.5rem;">
+        Una vista aggregata e anonima dell\'attività sulla piattaforma. Nessun dato personale
+        identificabile è mostrato in questa sezione.
+      </p>
+
+      <!-- Statistiche principali -->
+      <div class="stats-grid" id="main-stats"></div>
+
+      <!-- Due grafici affiancati -->
+      <div class="chart-row" style="margin-top: 2rem;">
+        <div class="chart-container">
+          <h3>Visualizzazioni nel tempo</h3>
+          <p style="font-size: .85rem; color: var(--color-ink-soft); margin-bottom: 1rem;">
+            Andamento mensile delle consultazioni delle schede libro (dati simulati).
+          </p>
+          <canvas id="chart-views" aria-label="Grafico a linee delle visualizzazioni mensili" role="img"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <h3>Distribuzione per categoria</h3>
+          <p style="font-size: .85rem; color: var(--color-ink-soft); margin-bottom: 1rem;">
+            Numero di volumi pubblicati per ciascuna categoria.
+          </p>
+          <canvas id="chart-categories" aria-label="Grafico a ciambella delle categorie" role="img"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-container" style="margin-top: 2rem;">
+        <h3>Top 5 libri più consultati</h3>
+        <canvas id="chart-top-books" aria-label="Grafico a barre dei libri più consultati" role="img" style="max-height: 320px;"></canvas>
+      </div>
+
+      <!-- Tabella top libri -->
+      <div class="section-header" style="margin-top: 3rem;">
+        <h2 style="font-size: 1.75rem;">Classifica dettagliata</h2>
+        <span class="section-meta">aggiornata in tempo reale</span>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Titolo</th>
+            <th>Autore</th>
+            <th>Categoria</th>
+            <th>Visualizzazioni</th>
+            <th>Richieste</th>
+          </tr>
+        </thead>
+        <tbody id="top-table"></tbody>
+      </table>
+
+      <!-- Tabella accessibile come alternativa ai grafici -->
+      <details style="margin-top: 2rem;">
+        <summary style="cursor: pointer; font-style: italic; color: var(--color-ink-soft);">
+          Dati in formato tabellare (versione accessibile dei grafici)
+        </summary>
+        <div id="accessible-data" style="margin-top: 1rem;"></div>
+      </details>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div><h4>Libreria Diffusa</h4><p style="color: rgba(244,239,230,.7); font-size: .9rem;">Un progetto di condivisione del patrimonio librario privato.</p></div>
+      <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
+      <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
+      <div><h4>Info</h4><a href="#">Privacy</a></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.1.0</span></div>
+    </div>
+  </footer>
+
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+      const stats = API.getGlobalStats();
+
+      // --- Cards statistiche ---
+      document.getElementById('main-stats').innerHTML = `
+        <div class="stat-card fade-in">
+          <div class="stat-card__label">Volumi totali</div>
+          <div class="stat-card__value">${stats.total_books}</div>
+          <div class="stat-card__delta">+3 questa settimana</div>
+        </div>
+        <div class="stat-card fade-in">
+          <div class="stat-card__label">Utenti attivi</div>
+          <div class="stat-card__value">${stats.total_users}</div>
+          <div class="stat-card__delta">+1 questa settimana</div>
+        </div>
+        <div class="stat-card fade-in">
+          <div class="stat-card__label">Visualizzazioni</div>
+          <div class="stat-card__value">${stats.total_views.toLocaleString('it-IT')}</div>
+          <div class="stat-card__delta">+248 ultimi 30gg</div>
+        </div>
+        <div class="stat-card fade-in">
+          <div class="stat-card__label">Richieste prestito</div>
+          <div class="stat-card__value">${stats.total_loan_requests}</div>
+          <div class="stat-card__delta">Tasso conversione: 22%</div>
+        </div>
+      `;
+
+      // --- Stile comune Chart.js ---
+      const colorPalette = ['#7a1e2b', '#b08840', '#6e7a5a', '#3d342e', '#5a141f', '#8b6f47', '#9aa885', '#c9bca3'];
+      const ink = '#1a1512';
+      Chart.defaults.font.family = "'Fraunces', Georgia, serif";
+      Chart.defaults.color = '#3d342e';
+      Chart.defaults.borderColor = 'rgba(122, 30, 43, 0.15)';
+
+      // --- Grafico 1: visualizzazioni nel tempo (line chart) ---
+      new Chart(document.getElementById('chart-views'), {
+        type: 'line',
+        data: {
+          labels: ['Nov', 'Dic', 'Gen', 'Feb', 'Mar', 'Apr'],
+          datasets: [{
+            label: 'Visualizzazioni',
+            data: [320, 480, 620, 780, 950, 1240],
+            borderColor: '#7a1e2b',
+            backgroundColor: 'rgba(122, 30, 43, 0.08)',
+            fill: true,
+            tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 5,
+            pointBackgroundColor: '#7a1e2b'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+
+      // --- Grafico 2: categorie (doughnut) ---
+      const topCats = stats.top_categories.slice(0, 6);
+      new Chart(document.getElementById('chart-categories'), {
+        type: 'doughnut',
+        data: {
+          labels: topCats.map(c => c.name),
+          datasets: [{
+            data: topCats.map(c => c.count),
+            backgroundColor: colorPalette,
+            borderColor: '#f4efe6',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'right', labels: { boxWidth: 12, padding: 12 } }
+          },
+          cutout: '60%'
+        }
+      });
+
+      // --- Grafico 3: top libri (bar chart orizzontale) ---
+      const topBooks = stats.top_books;
+      new Chart(document.getElementById('chart-top-books'), {
+        type: 'bar',
+        data: {
+          labels: topBooks.map(b => b.title.length > 30 ? b.title.slice(0, 30) + '…' : b.title),
+          datasets: [{
+            label: 'Visualizzazioni',
+            data: topBooks.map(b => b.views),
+            backgroundColor: '#7a1e2b',
+            borderRadius: 2
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { x: { beginAtZero: true } }
+        }
+      });
+
+      // --- Tabella dettagliata ---
+      document.getElementById('top-table').innerHTML = topBooks.map((b, i) => `
+        <tr>
+          <td style="font-family: var(--font-mono); color: var(--color-ink-soft);">${(i+1).toString().padStart(2, '0')}</td>
+          <td><a href="book-detail.html?id=${b.id}">${b.title}</a></td>
+          <td style="font-style: italic;">${b.author}</td>
+          <td><span class="book-card__category" style="padding: 1px 6px;">${b.category}</span></td>
+          <td style="font-family: var(--font-mono);">${b.views}</td>
+          <td style="font-family: var(--font-mono);">${b.loan_requests}</td>
+        </tr>
+      `).join('');
+
+      // --- Versione accessibile dati grafici ---
+      document.getElementById('accessible-data').innerHTML = `
+        <h4 style="margin-bottom: .5rem;">Visualizzazioni mensili</h4>
+        <table class="data-table">
+          <thead><tr><th>Mese</th><th>Visualizzazioni</th></tr></thead>
+          <tbody>
+            ${['Nov', 'Dic', 'Gen', 'Feb', 'Mar', 'Apr'].map((m, i) =>
+              `<tr><td>${m}</td><td>${[320, 480, 620, 780, 950, 1240][i]}</td></tr>`
+            ).join('')}
+          </tbody>
+        </table>
+        <h4 style="margin: 1.5rem 0 .5rem;">Distribuzione categorie</h4>
+        <table class="data-table">
+          <thead><tr><th>Categoria</th><th>Volumi</th></tr></thead>
+          <tbody>
+            ${topCats.map(c => `<tr><td>${c.name}</td><td>${c.count}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      `;
+    });
+  </script>
+</body>
+</html>

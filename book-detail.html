@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dettaglio libro — Libreria Diffusa</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <a href="#main" class="skip-link">Vai al contenuto principale</a>
+
+  <header class="site-header" role="banner">
+    <div class="site-header__inner">
+      <a href="index.html" class="site-logo">
+        <span class="site-logo__mark" aria-hidden="true"></span>
+        <span>Libreria&nbsp;Diffusa</span>
+      </a>
+      <button class="nav-toggle" aria-label="Apri menu" aria-expanded="false">☰</button>
+      <nav class="site-nav" role="navigation">
+        <a href="index.html">Home</a>
+        <a href="explore.html">Esplora</a>
+        <a href="add-book.html">Pubblica</a>
+        <a href="profile.html">Profilo</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="admin.html">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- Breadcrumb accessibile -->
+    <nav aria-label="Percorso" class="container" style="padding-top: 1rem;">
+      <ol style="display: flex; gap: .5rem; font-size: .85rem; color: var(--color-ink-soft); list-style: none;">
+        <li><a href="index.html">Home</a></li>
+        <li aria-hidden="true">›</li>
+        <li><a href="explore.html">Esplora</a></li>
+        <li aria-hidden="true">›</li>
+        <li aria-current="page" id="breadcrumb-title">—</li>
+      </ol>
+    </nav>
+
+    <section class="section container">
+      <article class="book-detail" id="book-detail"></article>
+    </section>
+
+    <!-- Libri simili dello stesso proprietario -->
+    <section class="section container">
+      <div class="section-header">
+        <h2>Altri volumi di questo lettore</h2>
+        <span class="section-meta" id="other-books-count">—</span>
+      </div>
+      <div class="books-grid" id="other-books"></div>
+    </section>
+
+  </main>
+
+  <!-- Dialog modale per richiesta prestito (nativo accessibile) -->
+  <dialog id="loan-dialog" aria-labelledby="loan-title" style="max-width: 480px; border: none; padding: 0; background: var(--color-paper); box-shadow: 0 24px 60px rgba(0,0,0,.3);">
+    <form method="dialog" class="form" style="padding: 2rem;">
+      <h3 id="loan-title" style="font-family: var(--font-display); margin: 0;">Richiedi il prestito</h3>
+      <p style="color: var(--color-ink-soft); font-size: .9rem;">
+        Questo è un prototipo: la richiesta è simulata. In produzione verrebbe inviata al proprietario tramite notifica e/o email.
+      </p>
+      <div class="form__group">
+        <label class="form__label" for="loan-message">Messaggio (facoltativo)</label>
+        <textarea id="loan-message" class="form__textarea"
+                  placeholder="Aggiungi un breve messaggio al proprietario…"></textarea>
+      </div>
+      <div class="form__check">
+        <input type="checkbox" id="loan-consent" required />
+        <label for="loan-consent">
+          Acconsento alla condivisione del mio nome e contatto email con il proprietario del volume, al solo fine di questa richiesta.
+        </label>
+      </div>
+      <div style="display: flex; gap: .75rem; justify-content: flex-end;">
+        <button type="button" class="btn btn--ghost" onclick="document.getElementById('loan-dialog').close()">Annulla</button>
+        <button type="submit" class="btn btn--primary" id="loan-submit">Invia richiesta</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div><h4>Libreria Diffusa</h4><p style="color: rgba(244,239,230,.7); font-size: .9rem;">Un progetto di condivisione del patrimonio librario privato.</p></div>
+      <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
+      <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
+      <div><h4>Info</h4><a href="#">Privacy</a></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.1.0</span></div>
+    </div>
+  </footer>
+
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+      const id = new URLSearchParams(location.search).get('id') || 1;
+      const book = API.getBook(id);
+      const container = document.getElementById('book-detail');
+
+      if (!book) {
+        container.innerHTML = `<div class="alert alert--error">Libro non trovato.</div>`;
+        return;
+      }
+
+      const owner = API.getUser(book.owner_id);
+
+      // Incrementa visualizzazioni
+      API.incrementViews(id);
+
+      // Aggiorna titolo pagina e breadcrumb
+      document.title = `${book.title} — Libreria Diffusa`;
+      document.getElementById('breadcrumb-title').textContent = book.title;
+
+      container.innerHTML = `
+        <div class="book-detail__cover book-card__cover book-card__cover--placeholder"
+             style="background: ${book.cover_gradient};">
+          ${book.title}
+        </div>
+
+        <div>
+          <span class="book-card__category">${book.category}</span>
+          <h1 class="book-detail__title">${book.title}</h1>
+          <p class="book-detail__author">di ${book.author}</p>
+
+          <dl class="book-detail__metadata">
+            <div class="book-detail__meta-item">
+              <dt class="book-detail__meta-label">Anno</dt>
+              <dd class="book-detail__meta-value">${book.year}</dd>
+            </div>
+            <div class="book-detail__meta-item">
+              <dt class="book-detail__meta-label">Pagine</dt>
+              <dd class="book-detail__meta-value">${book.pages}</dd>
+            </div>
+            <div class="book-detail__meta-item">
+              <dt class="book-detail__meta-label">Lingua</dt>
+              <dd class="book-detail__meta-value">${book.language}</dd>
+            </div>
+            <div class="book-detail__meta-item">
+              <dt class="book-detail__meta-label">ISBN</dt>
+              <dd class="book-detail__meta-value" style="font-family: var(--font-mono); font-size: .85rem;">${book.isbn}</dd>
+            </div>
+          </dl>
+
+          <p class="book-detail__description">${book.description}</p>
+
+          <p style="color: var(--color-ink-soft); font-size: .9rem;">
+            <strong style="color: var(--color-ink);">Stato:</strong> ${book.condition}
+          </p>
+
+          <!-- Box proprietario e azioni -->
+          <div class="owner-box">
+            <p class="owner-box__label">Custodito da</p>
+            <p class="owner-box__name">${owner.display_name}</p>
+            <p class="owner-box__location">${owner.city}</p>
+            <p style="font-size: .85rem; color: var(--color-ink-soft); margin-bottom: 1rem;">
+              ${owner.bio}
+            </p>
+            <div class="owner-box__actions">
+              ${book.available
+                ? `<button class="btn btn--primary" id="request-loan-btn">Richiedi prestito</button>`
+                : `<span class="badge badge--pending">Attualmente in prestito</span>`}
+              <a href="profile.html?id=${owner.id}" class="btn btn--ghost">Profilo del lettore</a>
+            </div>
+          </div>
+
+          <!-- Metriche di visualizzazione -->
+          <div style="margin-top: 2rem; display: flex; gap: 2rem; font-size: .85rem; color: var(--color-ink-soft); font-family: var(--font-mono); letter-spacing: .1em; text-transform: uppercase;">
+            <span>${book.views} visualizzazioni</span>
+            <span>${book.loan_requests} richieste di prestito</span>
+            <span>Pubblicato il ${new Date(book.added).toLocaleDateString('it-IT')}</span>
+          </div>
+        </div>
+      `;
+
+      // Gestione richiesta prestito
+      const btn = document.getElementById('request-loan-btn');
+      if (btn) {
+        btn.addEventListener('click', () => document.getElementById('loan-dialog').showModal());
+      }
+
+      document.getElementById('loan-submit')?.addEventListener('click', e => {
+        if (!document.getElementById('loan-consent').checked) return;
+        e.preventDefault();
+        API.requestLoan(id, 1);   // richiedente simulato: user 1
+        document.getElementById('loan-dialog').close();
+        UI.toast('Richiesta inviata correttamente al proprietario.', 'info');
+        setTimeout(() => location.reload(), 1500);
+      });
+
+      // Altri libri dello stesso proprietario
+      const others = API.getBooksByOwner(owner.id).filter(b => b.id !== book.id);
+      document.getElementById('other-books-count').textContent =
+        `${others.length} altri titoli`;
+      UI.renderBooksGrid(document.getElementById('other-books'), others.slice(0, 4));
+    });
+  </script>
+</body>
+</html>

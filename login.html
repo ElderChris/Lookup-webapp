@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Accedi — Libreria Diffusa</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <a href="#main" class="skip-link">Vai al contenuto principale</a>
+
+  <header class="site-header" role="banner">
+    <div class="site-header__inner">
+      <a href="index.html" class="site-logo">
+        <span class="site-logo__mark" aria-hidden="true"></span>
+        <span>Libreria&nbsp;Diffusa</span>
+      </a>
+      <nav class="site-nav" role="navigation">
+        <a href="index.html">Home</a>
+        <a href="explore.html">Esplora</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <section class="section container" style="max-width: 480px;">
+      <span class="eyebrow">area riservata</span>
+      <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">
+        Bentornato
+      </h1>
+      <p style="color: var(--color-ink-soft); margin-bottom: 2rem;">
+        Accedi per gestire la tua biblioteca, rispondere alle richieste di prestito
+        e scoprire nuovi volumi nelle tue vicinanze.
+      </p>
+
+      <form class="form" novalidate onsubmit="event.preventDefault(); location.href='profile.html';">
+        <div class="form__group">
+          <label class="form__label" for="email">Email</label>
+          <input type="email" id="email" name="email" class="form__input" required
+                 autocomplete="email" aria-required="true" />
+        </div>
+
+        <div class="form__group">
+          <label class="form__label" for="password">Password</label>
+          <input type="password" id="password" name="password" class="form__input" required
+                 autocomplete="current-password" aria-required="true" minlength="8" />
+        </div>
+
+        <div class="form__check">
+          <input type="checkbox" id="remember" />
+          <label for="remember">Ricordami su questo dispositivo</label>
+        </div>
+
+        <button type="submit" class="btn btn--primary" style="width: 100%;">Accedi</button>
+
+        <p style="text-align: center; margin-top: 1rem; font-size: .9rem;">
+          <a href="#">Password dimenticata?</a>
+        </p>
+
+        <hr style="border: none; border-top: 1px solid var(--color-line); margin: 1.5rem 0;" />
+
+        <p style="text-align: center; color: var(--color-ink-soft);">
+          Non hai un account? <a href="register.html">Registrati</a>
+        </p>
+      </form>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div><h4>Libreria Diffusa</h4></div>
+      <div></div>
+      <div></div>
+      <div><h4>Info</h4><a href="#">Privacy</a></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.1.0</span></div>
+    </div>
+  </footer>
+</body>
+</html>
