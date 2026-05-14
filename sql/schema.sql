@@ -328,5 +328,55 @@ CREATE TRIGGER loan_requests_increment
 
 
 -- =============================================================================
+-- TABELLA: PREFERENZE DI PERSONALIZZAZIONE DEL PROFILO (v0.2)
+-- =============================================================================
+-- Memorizza le scelte estetiche e di visualizzazione che l'utente fa
+-- nella pagina dedicata "Personalizza profilo". È in relazione 1:1 con
+-- users e separata dalla tabella principale per due motivi:
+--
+--   1. Le preferenze cambiano molto più spesso dei dati identificativi:
+--      tenerle in una tabella distinta riduce il churn della tabella
+--      users e mantiene leggeri i log di modifica.
+--   2. Sono dati non critici (nessun valore di sicurezza/privacy strutturale)
+--      e possono essere reimpostati senza intaccare l'integrità del profilo.
+-- =============================================================================
+
+CREATE TABLE user_preferences (
+  user_id           BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+
+  -- Modalità di visualizzazione della libreria sul profilo pubblico
+  view_mode         VARCHAR(20) NOT NULL DEFAULT 'grid'
+                    CHECK (view_mode IN ('grid','list','shelf','timeline')),
+
+  -- Tema cromatico applicato a profilo, avatar, accenti
+  theme             VARCHAR(20) NOT NULL DEFAULT 'classic'
+                    CHECK (theme IN ('classic','bordeaux','sage','midnight')),
+
+  -- Stile dell'avatar
+  avatar_style      VARCHAR(20) NOT NULL DEFAULT 'initials'
+                    CHECK (avatar_style IN ('initials','symbol')),
+  avatar_symbol     VARCHAR(8),    -- glifo tipografico se avatar_style='symbol'
+
+  -- Motto / citazione personale visibile in cima al profilo
+  motto             VARCHAR(120),
+
+  -- Ordinamento predefinito della libreria
+  sort_by           VARCHAR(20) NOT NULL DEFAULT 'recent'
+                    CHECK (sort_by IN ('recent','title','author','year')),
+
+  -- Mostra l'email pubblicamente (override di users.email_visible)
+  show_email        BOOLEAN NOT NULL DEFAULT FALSE,
+
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE user_preferences IS 'Preferenze estetiche e di visualizzazione del profilo utente';
+
+CREATE TRIGGER user_preferences_update_timestamp
+  BEFORE UPDATE ON user_preferences
+  FOR EACH ROW EXECUTE FUNCTION trg_update_timestamp();
+
+
+-- =============================================================================
 -- FINE SCHEMA
 -- =============================================================================

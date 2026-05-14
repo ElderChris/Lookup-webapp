@@ -20,7 +20,7 @@ BEGIN;
 
 -- Pulizia preventiva (comoda in fase di sviluppo; commentare in produzione)
 TRUNCATE TABLE view_events, loan_requests, book_images, books,
-               categories, reports, users RESTART IDENTITY CASCADE;
+               user_preferences, categories, reports, users RESTART IDENTITY CASCADE;
 
 
 -- =============================================================================
@@ -303,6 +303,28 @@ SELECT
 FROM books b, generate_series(1, 15);  -- 15 eventi per libro = 180 totali
 
 
+-- =============================================================================
+-- 7. PREFERENZE DI PERSONALIZZAZIONE (v0.2)
+-- =============================================================================
+-- Inseriamo preferenze di esempio per gli utenti, scegliendo modalità di
+-- visualizzazione e temi diversi per illustrare la varietà offerta dalla
+-- piattaforma. Gli utenti senza riga in user_preferences ricadranno sui
+-- valori di default definiti nello schema.
+-- =============================================================================
+
+INSERT INTO user_preferences (user_id, view_mode, theme, avatar_style, avatar_symbol, motto, sort_by)
+SELECT u.id, v.view_mode, v.theme, v.avatar_style, v.avatar_symbol, v.motto, v.sort_by
+FROM (VALUES
+  ('chiara.morandi',  'grid',     'classic',  'initials', NULL, 'Un libro è un sogno che tieni in mano', 'recent'),
+  ('marco.devito',    'shelf',    'midnight', 'symbol',   '§',  'Il delitto perfetto è ancora da scrivere', 'author'),
+  ('anna.russo',      'timeline', 'bordeaux', 'initials', NULL, 'Le edizioni antiche meritano rispetto', 'year'),
+  ('luca.esposito',   'list',     'sage',     'symbol',   '❦',  'La storia di Napoli scritta dai suoi libri', 'title'),
+  ('giulia.ferrari',  'grid',     'sage',     'symbol',   '❧',  'Tradurre è abitare due lingue', 'recent'),
+  ('roberto.mazzone', 'shelf',    'midnight', 'symbol',   '✦',  'Il futuro lo immaginiamo prima di costruirlo', 'year')
+) AS v(username, view_mode, theme, avatar_style, avatar_symbol, motto, sort_by)
+JOIN users u ON u.username = v.username;
+
+
 COMMIT;
 
 
@@ -316,6 +338,7 @@ COMMIT;
 --   SELECT COUNT(*) FROM books;             -- attesi: 12
 --   SELECT COUNT(*) FROM loan_requests;     -- attesi: 6
 --   SELECT COUNT(*) FROM view_events;       -- attesi: 180
+--   SELECT COUNT(*) FROM user_preferences;  -- attesi: 6
 --
 --   -- Test della ricerca spaziale: libri entro 3 km da Piazza del Plebiscito
 --   SELECT * FROM find_books_within(40.8358, 14.2488, 3000);

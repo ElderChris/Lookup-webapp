@@ -22,6 +22,7 @@
         <a href="explore.html">Esplora</a>
         <a href="add-book.html">Pubblica</a>
         <a href="profile.html">Profilo</a>
+        <a href="profile-setup.html">Personalizza</a>
         <a href="stats.html">Statistiche</a>
         <a href="admin.html">Admin</a>
       </nav>
@@ -36,6 +37,11 @@
       <p style="max-width: 60ch; color: var(--color-ink-soft); margin-bottom: 2rem;">
         Compila il modulo per aggiungere un libro alla tua collezione pubblica.
         Tutti i campi contrassegnati con asterisco (<span aria-hidden="true">*</span>) sono obbligatori.
+        Ogni campo viene <strong>verificato in tempo reale</strong>: il bordo
+        diventa <span style="color: var(--color-sage); font-weight: 500;">verde</span>
+        se il valore è valido,
+        <span style="color: var(--color-burgundy); font-weight: 500;">rosso</span>
+        se contiene un errore.
       </p>
 
       <!-- Avviso privacy iniziale -->
@@ -49,15 +55,17 @@
 
         <div class="form__group">
           <label class="form__label" for="title">Titolo *</label>
-          <input type="text" id="title" name="title" class="form__input" required
+          <input type="text" id="title" name="title" class="form__input"
+                 minlength="2" maxlength="500" required
                  aria-required="true" aria-describedby="title-help" autocomplete="off" />
-          <span class="form__help" id="title-help">Titolo completo del volume.</span>
+          <span class="form__help" id="title-help">Titolo completo del volume (minimo 2 caratteri).</span>
         </div>
 
         <div class="form__row">
           <div class="form__group">
             <label class="form__label" for="author">Autore *</label>
-            <input type="text" id="author" name="author" class="form__input" required
+            <input type="text" id="author" name="author" class="form__input"
+                   minlength="2" maxlength="300" required
                    aria-required="true" autocomplete="off" />
           </div>
           <div class="form__group">
@@ -92,7 +100,7 @@
             <label class="form__label" for="isbn">ISBN</label>
             <input type="text" id="isbn" name="isbn" class="form__input"
                    pattern="^\d{10}(\d{3})?$" aria-describedby="isbn-help" autocomplete="off" />
-            <span class="form__help" id="isbn-help">10 o 13 cifre, senza trattini.</span>
+            <span class="form__help" id="isbn-help">10 o 13 cifre, senza trattini né spazi.</span>
           </div>
           <div class="form__group">
             <label class="form__label" for="pages">Pagine</label>
@@ -114,6 +122,7 @@
         <div class="form__group">
           <label class="form__label" for="description">Descrizione *</label>
           <textarea id="description" name="description" class="form__textarea" required
+                    minlength="20" maxlength="1000"
                     aria-required="true" aria-describedby="desc-help"
                     placeholder="Trama, note, perché consigli questo libro…"></textarea>
           <span class="form__help" id="desc-help">Minimo 20 caratteri, massimo 1000.</span>
@@ -125,7 +134,7 @@
           <label class="form__file" for="cover">
             <input type="file" id="cover" name="cover" accept="image/jpeg,image/png,image/webp" />
             <span class="form__file-label">
-              <strong>Trascina qui</strong> o clicca per selezionare un\'immagine
+              <strong>Trascina qui</strong> o clicca per selezionare un'immagine
               <br /><small>JPG, PNG o WebP — massimo 5 MB</small>
             </span>
             <div class="form__file-preview" id="cover-preview">
@@ -133,7 +142,7 @@
             </div>
           </label>
           <span class="form__help">
-            L\'immagine verrà automaticamente ridimensionata a più formati
+            L'immagine verrà automaticamente ridimensionata a più formati
             (thumbnail 160×240, medium 400×600) per ottimizzare la visualizzazione.
           </span>
         </div>
@@ -146,8 +155,11 @@
           </label>
         </div>
 
+        <!-- Riepilogo errori globale (annunciato agli screen reader) -->
+        <div id="form-summary" class="alert alert--error" role="alert" hidden></div>
+
         <div style="display: flex; gap: 1rem; align-items: center; margin-top: 1rem;">
-          <button type="submit" class="btn btn--primary">Pubblica il volume</button>
+          <button type="submit" class="btn btn--primary" id="submit-btn">Pubblica il volume</button>
           <a href="profile.html" class="btn btn--ghost">Annulla</a>
         </div>
       </form>
@@ -161,7 +173,7 @@
       <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
       <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
       <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.1.0</span></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.2.0</span></div>
     </div>
   </footer>
 
@@ -169,7 +181,9 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
-      // Popolamento categorie
+      const form = document.getElementById('book-form');
+
+      /* ----- Popolamento categorie ----- */
       const catSelect = document.getElementById('category');
       API.getCategories().forEach(c => {
         const opt = document.createElement('option');
@@ -177,7 +191,41 @@
         catSelect.appendChild(opt);
       });
 
-      // Anteprima copertina con ridimensionamento lato client
+      /* ----- Validazione live --------------------------------
+         Le regole che superano i validity state nativi (es.
+         lunghezza minima della descrizione, ISBN solo numerico)
+         sono gestite tramite il dizionario customRules. */
+      UI.attachLiveValidation(form, {
+        title: (v) => v.trim().length >= 2 || 'Il titolo deve avere almeno 2 caratteri.',
+        author: (v) => v.trim().length >= 2 || 'Il nome dell\'autore è troppo corto.',
+        year: (v) => {
+          const n = parseInt(v, 10);
+          if (isNaN(n)) return 'Inserisci un anno valido.';
+          if (n < 1400) return 'Anno troppo antico (min. 1400).';
+          if (n > 2030) return 'Anno non plausibile (max. 2030).';
+          return true;
+        },
+        isbn: (v) => {
+          const clean = v.replace(/[\s-]/g, '');
+          if (!clean) return true; // ISBN è facoltativo
+          if (!/^\d{10}$|^\d{13}$/.test(clean))
+            return 'L\'ISBN deve contenere esattamente 10 o 13 cifre.';
+          return true;
+        },
+        description: (v) => {
+          const len = v.trim().length;
+          if (len < 20) return `Ancora ${20 - len} caratteri al minimo richiesto.`;
+          if (len > 1000) return 'Descrizione troppo lunga (max. 1000 caratteri).';
+          return true;
+        },
+        pages: (v) => {
+          if (!v) return true;
+          const n = parseInt(v, 10);
+          return (n >= 1 && n <= 10000) || 'Numero di pagine non plausibile.';
+        }
+      });
+
+      /* ----- Anteprima copertina ----- */
       const coverInput = document.getElementById('cover');
       const preview = document.getElementById('cover-preview');
 
@@ -189,17 +237,10 @@
           coverInput.value = '';
           return;
         }
-
-        // Lettura e anteprima
         const reader = new FileReader();
         reader.onload = (ev) => {
           preview.style.display = 'block';
           preview.querySelector('img').src = ev.target.result;
-
-          /* Demo di generazione miniatura tramite canvas:
-             in produzione questa operazione andrebbe replicata lato
-             server (es. con Sharp in Node.js) per garantire
-             consistenza e ridurre la banda trasmessa. */
           generateThumbnail(ev.target.result, 160, 240);
         };
         reader.readAsDataURL(file);
@@ -212,35 +253,49 @@
           const canvas = document.createElement('canvas');
           canvas.width = w; canvas.height = h;
           const ctx = canvas.getContext('2d');
-          // Rendering "cover" per non deformare
           const ratio = Math.max(w/img.width, h/img.height);
           const newW = img.width * ratio, newH = img.height * ratio;
           const dx = (w - newW)/2, dy = (h - newH)/2;
           ctx.drawImage(img, dx, dy, newW, newH);
-          // canvas.toDataURL('image/jpeg', 0.85); // → sarebbe salvata lato server
         };
         img.src = dataUrl;
       }
 
-      // Submit form
-      document.getElementById('book-form').addEventListener('submit', (e) => {
+      /* ----- Submit con riepilogo errori -----
+         Marca tutti i campi come "touched" per forzare la validazione
+         visibile, raccoglie eventuali errori e li mostra in un riepilogo
+         globale per gli screen reader / utenti tastiera. */
+      form.addEventListener('submit', (e) => {
         e.preventDefault();
-        const form = e.target;
 
-        // Validazione minima lato client (la validazione vera è lato server)
-        if (!form.checkValidity()) {
-          UI.toast('Compila i campi obbligatori.', 'error');
-          form.reportValidity();
+        // Trigger della validazione live su tutti i campi
+        form.querySelectorAll('input, select, textarea').forEach(f => {
+          f.classList.add('touched');
+          f.dispatchEvent(new Event('blur'));
+        });
+
+        const summary = document.getElementById('form-summary');
+        const invalidGroups = form.querySelectorAll('.form__group--validated.is-invalid');
+        const consent = document.getElementById('consent');
+
+        if (invalidGroups.length > 0 || !form.checkValidity() || !consent.checked) {
+          const errors = [];
+          invalidGroups.forEach(g => {
+            const label = g.querySelector('.form__label')?.textContent.replace(/\s*\*$/, '');
+            const msg = g.querySelector('.form__feedback')?.textContent;
+            if (label) errors.push(`${label}: ${msg || 'errore'}`);
+          });
+          if (!consent.checked) errors.push('Devi confermare di essere il proprietario del volume.');
+          summary.hidden = false;
+          summary.innerHTML = `<strong>Correggi ${errors.length} ${errors.length === 1 ? 'errore' : 'errori'} prima di pubblicare:</strong>
+            <ul style="margin: .5rem 0 0; padding-left: 1.4rem;">${errors.map(e => `<li>${e}</li>`).join('')}</ul>`;
+          summary.scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
 
-        const desc = form.description.value.trim();
-        if (desc.length < 20) {
-          UI.toast('La descrizione deve contenere almeno 20 caratteri.', 'error');
-          return;
-        }
+        summary.hidden = true;
 
-        // Simulazione salvataggio
+        // Salvataggio simulato
         const newBook = API.addBook({
           title: form.title.value.trim(),
           author: form.author.value.trim(),
@@ -250,8 +305,8 @@
           isbn: form.isbn.value.trim() || '—',
           pages: +form.pages.value || null,
           condition: form.condition.value,
-          description: desc,
-          owner_id: 1   // Utente corrente simulato
+          description: form.description.value.trim(),
+          owner_id: API.getCurrentUser()?.id || 1
         });
 
         UI.toast('Volume pubblicato con successo!', 'info');
