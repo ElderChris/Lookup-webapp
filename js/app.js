@@ -286,6 +286,76 @@ const API = {
     return Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count);
+  },
+
+  /* -------------------------------------------------------------
+     Statistiche per singolo utente — usate dalle card "Libreria
+     dell'utente" mostrate sulla home in luogo delle categorie.
+     ------------------------------------------------------------- */
+  getUsersWithLibraryStats() {
+    const books = this.getBooks();
+    return this.getUsers().map(u => {
+      const userBooks = books.filter(b => b.owner_id === u.id);
+      return {
+        ...u,
+        book_count: userBooks.length,
+        total_views: userBooks.reduce((s, b) => s + (b.views || 0), 0),
+        last_added: userBooks
+          .map(b => b.added)
+          .sort()
+          .pop() || null
+      };
+    });
+  },
+
+  /* Restituisce i libri di uno specifico utente (per profilo /
+     librerie aperte). Filtra opzionalmente per disponibilità. */
+  getBooksByUser(userId, { onlyAvailable = false } = {}) {
+    return this.getBooks().filter(b =>
+      b.owner_id === +userId && (!onlyAvailable || b.available)
+    );
+  },
+
+  /* -------------------------------------------------------------
+     Stato di autenticazione SIMULATO (didattico).
+     In produzione lo stato deriva da JWT + refresh token; qui
+     lo memorizziamo come stringa "user" | "guest" in localStorage
+     per consentire il toggle dimostrativo dalla home.
+     ------------------------------------------------------------- */
+  getAuthState() {
+    return Storage.get('auth_state', 'user');
+  },
+  setAuthState(state) {
+    if (state !== 'user' && state !== 'guest') return;
+    Storage.set('auth_state', state);
+    document.body.dataset.authState = state;
+  },
+  /* In modalità "user" simuliamo che l'utente loggato sia il primo
+     della lista (Chiara Morandi). */
+  getCurrentUser() {
+    if (this.getAuthState() !== 'user') return null;
+    return this.getUser(1);
+  },
+
+  /* -------------------------------------------------------------
+     Preferenze di personalizzazione del profilo (pagina dedicata).
+     Persistono per-utente in localStorage; in produzione vivono
+     nella tabella users con colonne JSONB.
+     ------------------------------------------------------------- */
+  getProfilePrefs(userId) {
+    return Storage.get(`profile_prefs_${userId}`, {
+      view_mode: 'grid',          // grid | list | shelf | timeline
+      theme: 'classic',           // classic | bordeaux | sage | midnight
+      avatar_style: 'initials',   // initials | symbol
+      avatar_symbol: '§',
+      motto: '',
+      sort_by: 'recent',          // recent | title | author | year
+      privacy_level: 2,
+      show_email: false
+    });
+  },
+  setProfilePrefs(userId, prefs) {
+    Storage.set(`profile_prefs_${userId}`, prefs);
   }
 };
 
@@ -354,6 +424,132 @@ const UI = {
     document.body.appendChild(t);
     setTimeout(() => t.style.opacity = '0', 3000);
     setTimeout(() => t.remove(), 3500);
+  },
+
+  /* -------------------------------------------------------------
+     Card "Libreria utente" — nuovo componente per la home.
+     Mostra un mini-profilo con bio, conteggio libri e link.
+     ------------------------------------------------------------- */
+  renderLibraryCard(user) {
+    const initial = (user.display_name || user.username || '?')
+      .trim()[0].toUpperCase();
+    const bookLabel = user.book_count === 1 ? 'volume' : 'volumi';
+    return `
+      <a href="profile.html?user=${user.id}" class="library-card">
+        <div class="library-card__head">
+          <div class="library-card__avatar" aria-hidden="true">${initial}</div>
+          <div>
+            <h3 class="library-card__name">${user.display_name}</h3>
+            <span class="library-card__city">${user.city || '—'}</span>
+          </div>
+        </div>
+        <p class="library-card__bio">${user.bio || 'Nessuna biografia disponibile.'}</p>
+        <div class="library-card__footer">
+          <span class="library-card__count">${user.book_count} ${bookLabel}</span>
+          <span class="library-card__link">visita →</span>
+        </div>
+      </a>`;
+  },
+
+  /* -------------------------------------------------------------
+     Validazione live: collega ascoltatori 'input'/'blur' a un form
+     per applicare le classi visive .touched / .is-valid / .is-invalid
+     mostrando feedback testuale immediato sotto ogni campo.
+     ------------------------------------------------------------- */
+  attachLiveValidation(form, customRules = {}) {
+    const fields = form.querySelectorAll('input, select, textarea');
+
+    fields.forEach(field => {
+      // Salta i checkbox/radio: la loro UX è diversa
+      if (['checkbox', 'radio', 'file', 'hidden'].includes(field.type)) return;
+
+      const group = field.closest('.form__group');
+      if (group) group.classList.add('form__group--validated');
+
+      // Crea contenitore feedback se assente
+      let feedback = group?.querySelector('.form__feedback');
+      if (group && !feedback) {
+        feedback = document.createElement('span');
+        feedback.className = 'form__feedback';
+        feedback.setAttribute('aria-live', 'polite');
+        group.appendChild(feedback);
+      }
+
+      const validate = () => {
+        if (!field.value && !field.required) {
+          // Campo facoltativo lasciato vuoto: stato neutro
+          group?.classList.remove('is-valid', 'is-invalid');
+          if (feedback) { feedback.textContent = ''; feedback.className = 'form__feedback'; }
+          return;
+        }
+
+        let ok = field.checkValidity();
+        let msg = '';
+
+        // Regola personalizzata aggiuntiva (es. minLen descrizione)
+        if (ok && customRules[field.name]) {
+          const result = customRules[field.name](field.value, field);
+          if (result !== true) { ok = false; msg = result; }
+        }
+
+        // Messaggi italianizzati per i validity state nativi
+        if (!ok && !msg) {
+          if (field.validity.valueMissing)        msg = 'Campo obbligatorio.';
+          else if (field.validity.typeMismatch)   msg = 'Formato non valido.';
+          else if (field.validity.patternMismatch)msg = 'Formato non valido.';
+          else if (field.validity.tooShort)       msg = `Minimo ${field.minLength} caratteri.`;
+          else if (field.validity.tooLong)        msg = `Massimo ${field.maxLength} caratteri.`;
+          else if (field.validity.rangeUnderflow) msg = `Valore minimo: ${field.min}.`;
+          else if (field.validity.rangeOverflow)  msg = `Valore massimo: ${field.max}.`;
+          else                                    msg = 'Valore non valido.';
+        }
+
+        group?.classList.toggle('is-valid', ok);
+        group?.classList.toggle('is-invalid', !ok);
+        if (feedback) {
+          feedback.textContent = ok ? '✓ Campo valido.' : msg;
+          feedback.className = 'form__feedback ' +
+            (ok ? 'form__feedback--ok' : 'form__feedback--error');
+        }
+      };
+
+      // Marca come "toccato" al primo blur (per evitare di mostrare
+      // errori prima ancora che l'utente abbia interagito col campo)
+      field.addEventListener('blur',  () => { field.classList.add('touched'); validate(); });
+      field.addEventListener('input', () => {
+        if (field.classList.contains('touched')) validate();
+      });
+    });
+  },
+
+  /* -------------------------------------------------------------
+     Inizializza il toggle dello stato di autenticazione (header).
+     ------------------------------------------------------------- */
+  initAuthToggle() {
+    const state = API.getAuthState();
+    document.body.dataset.authState = state;
+
+    const toggle = document.querySelector('.auth-toggle');
+    if (!toggle) return;
+
+    const update = () => {
+      const s = API.getAuthState();
+      toggle.dataset.state = s;
+      const txt = toggle.querySelector('.auth-toggle__text');
+      if (txt) txt.textContent = s === 'user' ? 'visita autenticata' : 'visita anonima';
+      toggle.setAttribute('aria-label',
+        s === 'user'
+          ? 'Sei in modalità autenticata. Clicca per simulare un nuovo visitatore.'
+          : 'Sei in modalità visitatore. Clicca per simulare l\'accesso utente.');
+    };
+
+    update();
+    toggle.addEventListener('click', () => {
+      const next = API.getAuthState() === 'user' ? 'guest' : 'user';
+      API.setAuthState(next);
+      update();
+      document.dispatchEvent(new CustomEvent('auth:change', { detail: { state: next }}));
+    });
   }
 };
 
@@ -365,6 +561,7 @@ document.addEventListener('DOMContentLoaded', () => {
   Storage.init();
   UI.initMobileNav();
   UI.highlightActiveNav();
+  UI.initAuthToggle();
 });
 
 /* Esposizione globale per uso in altri script */

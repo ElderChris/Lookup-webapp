@@ -752,3 +752,610 @@ a:hover { color: var(--color-burgundy-dk); }
   .site-header, .site-footer, .btn, .hero__actions { display: none; }
   body { background: white; color: black; }
 }
+
+/* =====================================================================
+   23. ESTENSIONI — sezioni aggiunte nella revisione v0.2
+   ===================================================================== */
+
+/* ---- 23.1 Toggle stato autenticazione (header) -------------------- */
+/* Piccolo selettore visibile in alto a destra che simula la presenza
+   o l'assenza di una sessione utente. È un dispositivo *didattico*:
+   in produzione lo stato deriva dal token JWT e non è modificabile
+   dall'utente. */
+.auth-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 4px 8px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: all 0.2s ease;
+}
+.auth-toggle:hover {
+  border-color: var(--color-burgundy);
+  color: var(--color-burgundy);
+}
+.auth-toggle__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-sage);
+  display: inline-block;
+}
+.auth-toggle[data-state="guest"] .auth-toggle__dot { background: var(--color-line); }
+
+/* Saluto personalizzato e azioni guest mostrati condizionalmente */
+.user-greeting {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: rgba(122, 30, 43, 0.05);
+  border-left: 3px solid var(--color-burgundy);
+  margin-bottom: var(--sp-4);
+  font-style: italic;
+  color: var(--color-ink-soft);
+}
+.user-greeting strong {
+  font-style: normal;
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+}
+
+/* Visibilità condizionata in base allo stato di auth */
+[data-auth-state="guest"] .auth-only,
+[data-auth-state="user"] .guest-only {
+  display: none !important;
+}
+
+/* ---- 23.2 Card "Libreria utente" ---------------------------------- */
+/* Sostituisce la lista chip delle categorie con una vetrina di
+   utenti / mini-biblioteche. Stile coerente con .book-card ma
+   declinato sul soggetto-persona. */
+.libraries-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--sp-6);
+  margin-top: var(--sp-4);
+}
+
+.library-card {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  padding: var(--sp-6);
+  display: grid;
+  gap: var(--sp-3);
+  transition: all 0.25s ease;
+  border-radius: var(--radius);
+  position: relative;
+  overflow: hidden;
+}
+.library-card::before {
+  content: "";
+  position: absolute;
+  top: 0; right: 0;
+  width: 60px; height: 60px;
+  background: radial-gradient(circle at top right,
+    rgba(176, 136, 64, 0.18), transparent 70%);
+}
+.library-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--color-burgundy);
+  box-shadow: 0 12px 24px var(--color-shadow);
+}
+
+.library-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.library-card__avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-burgundy), var(--color-gold));
+  color: var(--color-paper);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.library-card__name {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--color-ink);
+  margin: 0;
+  line-height: 1.2;
+}
+.library-card__city {
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.library-card__bio {
+  font-size: var(--fs-sm);
+  color: var(--color-ink-soft);
+  line-height: 1.55;
+  /* Limita a 3 righe con ellissi */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.library-card__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--sp-3);
+  border-top: 1px dashed var(--color-line);
+  font-size: var(--fs-xs);
+}
+.library-card__count {
+  color: var(--color-burgundy);
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+.library-card__link {
+  color: var(--color-ink-soft);
+  text-decoration: none;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.library-card__link:hover { color: var(--color-burgundy); }
+
+/* ---- 23.3 Validazione live dei form ------------------------------- */
+/* Bordo verde quando l'input è valido, rosso quando non lo è.
+   Si applica solo dopo che l'utente ha interagito col campo
+   (classe .touched aggiunta via JS al primo blur). */
+.form__input.touched:valid,
+.form__select.touched:valid,
+.form__textarea.touched:valid,
+.form__input--valid {
+  border-color: var(--color-sage);
+  background: rgba(110, 122, 90, 0.04);
+}
+.form__input.touched:invalid,
+.form__select.touched:invalid,
+.form__textarea.touched:invalid,
+.form__input--invalid {
+  border-color: var(--color-burgundy);
+  background: rgba(122, 30, 43, 0.04);
+}
+.form__input.touched:valid:focus,
+.form__select.touched:valid:focus,
+.form__textarea.touched:valid:focus {
+  box-shadow: 0 0 0 3px rgba(110, 122, 90, 0.18);
+}
+.form__input.touched:invalid:focus,
+.form__select.touched:invalid:focus,
+.form__textarea.touched:invalid:focus {
+  box-shadow: 0 0 0 3px rgba(122, 30, 43, 0.18);
+}
+
+/* Messaggio di feedback di validazione */
+.form__feedback {
+  font-size: var(--fs-xs);
+  font-style: italic;
+  margin-top: 2px;
+  min-height: 1em;
+}
+.form__feedback--ok    { color: var(--color-sage); }
+.form__feedback--error { color: var(--color-burgundy); }
+
+/* Indicatore visuale di stato a destra dell'input */
+.form__group--validated {
+  position: relative;
+}
+.form__group--validated .form__input,
+.form__group--validated .form__select,
+.form__group--validated .form__textarea {
+  padding-right: 2.4rem;
+}
+.form__group--validated::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 38px;          /* sotto l'etichetta */
+  width: 16px; height: 16px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+.form__group--validated.is-valid::after {
+  opacity: 1;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='none' stroke='%236e7a5a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M3 8.5l3 3 7-7'/></svg>");
+}
+.form__group--validated.is-invalid::after {
+  opacity: 1;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='none' stroke='%237a1e2b' stroke-width='2' stroke-linecap='round' d='M4 4l8 8M12 4l-8 8'/></svg>");
+}
+
+/* ---- 23.4 Pagina personalizzazione profilo ------------------------ */
+.profile-builder {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: var(--sp-8);
+  align-items: start;
+}
+
+/* Colonna sinistra — anteprima persistente */
+.profile-preview {
+  position: sticky;
+  top: var(--sp-6);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  padding: var(--sp-6);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 18px var(--color-shadow);
+}
+.profile-preview__label {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  margin-bottom: var(--sp-3);
+}
+.profile-preview__avatar {
+  width: 96px; height: 96px;
+  border-radius: 50%;
+  margin: 0 auto var(--sp-3);
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--color-burgundy), var(--color-gold));
+  color: var(--color-paper);
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 600;
+  transition: background 0.3s ease;
+}
+.profile-preview__name {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  text-align: center;
+  margin: 0;
+  color: var(--color-ink);
+}
+.profile-preview__motto {
+  text-align: center;
+  font-style: italic;
+  color: var(--color-ink-soft);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--sp-3);
+  min-height: 1.5em;
+}
+.profile-preview__stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-sm);
+  padding: var(--sp-2) 0;
+  border-top: 1px dashed var(--color-line);
+  color: var(--color-ink-soft);
+}
+.profile-preview__stat:last-child { border-bottom: 1px dashed var(--color-line); }
+.profile-preview__stat strong {
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+}
+
+/* Colonna destra — sezioni accordion */
+.builder-section {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  padding: var(--sp-6);
+  margin-bottom: var(--sp-5);
+  border-radius: var(--radius);
+}
+.builder-section h3 {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  margin-top: 0;
+  margin-bottom: var(--sp-2);
+  color: var(--color-ink);
+}
+.builder-section__lead {
+  color: var(--color-ink-soft);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--sp-5);
+  max-width: 60ch;
+}
+
+/* Gruppo radio "card" — usato per le scelte di stile/visualizzazione */
+.choice-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sp-3);
+}
+.choice-card {
+  position: relative;
+  border: 1px solid var(--color-line);
+  padding: var(--sp-4);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--color-paper);
+  text-align: center;
+}
+.choice-card input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.choice-card:hover { border-color: var(--color-burgundy); }
+.choice-card:has(input:checked) {
+  border-color: var(--color-burgundy);
+  background: rgba(122, 30, 43, 0.06);
+  box-shadow: 0 0 0 2px var(--color-burgundy);
+}
+.choice-card__icon {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  color: var(--color-burgundy);
+  margin-bottom: var(--sp-2);
+}
+.choice-card__title {
+  font-weight: 500;
+  font-size: var(--fs-sm);
+  color: var(--color-ink);
+}
+.choice-card__desc {
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Swatches di colore-tema */
+.theme-swatches {
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.theme-swatch {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--color-line);
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.theme-swatch:hover { transform: scale(1.08); }
+.theme-swatch input { position: absolute; opacity: 0; pointer-events: none; }
+.theme-swatch:has(input:checked) {
+  border-color: var(--color-ink);
+  box-shadow: 0 0 0 2px var(--color-paper), 0 0 0 4px var(--color-ink);
+}
+.theme-swatch__name {
+  position: absolute;
+  bottom: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-ink-soft);
+  white-space: nowrap;
+}
+
+/* Slider di privacy con etichette discrete */
+.privacy-slider {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.privacy-slider label {
+  text-align: center;
+  padding: var(--sp-3) var(--sp-2);
+  cursor: pointer;
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+  border-right: 1px solid var(--color-line);
+  transition: all 0.2s ease;
+}
+.privacy-slider label:last-of-type { border-right: none; }
+.privacy-slider input { position: absolute; opacity: 0; pointer-events: none; }
+.privacy-slider label:has(input:checked) {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  font-weight: 500;
+}
+.privacy-slider label strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: inherit;
+  margin-bottom: 2px;
+}
+
+/* ---- 23.5 Mostra/Nascondi modi visualizzazione libreria ---------- */
+/* Toolbar di switch per la visualizzazione (grid / list / shelf / timeline) */
+.view-switcher {
+  display: inline-flex;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.view-switcher button {
+  background: transparent;
+  border: none;
+  padding: var(--sp-2) var(--sp-4);
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  border-right: 1px solid var(--color-line);
+  transition: all 0.2s ease;
+}
+.view-switcher button:last-child { border-right: none; }
+.view-switcher button:hover { background: var(--color-paper-dark); color: var(--color-ink); }
+.view-switcher button.is-active {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+}
+
+/* Modi visualizzazione: list */
+.books-list {
+  display: grid;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+.books-list__item {
+  display: grid;
+  grid-template-columns: 60px 1fr auto;
+  gap: var(--sp-4);
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+  transition: border-color 0.2s ease;
+  text-decoration: none;
+  color: inherit;
+}
+.books-list__item:hover { border-color: var(--color-burgundy); }
+.books-list__cover {
+  width: 60px; height: 90px;
+  background: var(--color-paper-dark);
+  border-radius: 2px;
+  display: grid; place-items: center;
+  font-family: var(--font-display);
+  color: var(--color-paper);
+  font-size: 0.9rem;
+}
+.books-list__main h4 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  margin: 0 0 2px;
+  color: var(--color-ink);
+}
+.books-list__main span {
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+}
+.books-list__meta {
+  text-align: right;
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+}
+
+/* Modi visualizzazione: shelf (scaffale orizzontale) */
+.books-shelf {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-6) var(--sp-4);
+  background: linear-gradient(180deg,
+    var(--color-paper-dark) 0%,
+    var(--color-paper) 30%,
+    var(--color-paper) 80%,
+    var(--color-paper-dark) 100%);
+  border-bottom: 4px solid var(--color-ink-soft);
+  overflow-x: auto;
+  margin-top: var(--sp-4);
+  border-radius: var(--radius);
+}
+.books-shelf__book {
+  flex-shrink: 0;
+  width: 50px;
+  height: 200px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  color: var(--color-paper);
+  font-size: 0.7rem;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  cursor: pointer;
+  padding: var(--sp-2);
+  text-align: center;
+  box-shadow: -2px 0 0 rgba(0, 0, 0, 0.1) inset;
+  transition: transform 0.2s ease;
+  text-decoration: none;
+  letter-spacing: 0.05em;
+  overflow: hidden;
+}
+.books-shelf__book:hover {
+  transform: rotate(180deg) translateY(-8px);
+}
+
+/* Modi visualizzazione: timeline */
+.books-timeline {
+  position: relative;
+  padding-left: var(--sp-8);
+  margin-top: var(--sp-4);
+}
+.books-timeline::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: var(--color-line);
+}
+.books-timeline__item {
+  position: relative;
+  padding-bottom: var(--sp-5);
+}
+.books-timeline__item::before {
+  content: "";
+  position: absolute;
+  left: -28px;
+  top: 6px;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--color-burgundy);
+  border: 2px solid var(--color-paper);
+  box-shadow: 0 0 0 1px var(--color-line);
+}
+.books-timeline__year {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--color-burgundy);
+  letter-spacing: 0.1em;
+}
+.books-timeline__title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: var(--color-ink);
+  margin: 2px 0;
+}
+.books-timeline__author {
+  font-size: var(--fs-sm);
+  color: var(--color-ink-soft);
+  font-style: italic;
+}
+
+/* Adattamenti responsive */
+@media (max-width: 1024px) {
+  .profile-builder { grid-template-columns: 1fr; }
+  .profile-preview { position: static; margin-bottom: var(--sp-5); }
+}
+@media (max-width: 768px) {
+  .libraries-grid { grid-template-columns: 1fr; }
+  .privacy-slider { grid-template-columns: 1fr 1fr; }
+  .privacy-slider label { border-right: none; border-bottom: 1px solid var(--color-line); }
+  .books-list__item { grid-template-columns: 50px 1fr; }
+  .books-list__meta { display: none; }
+}
