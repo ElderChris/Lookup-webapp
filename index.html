@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Libreria Diffusa — piattaforma di geolocalizzazione culturale per la condivisione di patrimoni librari privati." />
   <title>Libreria Diffusa — Condividi la tua biblioteca</title>
-  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Il parametro ?v= serve come "cache-busting": cambiando versione,
+       il browser è costretto a riscaricare il file invece di servire
+       una copia obsoleta dalla cache. -->
+  <link rel="stylesheet" href="css/styles.css?v=0.3.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -32,9 +35,8 @@
         <a href="login.html" class="guest-only">Accedi</a>
         <a href="register.html" class="guest-only">Registrati</a>
 
-        <!-- Toggle stato autenticazione (didattico).
-             Permette di simulare la visione del sito da nuovo
-             visitatore vs. utente autenticato. -->
+        <!-- Toggle stato autenticazione (didattico): simula la prima
+             visita di un anonimo o la sessione di un utente loggato. -->
         <button class="auth-toggle" type="button" data-state="user"
                 aria-label="Cambia modalità di visualizzazione">
           <span class="auth-toggle__dot" aria-hidden="true"></span>
@@ -46,7 +48,7 @@
 
   <main id="main">
 
-    <!-- ============ HERO ============ -->
+    <!-- ============ HERO con CONTATORI LIVE ============ -->
     <section class="hero container" aria-labelledby="hero-title">
       <div class="hero__decoration" aria-hidden="true">§</div>
 
@@ -66,9 +68,32 @@
         <p class="hero__lead">
           Pubblica i volumi della tua collezione privata, scopri cosa custodiscono
           i lettori a pochi passi da te, e partecipa a una rete diffusa di
-          consultazioni e prestiti. Un progetto di cartografia culturale per
-          valorizzare il patrimonio bibliografico domestico.
+          consultazioni e prestiti.
         </p>
+
+        <!-- Contatori "live": minimali, integrati nell'hero.
+             I valori si incrementano periodicamente per simulare la
+             crescita della piattaforma in tempo reale. -->
+        <div class="hero__stats" id="hero-stats" aria-label="Numeri della piattaforma in tempo reale">
+          <span class="hero__stats-live">in tempo reale</span>
+
+          <div class="hero__stat">
+            <span class="hero__stat-value" id="stat-books" data-stat="books">0</span>
+            <span class="hero__stat-label">volumi pubblicati</span>
+          </div>
+          <div class="hero__stat">
+            <span class="hero__stat-value" id="stat-users" data-stat="users">0</span>
+            <span class="hero__stat-label">lettori iscritti</span>
+          </div>
+          <div class="hero__stat">
+            <span class="hero__stat-value" id="stat-categories" data-stat="categories">0</span>
+            <span class="hero__stat-label">categorie</span>
+          </div>
+          <div class="hero__stat">
+            <span class="hero__stat-value" id="stat-views" data-stat="views">0</span>
+            <span class="hero__stat-label">consultazioni totali</span>
+          </div>
+        </div>
 
         <div class="hero__actions">
           <a href="explore.html" class="btn btn--primary">Esplora la mappa</a>
@@ -78,17 +103,27 @@
       </div>
     </section>
 
-    <!-- ============ STATISTICHE RAPIDE ============ -->
-    <section class="section container" aria-labelledby="stats-title">
-      <h2 class="sr-only" id="stats-title">Numeri della piattaforma</h2>
-      <div class="stats-grid" id="quick-stats"></div>
+    <!-- ============ LIBRERIE VICINO A TE ============ -->
+    <section class="section container" aria-labelledby="nearby-title">
+      <div class="section-header">
+        <h2 id="nearby-title">Librerie vicino a te</h2>
+        <span class="section-meta">N° 01 — per prossimità e attività</span>
+      </div>
+      <p style="max-width: 62ch; color: var(--color-ink-soft); margin-bottom: var(--sp-2);">
+        Le collezioni più vicine e più attive della comunità, ordinate in base
+        alla distanza dalla tua posizione e alla vivacità della libreria. Ogni
+        copertina è generata automaticamente a partire dalle scelte di
+        personalizzazione del suo curatore.
+      </p>
+      <p id="nearby-ref-note" style="font-size: var(--fs-xs); color: var(--color-ink-soft); font-style: italic; margin-bottom: var(--sp-2);"></p>
+      <div class="nearby-grid" id="nearby-libraries" aria-live="polite"></div>
     </section>
 
-    <!-- ============ COME FUNZIONA (subito dopo le CTA dell'hero) ============ -->
+    <!-- ============ COME FUNZIONA ============ -->
     <section class="section container" aria-labelledby="how-title">
       <div class="section-header">
         <h2 id="how-title">Come funziona</h2>
-        <span class="section-meta">N° 01 — in tre gesti</span>
+        <span class="section-meta">N° 02 — in tre gesti</span>
       </div>
       <div class="books-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
         <article>
@@ -119,21 +154,9 @@
     <section class="section container" aria-labelledby="featured-title">
       <div class="section-header">
         <h2 id="featured-title">Libri in evidenza</h2>
-        <span class="section-meta">N° 02 — selezione della settimana</span>
+        <span class="section-meta">N° 03 — selezione della settimana</span>
       </div>
       <div class="books-grid" id="featured-books" aria-live="polite"></div>
-    </section>
-
-    <!-- ============ LIBRERIE DEGLI UTENTI (sostituisce le categorie) ============ -->
-    <section class="section container" aria-labelledby="libs-title">
-      <div class="section-header">
-        <h2 id="libs-title">Le librerie della comunità</h2>
-        <span class="section-meta">N° 03 — i lettori e i loro patrimoni</span>
-      </div>
-      <p style="max-width: 60ch; color: var(--color-ink-soft); margin-bottom: var(--sp-2);">
-        Ogni utente cura la propria libreria con un tono e uno stile personali. Sfoglia i profili dei lettori della comunità per scoprire collezioni curate, edizioni rare e vicini di lettura.
-      </p>
-      <div class="libraries-grid" id="user-libraries" aria-live="polite"></div>
     </section>
 
   </main>
@@ -168,48 +191,93 @@
 
       <div class="site-footer__colophon">
         <span>© 2026 Libreria Diffusa — Prototipo didattico</span>
-        <span>v0.2.0 — GPL-3.0</span>
+        <span>v0.3.0 — GPL-3.0</span>
       </div>
     </div>
   </footer>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=0.3.0"></script>
   <script>
     /* Popolamento dei contenuti dinamici della homepage */
 
     document.addEventListener('DOMContentLoaded', () => {
 
-      /* ----- Statistiche rapide ----- */
-      const stats = API.getGlobalStats();
-      document.getElementById('quick-stats').innerHTML = `
-        <div class="stat-card fade-in">
-          <div class="stat-card__label">Volumi pubblicati</div>
-          <div class="stat-card__value">${stats.total_books}</div>
-        </div>
-        <div class="stat-card fade-in">
-          <div class="stat-card__label">Lettori iscritti</div>
-          <div class="stat-card__value">${stats.total_users}</div>
-        </div>
-        <div class="stat-card fade-in">
-          <div class="stat-card__label">Categorie</div>
-          <div class="stat-card__value">${stats.categories_count}</div>
-        </div>
-        <div class="stat-card fade-in">
-          <div class="stat-card__label">Consultazioni totali</div>
-          <div class="stat-card__value">${stats.total_views.toLocaleString('it-IT')}</div>
-        </div>`;
+      /* =========================================================
+         CONTATORI "LIVE"
+         I valori partono dai dati reali e vengono incrementati a
+         intervalli regolari con piccoli scatti casuali, per dare
+         la sensazione di una piattaforma viva e in crescita.
+         È un pattern di gamification: riprova sociale + senso di
+         slancio. In produzione gli incrementi arriverebbero da un
+         canale realtime (WebSocket / SSE) alimentato dal backend.
+         ========================================================= */
+      const baseStats = API.getGlobalStats();
+
+      // Stato corrente dei contatori (number)
+      const counters = {
+        books:      baseStats.total_books,
+        users:      baseStats.total_users,
+        categories: baseStats.categories_count,
+        views:      baseStats.total_views
+      };
+
+      // Quanto può crescere ogni metrica ad ogni "tick"
+      const increments = {
+        books:      () => (Math.random() < 0.5 ? 1 : 0),
+        users:      () => (Math.random() < 0.3 ? 1 : 0),
+        categories: () => 0,                       // le categorie sono stabili
+        views:      () => Math.floor(Math.random() * 9) + 1
+      };
+
+      function paintCounter(key) {
+        const el = document.querySelector(`[data-stat="${key}"]`);
+        if (!el) return;
+        el.textContent = counters[key].toLocaleString('it-IT');
+      }
+
+      // Render iniziale
+      Object.keys(counters).forEach(paintCounter);
+
+      // Tick periodico ogni 4 secondi
+      setInterval(() => {
+        Object.keys(counters).forEach(key => {
+          const delta = increments[key]();
+          if (delta > 0) {
+            counters[key] += delta;
+            const el = document.querySelector(`[data-stat="${key}"]`);
+            paintCounter(key);
+            // Micro-animazione di scatto
+            el.classList.remove('is-ticking');
+            void el.offsetWidth;            // forza il reflow per riavviare l'animazione
+            el.classList.add('is-ticking');
+          }
+        });
+      }, 4000);
+
+      /* =========================================================
+         LIBRERIE VICINO A TE
+         Ordinate per prossimità + attività. La posizione di
+         riferimento è quella dell'utente autenticato oppure, per i
+         visitatori anonimi, una posizione simulata sul centro di
+         Napoli.
+         ========================================================= */
+      function renderNearby() {
+        const container = document.getElementById('nearby-libraries');
+        const refNote = document.getElementById('nearby-ref-note');
+        const ref = API.getReferenceLocation();
+
+        refNote.textContent = ref.simulated
+          ? 'Le distanze sono calcolate da una posizione simulata sul centro di Napoli. Accedi per usare la tua posizione reale.'
+          : 'Le distanze sono calcolate dalla tua posizione registrata.';
+
+        const libs = API.getNearbyLibraries();
+        container.innerHTML = libs.map(l => UI.renderNearbyLibraryCard(l)).join('');
+      }
+      renderNearby();
 
       /* ----- Libri in evidenza (top 4 per visualizzazioni) ----- */
-      const featured = stats.top_books.slice(0, 4);
+      const featured = baseStats.top_books.slice(0, 4);
       UI.renderBooksGrid(document.getElementById('featured-books'), featured);
-
-      /* ----- Librerie della comunità (sostituisce le chip categorie).
-         Le librerie sono ordinate per numero di volumi pubblicati. ----- */
-      const libsContainer = document.getElementById('user-libraries');
-      const libs = API.getUsersWithLibraryStats()
-        .filter(u => u.role !== 'admin' && u.book_count > 0)
-        .sort((a, b) => b.book_count - a.book_count);
-      libsContainer.innerHTML = libs.map(u => UI.renderLibraryCard(u)).join('');
 
       /* ----- Saluto personalizzato (utente autenticato) ----- */
       function updateGreeting() {
@@ -217,7 +285,7 @@
         const user = API.getCurrentUser();
         if (user) {
           document.getElementById('greeting-name').textContent =
-            user.display_name.split(' ')[0]; // solo nome di battesimo
+            user.display_name.split(' ')[0];
           greeting.hidden = false;
         } else {
           greeting.hidden = true;
@@ -225,8 +293,13 @@
       }
       updateGreeting();
 
-      /* Reazione al toggle di auth */
-      document.addEventListener('auth:change', updateGreeting);
+      /* ----- Reazione al toggle di autenticazione -----
+         Cambiando stato cambia anche la posizione di riferimento,
+         quindi le librerie "vicino a te" vanno ricalcolate. ----- */
+      document.addEventListener('auth:change', () => {
+        updateGreeting();
+        renderNearby();
+      });
     });
   </script>
 </body>

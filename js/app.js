@@ -44,6 +44,25 @@ const SAMPLE_CATEGORIES = [
   'Biografie', 'Arte', 'Teatro', 'Letteratura per ragazzi'
 ];
 
+/* Preferenze di personalizzazione del profilo per gli utenti di
+   esempio — rispecchiano il seed SQL (sql/seed_data.sql). Servono a
+   dare a ogni libreria una copertina generata distintiva, coerente
+   con le scelte estetiche del suo curatore. */
+const SAMPLE_PROFILE_PREFS = {
+  1: { view_mode: 'grid',     theme: 'classic',  avatar_style: 'initials', avatar_symbol: '§',
+       motto: 'Un libro è un sogno che tieni in mano',          sort_by: 'recent', privacy_level: 2, show_email: false },
+  2: { view_mode: 'shelf',    theme: 'midnight', avatar_style: 'symbol',   avatar_symbol: '§',
+       motto: 'Il delitto perfetto è ancora da scrivere',       sort_by: 'author', privacy_level: 2, show_email: false },
+  3: { view_mode: 'timeline', theme: 'bordeaux', avatar_style: 'initials', avatar_symbol: '§',
+       motto: 'Le edizioni antiche meritano rispetto',          sort_by: 'year',   privacy_level: 1, show_email: false },
+  4: { view_mode: 'list',     theme: 'sage',     avatar_style: 'symbol',   avatar_symbol: '❦',
+       motto: 'La storia di Napoli scritta dai suoi libri',     sort_by: 'title',  privacy_level: 2, show_email: false },
+  5: { view_mode: 'grid',     theme: 'sage',     avatar_style: 'symbol',   avatar_symbol: '❧',
+       motto: 'Tradurre è abitare due lingue',                  sort_by: 'recent', privacy_level: 2, show_email: false },
+  6: { view_mode: 'shelf',    theme: 'midnight', avatar_style: 'symbol',   avatar_symbol: '✦',
+       motto: 'Il futuro lo immaginiamo prima di costruirlo',   sort_by: 'year',   privacy_level: 3, show_email: false }
+};
+
 const SAMPLE_BOOKS = [
   { id: 1, title: 'Se questo è un uomo', author: 'Primo Levi', year: 1947,
     category: 'Classici', owner_id: 1, isbn: '9788806217778',
@@ -147,6 +166,28 @@ const Storage = {
     if (!this.get('books')) this.set('books', SAMPLE_BOOKS);
     if (!this.get('categories')) this.set('categories', SAMPLE_CATEGORIES);
     if (!this.get('loan_requests')) this.set('loan_requests', []);
+    // Preferenze di personalizzazione degli utenti di esempio
+    Object.entries(SAMPLE_PROFILE_PREFS).forEach(([id, prefs]) => {
+      if (!this.get(`profile_prefs_${id}`)) {
+        this.set(`profile_prefs_${id}`, prefs);
+      }
+    });
+    // Demo: rende "recenti" alcune pubblicazioni relativamente alla
+    // data della prima visita, così la sezione "vicino a te" mostra
+    // il badge di attività. Le date sono calcolate dinamicamente per
+    // non diventare mai obsolete. Si applica solo al primo avvio.
+    if (!this.get('_recency_demo_done')) {
+      const books = this.get('books') || [];
+      const daysAgoByBookId = { 2: 6, 11: 20, 12: 5 };
+      books.forEach(b => {
+        if (daysAgoByBookId[b.id] != null) {
+          const d = new Date(Date.now() - daysAgoByBookId[b.id] * 86400000);
+          b.added = d.toISOString().slice(0, 10);
+        }
+      });
+      this.set('books', books);
+      this.set('_recency_demo_done', true);
+    }
   },
   reset() {
     localStorage.clear();
@@ -356,6 +397,94 @@ const API = {
   },
   setProfilePrefs(userId, prefs) {
     Storage.set(`profile_prefs_${userId}`, prefs);
+  },
+
+  /* -------------------------------------------------------------
+     Posizione di riferimento per il calcolo delle distanze.
+     - Utente autenticato → le sue coordinate reali.
+     - Visitatore anonimo → una posizione simulata sul centro di
+       Napoli (Piazza del Plebiscito), così la sezione "vicino a te"
+       resta dimostrabile anche senza login.
+     ------------------------------------------------------------- */
+  getReferenceLocation() {
+    const user = this.getCurrentUser();
+    if (user && typeof user.lat === 'number') {
+      return { lat: user.lat, lng: user.lng, simulated: false };
+    }
+    return { lat: 40.8358, lng: 14.2488, simulated: true };
+  },
+
+  /* Giorni trascorsi da una data ISO (o null se non valida) */
+  _daysSince(dateStr) {
+    if (!dateStr) return null;
+    const then = new Date(dateStr).getTime();
+    if (isNaN(then)) return null;
+    return Math.floor((Date.now() - then) / 86400000);
+  },
+
+  /* -------------------------------------------------------------
+     Librerie ordinate per PROSSIMITÀ e ATTIVITÀ.
+     Restituisce, per ogni utente con almeno un libro, le metriche
+     necessarie alla card "Librerie vicino a te": distanza dalla
+     posizione di riferimento, numero di libri disponibili al
+     prestito, indice di attività e preferenze di personalizzazione
+     (per generare la copertina).
+     ------------------------------------------------------------- */
+  getNearbyLibraries({ excludeCurrentUser = true } = {}) {
+    const ref = this.getReferenceLocation();
+    const books = this.getBooks();
+    const currentUser = this.getCurrentUser();
+
+    return this.getUsers()
+      .filter(u => u.role !== 'admin')
+      .filter(u => !(excludeCurrentUser && currentUser && u.id === currentUser.id))
+      .map(u => {
+        const userBooks  = books.filter(b => b.owner_id === u.id);
+        const available  = userBooks.filter(b => b.available);
+        const distanceKm = this.haversineDistance(ref.lat, ref.lng, u.lat, u.lng);
+        const lastDays   = this._daysSince(
+          userBooks.map(b => b.added).sort().pop()
+        );
+
+        /* Indice di attività: pesa i libri disponibili al prestito e
+           premia le pubblicazioni recenti (bonus che decade in ~60 gg). */
+        const recencyBonus = lastDays !== null
+          ? Math.max(0, 60 - lastDays) / 10
+          : 0;
+        const activityIndex = available.length * 2 + recencyBonus;
+
+        return {
+          ...u,
+          book_count:      userBooks.length,
+          available_count: available.length,
+          total_views:     userBooks.reduce((s, b) => s + (b.views || 0), 0),
+          distance_km:     distanceKm,
+          last_added_days: lastDays,
+          activity_index:  activityIndex,
+          prefs:           this.getProfilePrefs(u.id),
+          /* Punteggio composito: la distanza penalizza, l'attività
+             premia. Ordinamento ascendente → vicino + attivo in cima. */
+          rank_score:      distanceKm - activityIndex * 0.4
+        };
+      })
+      .filter(u => u.book_count > 0)
+      .sort((a, b) => a.rank_score - b.rank_score);
+  },
+
+  /* -------------------------------------------------------------
+     Dati per la copertina generata di una libreria.
+     La copertina NON è un'immagine: è prodotta proceduralmente a
+     partire dalle scelte dell'utente nella sua area personale
+     (tema cromatico + stile dell'avatar). Restituisce la classe CSS
+     del tema e il glifo da stampare al centro.
+     ------------------------------------------------------------- */
+  libraryCoverData(user, prefs) {
+    prefs = prefs || this.getProfilePrefs(user.id);
+    const themeClass = `cover--${prefs.theme || 'classic'}`;
+    const glyph = prefs.avatar_style === 'symbol'
+      ? (prefs.avatar_symbol || '§')
+      : (user.display_name || user.username || '?').trim()[0].toUpperCase();
+    return { themeClass, glyph };
   }
 };
 
@@ -447,6 +576,58 @@ const UI = {
         <div class="library-card__footer">
           <span class="library-card__count">${user.book_count} ${bookLabel}</span>
           <span class="library-card__link">visita →</span>
+        </div>
+      </a>`;
+  },
+
+  /* -------------------------------------------------------------
+     Card "Libreria vicino a te" — variante ricca del componente
+     libreria, con copertina generata, distanza dichiarata e numero
+     di volumi disponibili al prestito messo graficamente in risalto.
+     ------------------------------------------------------------- */
+  renderNearbyLibraryCard(lib) {
+    const { themeClass, glyph } = API.libraryCoverData(lib, lib.prefs);
+
+    /* Distanza in linguaggio naturale */
+    const dist = lib.distance_km;
+    const distLabel = dist < 1
+      ? `a ${Math.round(dist * 1000)} m da te`
+      : `a ${dist.toFixed(1).replace('.', ',')} km da te`;
+
+    /* Descrizione breve: il motto personalizzato se presente,
+       altrimenti la biografia, altrimenti un testo neutro. */
+    const shortDesc = lib.prefs && lib.prefs.motto
+      ? `«${lib.prefs.motto}»`
+      : (lib.bio || 'Collezione privata condivisa con la comunità.');
+
+    /* Badge "attiva di recente": pubblicazione negli ultimi 45 giorni */
+    const recentBadge = (lib.last_added_days !== null && lib.last_added_days <= 45)
+      ? '<span class="nearby-card__badge">attiva di recente</span>'
+      : '';
+
+    const availClass = lib.available_count === 0 ? ' nearby-card__available--empty' : '';
+    const availLabel = lib.available_count === 1
+      ? 'libro disponibile<br>da chiedere in prestito'
+      : 'libri disponibili<br>da chiedere in prestito';
+
+    return `
+      <a href="profile.html?user=${lib.id}" class="nearby-card">
+        <div class="nearby-card__cover ${themeClass}">
+          ${recentBadge}
+          <span class="nearby-card__glyph" aria-hidden="true">${glyph}</span>
+          <span class="nearby-card__cover-name">${lib.display_name}</span>
+        </div>
+        <div class="nearby-card__body">
+          <h3 class="nearby-card__name">${lib.display_name}</h3>
+          <p class="nearby-card__desc">${shortDesc}</p>
+          <div class="nearby-card__place">
+            <span class="nearby-card__city">${lib.city || '—'}</span>
+            <span class="nearby-card__distance">${distLabel}</span>
+          </div>
+          <div class="nearby-card__available${availClass}">
+            <span class="nearby-card__available-count">${lib.available_count}</span>
+            <span class="nearby-card__available-label">${availLabel}</span>
+          </div>
         </div>
       </a>`;
   },
