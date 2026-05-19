@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Profilo — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.3.0" />
+  <link rel="stylesheet" href="css/styles.css?v=0.4.0" />
 </head>
 <body>
 
@@ -170,11 +170,11 @@
       <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
       <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
       <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.3.0</span></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.4.0</span></div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.3.0"></script>
+  <script src="js/app.js?v=0.4.0"></script>
   <script>
 
     // CSS inline per il tab-btn (potrebbe andare nello stylesheet)
@@ -193,10 +193,22 @@
 
     document.addEventListener('DOMContentLoaded', () => {
 
-      // Determina utente da visualizzare (?id=X) o utente corrente (default 1)
-      const id = new URLSearchParams(location.search).get('id') || 1;
-      const user = API.getUser(id);
-      if (!user) { location.href = 'index.html'; return; }
+      /* PROTEZIONE PROPRIETÀ — profile.html è l'AREA PERSONALE
+         dell'utente loggato: mostra e gestisce solo la propria
+         libreria. Un visitatore anonimo viene mandato al login.
+         Se qualcuno arriva con ?id= di un altro utente, lo si
+         reindirizza alla vista pubblica library.html (sola lettura),
+         perché non si gestisce la libreria altrui da qui. */
+      const me = API.requireAuth('login.html');
+      if (!me) return;
+
+      const requestedId = new URLSearchParams(location.search).get('id');
+      if (requestedId && +requestedId !== me.id) {
+        location.href = `library.html?id=${requestedId}`;
+        return;
+      }
+
+      const user = me;
 
       // Render header profilo
       const initials = user.display_name.split(' ').map(w => w[0]).join('').slice(0, 2);

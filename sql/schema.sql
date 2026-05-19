@@ -38,6 +38,14 @@ CREATE TABLE users (
   avatar_url      VARCHAR(500),
   city_label      VARCHAR(150),             -- testo libero: "Napoli, Chiaia"
 
+  -- Tipo di account / libreria
+  -- 'person'       → collezione privata di un lettore
+  -- 'organization' → fondo di un ente (associazione, biblioteca di
+  --                   quartiere, libreria indipendente…). I dati
+  --                   specifici dell'ente vivono in organization_profiles.
+  account_type    VARCHAR(20) NOT NULL DEFAULT 'person'
+                  CHECK (account_type IN ('person','organization')),
+
   -- Posizione geospaziale (PostGIS)
   -- In produzione la si ottiene da geocoding dell'indirizzo
   location        GEOGRAPHY(POINT, 4326),   -- WGS84 = standard web
@@ -375,6 +383,79 @@ COMMENT ON TABLE user_preferences IS 'Preferenze estetiche e di visualizzazione 
 CREATE TRIGGER user_preferences_update_timestamp
   BEFORE UPDATE ON user_preferences
   FOR EACH ROW EXECUTE FUNCTION trg_update_timestamp();
+
+
+-- ---- Tabella PROFILI DEGLI ENTI ---------------------------------------------
+-- Dati specifici delle librerie-organizzazione (associazioni, biblioteche di
+-- quartiere, librerie indipendenti, centri culturali, scuole).
+-- Relazione 1:1 con users, popolata SOLO quando users.account_type =
+-- 'organization'. Separata dalla tabella users per lo stesso principio
+-- applicato a user_preferences: non appesantire users con colonne che
+-- per la grande maggioranza degli account (le persone) resterebbero NULL.
+-- A differenza delle persone, gli enti vogliono essere trovati: l'indirizzo
+-- è un dato pubblico per definizione.
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE organization_profiles (
+  user_id          BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+
+  -- Denominazione ufficiale / ragione sociale (può differire dal display_name)
+  legal_name       VARCHAR(200) NOT NULL,
+
+  -- Categoria di ente (enum controllata)
+  org_category     VARCHAR(30) NOT NULL DEFAULT 'altro'
+                   CHECK (org_category IN (
+                     'biblioteca', 'associazione', 'libreria_indipendente',
+                     'centro_culturale', 'scuola', 'altro')),
+
+  -- Referente: persona di riferimento dell'ente
+  contact_person   VARCHAR(120),
+
+  -- Contatti pubblici
+  website          VARCHAR(300),
+  public_email     VARCHAR(255),
+  public_phone     VARCHAR(30),
+
+  -- Indirizzo pubblico: per gli enti è sempre visibile (vogliono essere
+  -- raggiunti). La posizione geospaziale resta in users.location.
+  public_address   VARCHAR(200),
+
+  -- Orari di apertura. TEXT in formato leggibile ("Lun–Ven 10:00–18:00…").
+  -- In produzione si potrebbe strutturare come JSONB con uno schema
+  -- settimanale, ma per il prototipo la forma testuale è adeguata e
+  -- rispecchia come i piccoli enti comunicano davvero i propri orari.
+  opening_hours    TEXT,
+
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE organization_profiles IS 'Dati estesi delle librerie-ente (account_type = organization)';
+COMMENT ON COLUMN organization_profiles.public_address IS 'Indirizzo pubblico: per gli enti è sempre visibile';
+
+CREATE TRIGGER organization_profiles_update_timestamp
+  BEFORE UPDATE ON organization_profiles
+  FOR EACH ROW EXECUTE FUNCTION trg_update_timestamp();
+
+-- Indice per filtrare/raggruppare gli enti per categoria
+CREATE INDEX idx_org_profiles_category ON organization_profiles (org_category);
+
+-- Vincolo di coerenza: garantisce che organization_profiles contenga
+-- solo righe il cui utente è effettivamente un'organizzazione.
+-- (Implementato come trigger perché un CHECK non può interrogare un'altra tabella.)
+CREATE OR REPLACE FUNCTION trg_check_account_is_org()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF (SELECT account_type FROM users WHERE id = NEW.user_id) <> 'organization' THEN
+    RAISE EXCEPTION 'organization_profiles richiede users.account_type = organization (user_id=%)', NEW.user_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER organization_profiles_check_type
+  BEFORE INSERT OR UPDATE ON organization_profiles
+  FOR EACH ROW EXECUTE FUNCTION trg_check_account_is_org();
 
 
 -- =============================================================================

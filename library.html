@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="La libreria di un membro della comunità Libreria Diffusa: i suoi volumi disponibili al prestito." />
+  <title>Libreria — Libreria Diffusa</title>
+  <link rel="stylesheet" href="css/styles.css?v=0.4.0" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <a href="#main" class="skip-link">Vai al contenuto principale</a>
+
+  <header class="site-header" role="banner">
+    <div class="site-header__inner">
+      <a href="index.html" class="site-logo" aria-label="Libreria Diffusa — Home">
+        <span class="site-logo__mark" aria-hidden="true"></span>
+        <span>Libreria&nbsp;Diffusa</span>
+      </a>
+      <button class="nav-toggle" aria-label="Apri menu di navigazione" aria-expanded="false" aria-controls="main-nav">☰</button>
+      <nav class="site-nav" id="main-nav" role="navigation" aria-label="Navigazione principale">
+        <a href="index.html">Home</a>
+        <a href="explore.html">Esplora</a>
+        <a href="add-book.html" class="auth-only">Pubblica</a>
+        <a href="profile.html" class="auth-only">Profilo</a>
+        <a href="profile-setup.html" class="auth-only">Personalizza</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="login.html" class="guest-only">Accedi</a>
+        <a href="register.html" class="guest-only">Registrati</a>
+        <button class="auth-toggle" type="button" data-state="user" aria-label="Cambia modalità di visualizzazione">
+          <span class="auth-toggle__dot" aria-hidden="true"></span>
+          <span class="auth-toggle__text">visita autenticata</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="section container">
+
+      <!-- Breadcrumb -->
+      <nav aria-label="Percorso" style="font-size: var(--fs-xs); color: var(--color-ink-soft); margin-bottom: var(--sp-5);">
+        <a href="index.html" style="color: var(--color-ink-soft);">Home</a>
+        <span aria-hidden="true"> › </span>
+        <span id="crumb-name">Libreria</span>
+      </nav>
+
+      <!-- Contenitore popolato dinamicamente -->
+      <div id="library-root" aria-live="polite">
+        <p style="color: var(--color-ink-soft); font-style: italic;">Caricamento della libreria…</p>
+      </div>
+
+    </section>
+  </main>
+
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <div>
+        <h4>Libreria Diffusa</h4>
+        <p style="color: rgba(244,239,230,.7); font-size: .9rem;">
+          Un progetto di condivisione del patrimonio librario privato, radicato nel territorio.
+        </p>
+      </div>
+      <div>
+        <h4>Esplora</h4>
+        <a href="explore.html">Mappa dei libri</a>
+        <a href="stats.html">Statistiche</a>
+      </div>
+      <div>
+        <h4>Partecipa</h4>
+        <a href="add-book.html">Pubblica un libro</a>
+        <a href="register.html">Crea una libreria</a>
+      </div>
+      <div>
+        <h4>Informazioni</h4>
+        <a href="#">Privacy policy</a>
+        <a href="#">Termini</a>
+      </div>
+      <div class="site-footer__colophon">
+        <span>© 2026 Libreria Diffusa — Prototipo didattico</span>
+        <span>v0.4.0 — GPL-3.0</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/app.js?v=0.4.0"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+      const root = document.getElementById('library-root');
+
+      /* ----- Lettura del parametro ?id= ----- */
+      const params = new URLSearchParams(location.search);
+      const libId = parseInt(params.get('id'), 10);
+
+      if (!libId) {
+        root.innerHTML = errorBlock('Libreria non specificata',
+          'Manca il parametro identificativo della libreria.');
+        return;
+      }
+
+      const data = API.getLibraryData(libId);
+
+      if (!data) {
+        root.innerHTML = errorBlock('Libreria non trovata',
+          'Nessuna libreria corrisponde a questo identificativo. Potrebbe essere stata rimossa.');
+        return;
+      }
+
+      renderLibrary(data);
+
+      /* Se cambia lo stato di autenticazione, ricalcola (il flag
+         can_edit dipende dall'utente corrente) */
+      document.addEventListener('auth:change', () => {
+        const fresh = API.getLibraryData(libId);
+        if (fresh) renderLibrary(fresh);
+      });
+
+      /* =========================================================
+         RENDER PRINCIPALE
+         ========================================================= */
+      function renderLibrary(d) {
+        const { user, prefs, books, stats, org_profile, is_organization, distance_km, can_edit } = d;
+
+        document.getElementById('crumb-name').textContent = user.display_name;
+        document.title = `${user.display_name} — Libreria Diffusa`;
+
+        const { themeClass, glyph } = API.libraryCoverData(user, prefs);
+
+        /* Etichetta tipo libreria */
+        const typeLabel = is_organization
+          ? API.orgCategoryLabel(org_profile && org_profile.org_category)
+          : 'Libreria personale';
+        const typeClass = is_organization ? 'library-hero__type--org' : '';
+
+        /* Distanza: mostrata solo per i visitatori. Per il proprietario
+           "a 0 m da te" è ridondante. */
+        let distLabel = '';
+        if (!can_edit && distance_km !== null) {
+          distLabel = distance_km < 1
+            ? `a ${Math.round(distance_km * 1000)} m da te`
+            : `a ${distance_km.toFixed(1).replace('.', ',')} km da te`;
+        }
+
+        /* Banner di proprietà: sola lettura per i visitatori,
+           invito alla personalizzazione per il proprietario. */
+        const ownershipBanner = can_edit
+          ? `<div class="ownership-banner ownership-banner--owner">
+               <span aria-hidden="true">✦</span>
+               <span>Questa è la tua libreria. Puoi modificarne i contenuti e l'aspetto dalle pagine
+               <a href="profile.html">Profilo</a> e <a href="profile-setup.html">Personalizza</a>.</span>
+             </div>`
+          : `<div class="ownership-banner ownership-banner--visitor">
+               <span aria-hidden="true">◷</span>
+               <span>Stai visitando la libreria di un altro membro della comunità: la vista è in sola lettura.
+               Solo ${user.display_name} può modificarla.</span>
+             </div>`;
+
+        /* Azioni: il proprietario gestisce, il visitatore esplora i volumi */
+        const actions = can_edit
+          ? `<a href="profile-setup.html" class="btn btn--primary">Personalizza la libreria</a>
+             <a href="add-book.html" class="btn btn--ghost">Aggiungi un volume</a>`
+          : `<a href="#volumi" class="btn btn--primary">Sfoglia i ${stats.total} volumi</a>`;
+
+        /* Riga "nome ufficiale" solo per gli enti */
+        const legalRow = (is_organization && org_profile && org_profile.legal_name)
+          ? `<p class="library-hero__legal">${org_profile.legal_name}</p>`
+          : '';
+
+        /* Pannello informativo dell'ente */
+        const orgPanel = (is_organization && org_profile)
+          ? renderOrgPanel(org_profile)
+          : '';
+
+        root.innerHTML = `
+          ${ownershipBanner}
+
+          <div class="library-hero">
+            <div class="library-hero__cover ${themeClass}">
+              <span class="library-hero__glyph" aria-hidden="true">${glyph}</span>
+            </div>
+            <div class="library-hero__info">
+              <span class="library-hero__type ${typeClass}">${typeLabel}</span>
+              <h1 class="library-hero__name">${user.display_name}</h1>
+              ${legalRow}
+              ${prefs.motto ? `<p class="library-hero__motto">«${prefs.motto}»</p>` : ''}
+              <p class="library-hero__bio">${user.bio || 'Questa libreria non ha ancora una descrizione.'}</p>
+              <div class="library-hero__meta">
+                <span>📍 <strong>${user.city || '—'}</strong></span>
+                ${distLabel ? `<span>${distLabel}</span>` : ''}
+                <span>Su Libreria Diffusa dal <strong>${formatDate(user.joined)}</strong></span>
+              </div>
+              <div class="library-hero__actions">${actions}</div>
+            </div>
+          </div>
+
+          <div class="library-stats">
+            <div class="library-stat">
+              <div class="library-stat__value">${stats.total}</div>
+              <div class="library-stat__label">volumi nella libreria</div>
+            </div>
+            <div class="library-stat">
+              <div class="library-stat__value library-stat__value--available">${stats.available}</div>
+              <div class="library-stat__label">disponibili al prestito</div>
+            </div>
+            <div class="library-stat">
+              <div class="library-stat__value">${stats.total_views.toLocaleString('it-IT')}</div>
+              <div class="library-stat__label">consultazioni totali</div>
+            </div>
+          </div>
+
+          ${orgPanel}
+
+          <div id="volumi">
+            <div class="library-toolbar">
+              <h2>I volumi della libreria</h2>
+              <div class="view-switcher" role="group" aria-label="Modalità di visualizzazione">
+                <button data-mode="grid">Griglia</button>
+                <button data-mode="list">Elenco</button>
+                <button data-mode="shelf">Scaffale</button>
+                <button data-mode="timeline">Cronologia</button>
+              </div>
+            </div>
+            <div id="books-container"></div>
+          </div>
+        `;
+
+        /* ----- Render dei volumi nella modalità scelta dal curatore ----- */
+        const booksContainer = document.getElementById('books-container');
+        const switcher = root.querySelector('.view-switcher');
+
+        function showMode(mode) {
+          // ordina secondo la preferenza del curatore
+          const sorted = sortBooks(books, prefs.sort_by);
+          UI.renderBooksInMode(booksContainer, sorted, mode);
+          switcher.querySelectorAll('button').forEach(btn => {
+            btn.classList.toggle('is-active', btn.dataset.mode === mode);
+          });
+        }
+
+        switcher.addEventListener('click', (e) => {
+          const btn = e.target.closest('button');
+          if (btn) showMode(btn.dataset.mode);
+        });
+
+        // modalità iniziale = quella scelta dal proprietario
+        showMode(prefs.view_mode || 'grid');
+      }
+
+      /* =========================================================
+         PANNELLO INFORMATIVO DELL'ENTE
+         ========================================================= */
+      function renderOrgPanel(org) {
+        const field = (label, value) => value
+          ? `<div class="org-field">
+               <div class="org-field__label">${label}</div>
+               <div class="org-field__value">${value}</div>
+             </div>`
+          : '';
+
+        const website = org.website
+          ? `<a href="${org.website}" target="_blank" rel="noopener noreferrer">${org.website.replace(/^https?:\/\//, '')}</a>`
+          : '';
+        const email = org.public_email
+          ? `<a href="mailto:${org.public_email}">${org.public_email}</a>`
+          : '';
+
+        return `
+          <section class="org-panel" aria-labelledby="org-title">
+            <h2 id="org-title">Informazioni sull'ente</h2>
+            <div class="org-panel__grid">
+              ${field('Categoria', API.orgCategoryLabel(org.org_category))}
+              ${field('Referente', org.contact_person)}
+              ${field('Indirizzo', org.public_address)}
+              ${field('Orari di apertura', org.opening_hours)}
+              ${field('Telefono', org.public_phone)}
+              ${field('Email', email)}
+              ${field('Sito web', website)}
+            </div>
+          </section>`;
+      }
+
+      /* =========================================================
+         HELPER
+         ========================================================= */
+      function sortBooks(books, sortBy) {
+        const copy = [...books];
+        switch (sortBy) {
+          case 'title':  return copy.sort((a, b) => a.title.localeCompare(b.title, 'it'));
+          case 'author': return copy.sort((a, b) => a.author.localeCompare(b.author, 'it'));
+          case 'year':   return copy.sort((a, b) => b.year - a.year);
+          case 'recent':
+          default:       return copy.sort((a, b) => (b.added || '').localeCompare(a.added || ''));
+        }
+      }
+
+      function formatDate(iso) {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        if (isNaN(d)) return iso;
+        return d.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+      }
+
+      function errorBlock(title, message) {
+        return `
+          <div style="text-align: center; padding: var(--sp-16) var(--sp-4);">
+            <div style="font-family: var(--font-display); font-size: 4rem; color: var(--color-line); line-height: 1;">§</div>
+            <h1 style="font-family: var(--font-display); font-size: 1.8rem; margin: var(--sp-3) 0 var(--sp-2);">${title}</h1>
+            <p style="color: var(--color-ink-soft); margin-bottom: var(--sp-5);">${message}</p>
+            <a href="index.html" class="btn btn--primary">Torna alla home</a>
+          </div>`;
+      }
+    });
+  </script>
+</body>
+</html>

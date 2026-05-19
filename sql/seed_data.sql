@@ -20,7 +20,8 @@ BEGIN;
 
 -- Pulizia preventiva (comoda in fase di sviluppo; commentare in produzione)
 TRUNCATE TABLE view_events, loan_requests, book_images, books,
-               user_preferences, categories, reports, users RESTART IDENTITY CASCADE;
+               organization_profiles, user_preferences, categories,
+               reports, users RESTART IDENTITY CASCADE;
 
 
 -- =============================================================================
@@ -65,17 +66,17 @@ INSERT INTO categories (name, slug, description, sort_order) VALUES
 
 INSERT INTO users (
   username, email, password_hash, display_name, bio, city_label,
-  location, location_precision, profile_visibility,
-  consent_tos, consent_privacy, consent_newsletter,
+  account_type, location, location_precision, profile_visibility,
+  email_visible, consent_tos, consent_privacy, consent_newsletter,
   role, status, email_verified, created_at
 ) VALUES
   ('chiara.morandi', 'c.morandi@mail.it',
     '$2b$12$PlAcEhOlDeRhAsHbCrYpTfOrDeMoPuRpOsEsOnLyXxXxXxXxXxXxX',
     'Chiara Morandi',
     'Appassionata di letteratura italiana del Novecento e di saggistica filosofica.',
-    'Napoli, Chiaia',
+    'Napoli, Chiaia', 'person',
     ST_SetSRID(ST_MakePoint(14.2351, 40.8358), 4326)::geography,
-    2, 'public',
+    2, 'public', FALSE,
     '2024-03-12 10:00:00+01', '2024-03-12 10:00:00+01', '2024-03-12 10:00:00+01',
     'user', 'active', TRUE, '2024-03-12 10:00:00+01'),
 
@@ -83,9 +84,9 @@ INSERT INTO users (
     '$2b$12$PlAcEhOlDeRhAsHbCrYpTfOrDeMoPuRpOsEsOnLyXxXxXxXxXxXxX',
     'Marco De Vito',
     'Collezionista di gialli e noir, con particolare attenzione agli autori scandinavi.',
-    'Napoli, Vomero',
+    'Napoli, Vomero', 'person',
     ST_SetSRID(ST_MakePoint(14.2295, 40.8488), 4326)::geography,
-    2, 'public',
+    2, 'public', FALSE,
     '2024-01-22 09:15:00+01', '2024-01-22 09:15:00+01', NULL,
     'user', 'active', TRUE, '2024-01-22 09:15:00+01'),
 
@@ -93,9 +94,9 @@ INSERT INTO users (
     '$2b$12$PlAcEhOlDeRhAsHbCrYpTfOrDeMoPuRpOsEsOnLyXxXxXxXxXxXxX',
     'Anna Russo',
     'Biblioteca di famiglia con edizioni ottocentesche di classici.',
-    'Napoli, Posillipo',
+    'Napoli, Posillipo', 'person',
     ST_SetSRID(ST_MakePoint(14.2055, 40.8145), 4326)::geography,
-    1, 'public',  -- Anna preferisce mostrare solo la città
+    1, 'public', FALSE,  -- Anna preferisce mostrare solo la città
     '2023-11-05 18:30:00+01', '2023-11-05 18:30:00+01', '2023-11-05 18:30:00+01',
     'user', 'active', TRUE, '2023-11-05 18:30:00+01'),
 
@@ -103,9 +104,9 @@ INSERT INTO users (
     '$2b$12$PlAcEhOlDeRhAsHbCrYpTfOrDeMoPuRpOsEsOnLyXxXxXxXxXxXxX',
     'Luca Esposito',
     'Saggi di storia locale e tradizioni campane.',
-    'Napoli, Centro Storico',
+    'Napoli, Centro Storico', 'person',
     ST_SetSRID(ST_MakePoint(14.2681, 40.8518), 4326)::geography,
-    2, 'public',
+    2, 'public', FALSE,
     '2024-05-08 14:00:00+02', '2024-05-08 14:00:00+02', NULL,
     'user', 'active', TRUE, '2024-05-08 14:00:00+02'),
 
@@ -113,9 +114,9 @@ INSERT INTO users (
     '$2b$12$PlAcEhOlDeRhAsHbCrYpTfOrDeMoPuRpOsEsOnLyXxXxXxXxXxXxX',
     'Giulia Ferrari',
     'Poesia contemporanea italiana e traduzioni dal tedesco.',
-    'Portici',
+    'Portici', 'person',
     ST_SetSRID(ST_MakePoint(14.3417, 40.8147), 4326)::geography,
-    2, 'public',
+    2, 'public', FALSE,
     '2024-02-18 11:45:00+01', '2024-02-18 11:45:00+01', '2024-02-18 11:45:00+01',
     'user', 'active', TRUE, '2024-02-18 11:45:00+01'),
 
@@ -123,22 +124,83 @@ INSERT INTO users (
     '$2b$12$PlAcEhOlDeRhAsHbCrYpTfOrDeMoPuRpOsEsOnLyXxXxXxXxXxXxX',
     'Roberto Mazzone',
     'Fantascienza classica e distopie.',
-    'Pozzuoli',
+    'Pozzuoli', 'person',
     ST_SetSRID(ST_MakePoint(14.1204, 40.8240), 4326)::geography,
-    3, 'public',  -- Roberto accetta la posizione precisa
+    3, 'public', FALSE,  -- Roberto accetta la posizione precisa
     '2024-04-01 16:20:00+02', '2024-04-01 16:20:00+02', NULL,
     'user', 'active', TRUE, '2024-04-01 16:20:00+02'),
+
+  -- Librerie-ente: account di tipo 'organization'. L'indirizzo è
+  -- pubblico (location_precision = 3) e l'email è visibile: gli enti
+  -- vogliono essere trovati e contattati.
+  ('biblioteca.sanita', 'info@bibliosanita.org',
+    '$2b$12$PlAcEhOlDeRhAsHbCrYpTfOrDeMoPuRpOsEsOnLyXxXxXxXxXxXxX',
+    'Biblioteca di Comunità Rione Sanità',
+    'Biblioteca di comunità nata dal basso: un presidio culturale aperto nel cuore del Rione Sanità, con un fondo dedicato alla storia e alle voci del quartiere.',
+    'Napoli, Rione Sanità', 'organization',
+    ST_SetSRID(ST_MakePoint(14.2515, 40.8585), 4326)::geography,
+    3, 'public', TRUE,
+    '2023-09-20 09:00:00+02', '2023-09-20 09:00:00+02', '2023-09-20 09:00:00+02',
+    'user', 'active', TRUE, '2023-09-20 09:00:00+02'),
+
+  ('lettori.erranti', 'contatti@lettorierranti.it',
+    '$2b$12$PlAcEhOlDeRhAsHbCrYpTfOrDeMoPuRpOsEsOnLyXxXxXxXxXxXxX',
+    'Associazione I Lettori Erranti',
+    'Associazione culturale che promuove la lettura condivisa attraverso circoli, presentazioni e una biblioteca circolante di narrativa e saggistica contemporanea.',
+    'Napoli, Fuorigrotta', 'organization',
+    ST_SetSRID(ST_MakePoint(14.1920, 40.8270), 4326)::geography,
+    3, 'public', TRUE,
+    '2024-01-10 10:00:00+01', '2024-01-10 10:00:00+01', NULL,
+    'user', 'active', TRUE, '2024-01-10 10:00:00+01'),
 
   -- Account amministratore per la dashboard di moderazione
   ('admin', 'admin@libreriadiffusa.it',
     '$2b$12$PlAcEhOlDeRhAsHbCrYpTfOrDeMoPuRpOsEsOnLyXxXxXxXxXxXxX',
     'Amministratore',
     'Account di sistema per la moderazione della piattaforma.',
-    'Napoli',
+    'Napoli', 'person',
     ST_SetSRID(ST_MakePoint(14.2681, 40.8518), 4326)::geography,
-    0, 'private',
+    0, 'private', FALSE,
     '2023-09-01 00:00:00+02', '2023-09-01 00:00:00+02', NULL,
     'admin', 'active', TRUE, '2023-09-01 00:00:00+02');
+
+
+-- =============================================================================
+-- 2-bis. PROFILI DEGLI ENTI
+-- =============================================================================
+-- Dati estesi delle due librerie-organizzazione. Collegati a users tramite
+-- JOIN ON username per restare indipendenti dagli ID di sequenza.
+-- =============================================================================
+
+INSERT INTO organization_profiles (
+  user_id, legal_name, org_category, contact_person,
+  website, public_email, public_phone, public_address, opening_hours
+)
+SELECT u.id, v.legal_name, v.org_category, v.contact_person,
+       v.website, v.public_email, v.public_phone, v.public_address, v.opening_hours
+FROM (VALUES
+  ('biblioteca.sanita',
+    'Associazione Biblioteca di Comunità Rione Sanità APS',
+    'biblioteca',
+    'Dott.ssa Federica Improta',
+    'https://www.bibliosanita.org',
+    'info@bibliosanita.org',
+    '+39 081 555 0142',
+    'Via della Sanità 124, 80136 Napoli',
+    'Lun–Ven 10:00–13:00 e 15:00–19:00 · Sab 10:00–13:00 · Dom chiuso'),
+
+  ('lettori.erranti',
+    'I Lettori Erranti — Associazione di Promozione Sociale',
+    'associazione',
+    'Salvatore Acanfora',
+    'https://www.lettorierranti.it',
+    'contatti@lettorierranti.it',
+    '+39 081 555 0987',
+    'Piazzale Tecchio 8, 80125 Napoli',
+    'Mar e Gio 16:00–20:00 · Sab 10:00–18:00 · prestito su appuntamento')
+) AS v(username, legal_name, org_category, contact_person,
+       website, public_email, public_phone, public_address, opening_hours)
+JOIN users u ON u.username = v.username;
 
 
 -- =============================================================================
@@ -219,7 +281,38 @@ FROM (VALUES
   ('roberto.mazzone', 'Fantascienza',
     'Neuromante', 'William Gibson', 1984, '9788834715567', 288,
     'Romanzo seminale del cyberpunk. La storia di Case, hacker-mercenario, in un futuro distopico dominato dalle corporazioni.',
-    'discrete', TRUE, 178, 5, '2024-05-28 20:00:00+02')
+    'discrete', TRUE, 178, 5, '2024-05-28 20:00:00+02'),
+
+  -- Volumi delle librerie-ente
+  ('biblioteca.sanita', 'Classici',
+    'La pelle', 'Curzio Malaparte', 1949, '9788845292378', 360,
+    'Romanzo crudo e visionario su Napoli durante la Seconda guerra mondiale, tra le rovine e la sopravvivenza.',
+    'buone condizioni', TRUE, 198, 6, '2024-06-10 11:00:00+02'),
+
+  ('biblioteca.sanita', 'Saggistica',
+    'Il ventre di Napoli', 'Matilde Serao', 1884, '9788877104983', 180,
+    'Inchiesta giornalistica sulle condizioni dei quartieri popolari napoletani di fine Ottocento.',
+    'discrete', TRUE, 156, 4, '2024-04-22 10:30:00+02'),
+
+  ('biblioteca.sanita', 'Narrativa contemporanea',
+    'Montedidio', 'Erri De Luca', 2001, '9788807813764', 180,
+    'Un ragazzo, una lingua che si fa adulta e un quartiere di Napoli che diventa mondo.',
+    'come nuovo', FALSE, 134, 3, '2024-05-30 09:15:00+02'),
+
+  ('lettori.erranti', 'Narrativa contemporanea',
+    'Le otto montagne', 'Paolo Cognetti', 2016, '9788806232801', 199,
+    'L''amicizia tra due uomini e il loro rapporto con la montagna, lungo l''arco di una vita.',
+    'ottime condizioni', TRUE, 221, 9, '2024-06-05 14:00:00+02'),
+
+  ('lettori.erranti', 'Classici',
+    'La Storia', 'Elsa Morante', 1974, '9788806219660', 656,
+    'Un grande romanzo corale sulla Seconda guerra mondiale vista dagli ultimi.',
+    'buone condizioni', TRUE, 187, 7, '2024-03-18 16:00:00+01'),
+
+  ('lettori.erranti', 'Classici',
+    'Il barone rampante', 'Italo Calvino', 1957, '9788804668374', 264,
+    'Cosimo decide di vivere sugli alberi e non scenderne mai più: una favola sulla libertà.',
+    'buone condizioni', TRUE, 165, 5, '2024-05-12 11:30:00+02')
 ) AS v(
   owner_username, category_name, title, author, year, isbn, pages,
   description, condition, available, view_count, request_count, created_at
@@ -312,16 +405,19 @@ FROM books b, generate_series(1, 15);  -- 15 eventi per libro = 180 totali
 -- valori di default definiti nello schema.
 -- =============================================================================
 
-INSERT INTO user_preferences (user_id, view_mode, theme, avatar_style, avatar_symbol, motto, sort_by)
-SELECT u.id, v.view_mode, v.theme, v.avatar_style, v.avatar_symbol, v.motto, v.sort_by
+INSERT INTO user_preferences (user_id, view_mode, theme, avatar_style, avatar_symbol, motto, sort_by, show_email)
+SELECT u.id, v.view_mode, v.theme, v.avatar_style, v.avatar_symbol, v.motto, v.sort_by, v.show_email
 FROM (VALUES
-  ('chiara.morandi',  'grid',     'classic',  'initials', NULL, 'Un libro è un sogno che tieni in mano', 'recent'),
-  ('marco.devito',    'shelf',    'midnight', 'symbol',   '§',  'Il delitto perfetto è ancora da scrivere', 'author'),
-  ('anna.russo',      'timeline', 'bordeaux', 'initials', NULL, 'Le edizioni antiche meritano rispetto', 'year'),
-  ('luca.esposito',   'list',     'sage',     'symbol',   '❦',  'La storia di Napoli scritta dai suoi libri', 'title'),
-  ('giulia.ferrari',  'grid',     'sage',     'symbol',   '❧',  'Tradurre è abitare due lingue', 'recent'),
-  ('roberto.mazzone', 'shelf',    'midnight', 'symbol',   '✦',  'Il futuro lo immaginiamo prima di costruirlo', 'year')
-) AS v(username, view_mode, theme, avatar_style, avatar_symbol, motto, sort_by)
+  ('chiara.morandi',  'grid',     'classic',  'initials', NULL, 'Un libro è un sogno che tieni in mano', 'recent', FALSE),
+  ('marco.devito',    'shelf',    'midnight', 'symbol',   '§',  'Il delitto perfetto è ancora da scrivere', 'author', FALSE),
+  ('anna.russo',      'timeline', 'bordeaux', 'initials', NULL, 'Le edizioni antiche meritano rispetto', 'year', FALSE),
+  ('luca.esposito',   'list',     'sage',     'symbol',   '❦',  'La storia di Napoli scritta dai suoi libri', 'title', FALSE),
+  ('giulia.ferrari',  'grid',     'sage',     'symbol',   '❧',  'Tradurre è abitare due lingue', 'recent', FALSE),
+  ('roberto.mazzone', 'shelf',    'midnight', 'symbol',   '✦',  'Il futuro lo immaginiamo prima di costruirlo', 'year', FALSE),
+  -- Le librerie-ente mostrano l'email pubblicamente: vogliono essere contattate
+  ('biblioteca.sanita', 'list',   'bordeaux', 'symbol',   '❦',  'La cultura è un bene comune', 'title', TRUE),
+  ('lettori.erranti',   'grid',   'classic',  'symbol',   '❧',  'Leggere insieme, camminare lontano', 'recent', TRUE)
+) AS v(username, view_mode, theme, avatar_style, avatar_symbol, motto, sort_by, show_email)
 JOIN users u ON u.username = v.username;
 
 
