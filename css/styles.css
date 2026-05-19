@@ -46,8 +46,14 @@
   --sp-12: 3rem;
   --sp-16: 4rem;
 
-  /* Layout */
-  --max-width: 1140px;       /* ridotto da 1280: contenuto più raccolto */
+  /* Layout
+     --max-width governa la larghezza di TUTTO il contenuto del sito.
+     È applicato dalla classe .container, usata da ogni <section> e
+     dal footer. Qualsiasi pagina nuova deve incapsulare il proprio
+     contenuto in .container per ereditare automaticamente la
+     centratura e i margini — non serve scrivere altro CSS. */
+  --max-width: 1080px;          /* contenuto raccolto e otticamente centrato */
+  --max-width-narrow: 760px;    /* per pagine di sola lettura / form stretti */
   --radius: 2px;            /* angoli quasi squadrati, stile editoriale */
   --radius-md: 4px;
 }
@@ -132,6 +138,12 @@ a:hover { color: var(--color-burgundy-dk); }
 .serif-italic { font-family: var(--font-display); font-style: italic; }
 
 /* ---- 5. Layout principale ------------------------------ */
+/* CONVENZIONE DI LAYOUT — vale per ogni pagina, presente e futura:
+   ogni blocco di contenuto va racchiuso in un elemento .container.
+   Questo garantisce su tutte le pagine la stessa larghezza massima,
+   gli stessi margini e la stessa centratura ottica, senza CSS
+   aggiuntivo. La variante .container--narrow restringe ulteriormente
+   per pagine di sola lettura o form stretti (login, registrazione). */
 .container {
   max-width: var(--max-width);
   margin: 0 auto;
@@ -139,7 +151,10 @@ a:hover { color: var(--color-burgundy-dk); }
      della finestra, restando otticamente centrato anche su monitor
      larghi */
   padding: 0 var(--sp-12);
+  width: 100%;
 }
+
+.container--narrow { max-width: var(--max-width-narrow); }
 
 .section { padding: var(--sp-16) 0; }
 
@@ -1631,4 +1646,407 @@ a:hover { color: var(--color-burgundy-dk); }
 @media (max-width: 768px) {
   .nearby-grid { grid-template-columns: 1fr; }
   .hero__stat-value { font-size: 1.6rem; }
+}
+
+/* =====================================================================
+   25. ESTENSIONI v0.4 — pagina libreria, enti, wizard di registrazione
+   ===================================================================== */
+
+/* ---- 25.1 Badge tipo libreria sulle card ------------------------- */
+.library-card__type {
+  display: inline-block;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--color-paper-dark);
+  color: var(--color-ink-soft);
+  align-self: flex-start;
+}
+.library-card__type--org {
+  background: rgba(122, 30, 43, 0.1);
+  color: var(--color-burgundy);
+  font-weight: 600;
+}
+/* tag tipo stampato sulla copertina generata della nearby-card */
+.nearby-card__type-tag {
+  position: absolute;
+  top: var(--sp-3);
+  left: var(--sp-3);
+  z-index: 3;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(26, 21, 18, 0.55);
+  color: var(--color-paper);
+  backdrop-filter: blur(2px);
+}
+
+/* ---- 25.2 Intestazione della pagina libreria --------------------- */
+.library-hero {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: var(--sp-8);
+  align-items: start;
+  margin-bottom: var(--sp-8);
+}
+
+/* copertina generata grande, a sinistra */
+.library-hero__cover {
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius);
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow: 0 10px 28px var(--color-shadow);
+}
+.library-hero__cover::before {
+  content: "";
+  position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(135deg,
+    rgba(244,239,230,0.08) 0 2px, transparent 2px 14px);
+  z-index: 1;
+}
+.library-hero__cover::after {
+  content: "";
+  position: absolute; inset: 0;
+  border: 7px solid rgba(244,239,230,0.14);
+  z-index: 2;
+}
+.library-hero__glyph {
+  font-family: var(--font-display);
+  font-size: 6rem;
+  font-weight: 600;
+  color: var(--color-paper);
+  z-index: 3;
+  text-shadow: 0 2px 16px rgba(0,0,0,0.3);
+}
+
+.library-hero__info { min-width: 0; }
+
+.library-hero__type {
+  display: inline-block;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: var(--sp-3);
+  background: var(--color-paper-dark);
+  color: var(--color-ink-soft);
+}
+.library-hero__type--org {
+  background: rgba(122, 30, 43, 0.1);
+  color: var(--color-burgundy);
+  font-weight: 600;
+}
+
+.library-hero__name {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  line-height: 1.1;
+  margin: 0 0 var(--sp-2);
+  color: var(--color-ink);
+}
+.library-hero__legal {
+  font-size: var(--fs-sm);
+  color: var(--color-ink-soft);
+  font-style: italic;
+  margin-bottom: var(--sp-3);
+}
+.library-hero__motto {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-style: italic;
+  color: var(--color-burgundy);
+  margin-bottom: var(--sp-3);
+}
+.library-hero__bio {
+  color: var(--color-ink-soft);
+  line-height: 1.6;
+  margin-bottom: var(--sp-4);
+  max-width: 60ch;
+}
+.library-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-6);
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+  margin-bottom: var(--sp-4);
+}
+.library-hero__meta > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.library-hero__meta strong {
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+}
+.library-hero__actions {
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+/* ---- 25.3 Statistiche sintetiche della libreria ------------------ */
+.library-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4);
+  margin: var(--sp-6) 0 var(--sp-8);
+}
+.library-stat {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--color-paper);
+}
+.library-stat__value {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--color-burgundy);
+  line-height: 1;
+}
+.library-stat__value--available { color: var(--color-sage); }
+.library-stat__label {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  margin-top: 4px;
+}
+
+/* ---- 25.4 Scheda informativa dell'ente --------------------------- */
+.org-panel {
+  border: 1px solid var(--color-line);
+  border-left: 3px solid var(--color-burgundy);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+  padding: var(--sp-6);
+  margin-bottom: var(--sp-8);
+}
+.org-panel h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  margin: 0 0 var(--sp-4);
+  color: var(--color-ink);
+}
+.org-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--sp-4) var(--sp-6);
+}
+.org-field__label {
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  margin-bottom: 2px;
+}
+.org-field__value {
+  color: var(--color-ink);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+.org-field__value a { color: var(--color-burgundy); }
+
+/* ---- 25.5 Barra strumenti della libreria (switch vista) ---------- */
+.library-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-2);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--color-line);
+}
+.library-toolbar h2 {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  margin: 0;
+  color: var(--color-ink);
+}
+
+/* ---- 25.6 Wizard di registrazione -------------------------------- */
+/* Indicatore di avanzamento a tappe */
+.wizard-steps {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-8);
+  counter-reset: step;
+}
+.wizard-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+  position: relative;
+}
+.wizard-step__bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-line);
+  transition: background 0.3s ease;
+}
+.wizard-step__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.wizard-step__num {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--color-line);
+  color: var(--color-paper);
+  font-size: 0.7rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: background 0.3s ease;
+}
+.wizard-step.is-active .wizard-step__bar,
+.wizard-step.is-done .wizard-step__bar { background: var(--color-burgundy); }
+.wizard-step.is-active .wizard-step__num,
+.wizard-step.is-done .wizard-step__num { background: var(--color-burgundy); }
+.wizard-step.is-active .wizard-step__label { color: var(--color-ink); font-weight: 600; }
+.wizard-step.is-done .wizard-step__num::after { content: "✓"; }
+.wizard-step.is-done .wizard-step__num span { display: none; }
+
+/* Pannelli step: solo quello attivo è visibile */
+.wizard-panel { display: none; }
+.wizard-panel.is-active { display: block; animation: wizard-fade 0.3s ease; }
+@keyframes wizard-fade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wizard-panel.is-active { animation: none; }
+}
+
+.wizard-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--color-line);
+}
+
+/* Scelta tipo account: due grandi card radio */
+.account-type-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+.account-type-card {
+  position: relative;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--sp-5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--color-paper);
+}
+.account-type-card input { position: absolute; opacity: 0; pointer-events: none; }
+.account-type-card:hover { border-color: var(--color-burgundy); }
+.account-type-card:has(input:checked) {
+  border-color: var(--color-burgundy);
+  background: rgba(122, 30, 43, 0.05);
+  box-shadow: 0 0 0 2px var(--color-burgundy);
+}
+.account-type-card__icon {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  color: var(--color-burgundy);
+  line-height: 1;
+  margin-bottom: var(--sp-2);
+}
+.account-type-card__title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  color: var(--color-ink);
+  margin-bottom: 4px;
+}
+.account-type-card__desc {
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+  line-height: 1.5;
+}
+
+/* Blocco campi-ente, mostrato solo se si sceglie "organizzazione" */
+.org-fields { display: none; }
+.org-fields.is-visible { display: block; }
+
+/* Mini-lista dei volumi aggiunti durante l'onboarding */
+.onboarding-books {
+  display: grid;
+  gap: var(--sp-2);
+  margin: var(--sp-4) 0;
+}
+.onboarding-book {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+  font-size: var(--fs-sm);
+}
+.onboarding-book__remove {
+  background: none;
+  border: none;
+  color: var(--color-burgundy);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 4px;
+}
+.onboarding-empty {
+  text-align: center;
+  padding: var(--sp-6);
+  color: var(--color-ink-soft);
+  font-style: italic;
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius);
+}
+
+/* ---- 25.7 Banner di proprietà / sola lettura --------------------- */
+.ownership-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--sp-5);
+}
+.ownership-banner--owner {
+  background: rgba(110, 122, 90, 0.1);
+  border-left: 3px solid var(--color-sage);
+  color: var(--color-ink);
+}
+.ownership-banner--visitor {
+  background: var(--color-paper-dark);
+  border-left: 3px solid var(--color-line);
+  color: var(--color-ink-soft);
+}
+
+@media (max-width: 768px) {
+  .library-hero { grid-template-columns: 1fr; }
+  .library-hero__cover { max-width: 200px; }
+  .library-stats { grid-template-columns: 1fr; }
+  .account-type-choice { grid-template-columns: 1fr; }
+  .wizard-step__label span:not(.wizard-step__num span) { display: none; }
 }

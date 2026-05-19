@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Personalizza il tuo profilo — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.3.0" />
+  <link rel="stylesheet" href="css/styles.css?v=0.4.0" />
 </head>
 <body>
 
@@ -321,17 +321,21 @@
       <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
       <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
       <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.3.0</span></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.4.0</span></div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.3.0"></script>
+  <script src="js/app.js?v=0.4.0"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
-      // L'utente "corrente" — in modalità autenticata è quello loggato,
-      // altrimenti usiamo per default Chiara Morandi (id 1)
-      const currentUser = API.getCurrentUser() || API.getUser(1);
+      /* PROTEZIONE PROPRIETÀ — questa pagina modifica SOLO la libreria
+         dell'utente loggato. Un visitatore anonimo viene rimandato al
+         login; non è possibile personalizzare la libreria di altri.
+         La pagina non accetta parametri ?user= proprio per evitare
+         che qualcuno tenti di editare un profilo altrui. */
+      const currentUser = API.requireAuth('login.html');
+      if (!currentUser) return;            // requireAuth ha già reindirizzato
       const userId = currentUser.id;
       const prefs = API.getProfilePrefs(userId);
 
@@ -519,13 +523,19 @@
           return;
         }
 
-        // Aggiorna i dati dell'utente
-        const users = API.getUsers();
-        const user = users.find(u => u.id === userId);
-        user.display_name = document.getElementById('display-name').value.trim();
-        user.bio          = document.getElementById('bio').value.trim();
-        user.city         = document.getElementById('city').value.trim();
-        Storage.set('users', users);
+        // Aggiorna i dati dell'utente tramite il metodo protetto:
+        // updateUser verifica la proprietà e lancia un errore se si
+        // tenta di modificare la libreria di un altro utente.
+        try {
+          API.updateUser(userId, {
+            display_name: document.getElementById('display-name').value.trim(),
+            bio:          document.getElementById('bio').value.trim(),
+            city:         document.getElementById('city').value.trim()
+          });
+        } catch (err) {
+          UI.toast(err.message, 'error');
+          return;
+        }
 
         // Aggiorna le preferenze
         const newPrefs = {
