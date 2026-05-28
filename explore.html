@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Esplora la mappa — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.5.0" />
+  <link rel="stylesheet" href="css/styles.css?v=0.6.0" />
   <!-- Leaflet: libreria per mappe interattive (OpenStreetMap tiles) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
@@ -85,7 +85,7 @@
       <!-- Messaggio live region per annunci a screen reader -->
       <div class="sr-only" aria-live="polite" id="search-status"></div>
 
-      <div class="books-grid" id="books-results"></div>
+      <div class="search-results-list" id="books-results"></div>
     </section>
 
   </main>
@@ -101,12 +101,12 @@
       <div><h4>Informazioni</h4><a href="#">Privacy</a></div>
       <div class="site-footer__colophon">
         <span>© 2026 Libreria Diffusa</span>
-        <span>v0.5.0</span>
+        <span>v0.6.0</span>
       </div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.5.0"></script>
+  <script src="js/app.js?v=0.6.0"></script>
   <script>
     /* =============================================================
        LOGICA DELLA PAGINA ESPLORA
@@ -114,6 +114,7 @@
        ============================================================= */
 
     let map, markersLayer;
+    let scrollOnSearch = false;   // true solo dopo una ricerca esplicita dell'utente
     const DEFAULT_CENTER = [40.8358, 14.2488];   // Napoli (contesto scelto)
     const DEFAULT_ZOOM = 12;
 
@@ -132,11 +133,25 @@
       if (params.get('cat')) catSelect.value = params.get('cat');
       if (params.get('q')) document.getElementById('search-query').value = params.get('q');
 
-      initMap();
+      // La mappa dipende da Leaflet (CDN). Se non è disponibile (rete
+      // assente, blocco del CDN…), la incapsuliamo in try/catch così
+      // che i risultati di ricerca vengano comunque mostrati: la
+      // funzione primaria della pagina non deve dipendere dalla mappa.
+      try {
+        initMap();
+      } catch (err) {
+        console.warn('Mappa non disponibile:', err);
+        const mw = document.querySelector('.map-wrapper');
+        if (mw) mw.innerHTML =
+          '<p class="alert alert--info" style="margin:0;">Mappa non disponibile al momento. I risultati della ricerca sono comunque elencati qui sotto.</p>';
+      }
+      // Al primo caricamento mostriamo i risultati senza scrollare:
+      // lo scroll automatico ha senso solo dopo una ricerca esplicita.
       runSearch();
 
       document.getElementById('search-form').addEventListener('submit', e => {
         e.preventDefault();
+        scrollOnSearch = true;
         runSearch();
       });
     });
@@ -174,8 +189,9 @@
         results = results.filter(b => nearbyIds.has(b.id));
       }
 
-      // 3. Aggiornamento UI
-      UI.renderBooksGrid(document.getElementById('books-results'), results);
+      // 3. Aggiornamento UI — elenco leggibile con enfasi sulla posizione
+      const resultsBox = document.getElementById('books-results');
+      UI.renderSearchResults(resultsBox, results);
       document.getElementById('results-count').textContent =
         `${results.length} volum${results.length === 1 ? 'e' : 'i'}`;
       document.getElementById('search-status').textContent =
@@ -183,10 +199,29 @@
 
       // 4. Aggiornamento marcatori mappa
       updateMapMarkers(results);
+
+      // 5. Riavvio dell'animazione di entrata a cascata (reflow trick)
+      resultsBox.classList.remove('results-in');
+      void resultsBox.offsetWidth;
+      resultsBox.classList.add('results-in');
+
+      // 6. Scroll automatico ai risultati: dopo una ricerca l'utente
+      //    vuole vedere subito cosa è stato trovato. Lo scroll è
+      //    morbido e si attiva solo se la ricerca parte da un'azione
+      //    esplicita (non al primo caricamento della pagina).
+      if (scrollOnSearch) {
+        const header = document.getElementById('results-title')
+                        .closest('.section-header');
+        const y = header.getBoundingClientRect().top + window.scrollY - 80;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
     }
 
     /** Aggiorna i marker sulla mappa secondo i risultati */
     function updateMapMarkers(books) {
+      // Se la mappa non è stata inizializzata (Leaflet non disponibile),
+      // saltiamo l'aggiornamento dei marker senza errori.
+      if (!markersLayer || typeof L === 'undefined') return;
       markersLayer.clearLayers();
       const users = API.getUsers();
 

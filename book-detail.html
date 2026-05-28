@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dettaglio libro — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.5.0" />
+  <link rel="stylesheet" href="css/styles.css?v=0.6.0" />
 </head>
 <body>
 
@@ -64,6 +64,17 @@
       <p style="color: var(--color-ink-soft); font-size: .9rem;">
         Questo è un prototipo: la richiesta è simulata. In produzione verrebbe inviata al proprietario tramite notifica e/o email.
       </p>
+
+      <!-- Suggerimento per gli ospiti: spiega che serve l'iscrizione -->
+      <div class="hint-box guest-only" id="loan-guest-hint">
+        <span class="hint-box__icon" aria-hidden="true">💡</span>
+        <span>
+          Per inviare la richiesta ti chiederemo una rapida iscrizione come
+          <strong>Lettore</strong> — niente obblighi di pubblicare libri, e
+          potrai aprire la tua libreria quando vorrai. Premendo «Invia
+          richiesta» verrai accompagnato alla registrazione e poi riportato qui.
+        </span>
+      </div>
       <div class="form__group">
         <label class="form__label" for="loan-message">Messaggio (facoltativo)</label>
         <textarea id="loan-message" class="form__textarea"
@@ -88,11 +99,11 @@
       <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
       <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
       <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.5.0</span></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.6.0</span></div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.5.0"></script>
+  <script src="js/app.js?v=0.6.0"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -184,11 +195,33 @@
       document.getElementById('loan-submit')?.addEventListener('click', e => {
         if (!document.getElementById('loan-consent').checked) return;
         e.preventDefault();
-        API.requestLoan(id, 1);   // richiedente simulato: user 1
+
+        // Per richiedere un prestito bisogna essere iscritti. Se l'utente
+        // è ospite, salviamo il libro in sospeso e lo portiamo alla
+        // registrazione (pre-selezionando il percorso "Lettore"). Al
+        // termine tornerà qui per inviare la richiesta.
+        const me = API.getCurrentUser();
+        if (!me) {
+          sessionStorage.setItem('pending_loan_book', id);
+          document.getElementById('loan-dialog').close();
+          UI.toast('Per richiedere un prestito serve una rapida iscrizione…', 'info');
+          setTimeout(() => location.href = `register.html?intent=borrow&book=${id}`, 900);
+          return;
+        }
+
+        API.requestLoan(id, me.id);
         document.getElementById('loan-dialog').close();
         UI.toast('Richiesta inviata correttamente al proprietario.', 'info');
         setTimeout(() => location.reload(), 1500);
       });
+
+      // Se si torna qui dopo l'iscrizione (register → ?loan=1), riapriamo
+      // automaticamente il dialog di richiesta prestito per chiudere il
+      // cerchio senza far ricominciare l'utente da capo.
+      if (new URLSearchParams(location.search).get('loan') === '1') {
+        const reopen = document.getElementById('request-loan-btn');
+        if (reopen) setTimeout(() => document.getElementById('loan-dialog').showModal(), 400);
+      }
 
       // Altri libri dello stesso proprietario
       const others = API.getBooksByOwner(owner.id).filter(b => b.id !== book.id);

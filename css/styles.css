@@ -251,12 +251,20 @@ a:hover { color: var(--color-burgundy-dk); }
   border-bottom: 1px solid var(--color-line);
   position: relative;
   overflow: hidden;
+  /* Layout a due colonne su desktop: testo a sinistra, illustrazione
+     a destra. Su mobile (governato dal breakpoint più giù) torna a
+     singola colonna con l'illustrazione sopra al testo. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+  gap: var(--sp-8);
+  align-items: center;
 }
 
 .hero__content {
-  max-width: 780px;
+  max-width: 580px;
   display: grid;
   gap: var(--sp-6);
+  grid-column: 1;          /* sempre colonna sinistra su desktop */
 }
 
 .hero__title {
@@ -280,18 +288,209 @@ a:hover { color: var(--color-burgundy-dk); }
 
 .hero__actions { display: flex; gap: var(--sp-4); flex-wrap: wrap; margin-top: var(--sp-4); }
 
-.hero__decoration {
-  position: absolute;
-  right: -80px; top: 50%;
-  transform: translateY(-50%);
-  font-family: var(--font-display);
-  font-size: 22rem;
-  font-style: italic;
+/* ---- ILLUSTRAZIONE INTERATTIVA DELL'HERO ----
+   SVG line-art di due lettori che si scambiano un libro. Riassume in
+   colpo d'occhio la natura del sito. Tocco o click attivano un'animazione
+   di saluto + scambio: i bracci salutano, i libri rimbalzano, brillii
+   appaiono attorno. */
+.hero__illustration {
+  /* È un <button>: rimuoviamo lo styling nativo per usare solo il
+     nostro. */
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  width: 100%;
+  max-width: 380px;
+  justify-self: end;
   color: var(--color-burgundy);
-  opacity: 0.06;
-  line-height: 1;
+  position: relative;
+  display: block;
+  grid-column: 2;          /* sempre colonna destra su desktop */
+}
+.hero__illustration svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;       /* permette ai brillii fuori dal viewBox di essere visibili */
+}
+.hero__illustration:focus-visible {
+  outline: none;
+}
+.hero__illustration:focus-visible .hi__bg {
+  stroke: var(--color-burgundy);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+}
+
+/* Etichetta-suggerimento "tocca per animare" */
+.hero__illustration-hint {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  font-family: var(--font-body);
+  transition: opacity 0.3s ease;
   pointer-events: none;
-  user-select: none;
+}
+.hero__illustration-hint__dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--color-burgundy);
+  animation: hi-hint-pulse 1.6s ease-in-out infinite;
+}
+.hero__illustration:hover .hero__illustration-hint,
+.hero__illustration.is-animated .hero__illustration-hint {
+  opacity: 0;
+}
+@keyframes hi-hint-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.5); opacity: 0.5; }
+}
+
+/* ----- Stili degli elementi SVG ----- */
+.hi__bg { fill: rgba(176, 136, 64, 0.10); }
+.hi__person {
+  stroke: currentColor;
+  stroke-width: 2.4;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hi__head { fill: var(--color-paper); }
+.hi__hair {
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hi__book-cover {
+  fill: rgba(176, 136, 64, 0.25);
+  stroke: currentColor;
+  stroke-width: 2.2;
+}
+.hi__book-spine { stroke: currentColor; stroke-width: 1.6; opacity: 0.5; }
+.hi__book-line  { stroke: currentColor; stroke-width: 1.2; opacity: 0.55; stroke-linecap: round; }
+
+.hi__sparkle {
+  fill: var(--color-gold);
+  font-size: 18px;
+  text-anchor: middle;
+  font-family: var(--font-display);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Le braccia che salutano hanno l'origine di rotazione sulla spalla,
+   così oscillano attorno al punto di attacco. */
+.hi__arm-wave--left  { transform-origin: 115px 158px; }
+.hi__arm-wave--right { transform-origin: 325px 158px; }
+
+/* Movimento idle (continuo, sottile) — invita il visitatore a interagire
+   senza essere invadente. I libri respirano leggermente. */
+.hi__books {
+  animation: hi-breathe 4s ease-in-out infinite;
+  transform-origin: 220px 172px;
+}
+@keyframes hi-breathe {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50%      { transform: scale(1.02) translateY(-2px); }
+}
+
+/* Stato attivo (hover o click) ----------------------------- */
+.hero__illustration:hover .hi__arm-wave--left,
+.hero__illustration.is-animated .hi__arm-wave--left {
+  animation: hi-wave-left 0.7s ease-in-out 3;
+}
+.hero__illustration:hover .hi__arm-wave--right,
+.hero__illustration.is-animated .hi__arm-wave--right {
+  animation: hi-wave-right 0.7s ease-in-out 3;
+}
+.hero__illustration:hover .hi__book--right,
+.hero__illustration.is-animated .hi__book--right {
+  animation: hi-book-r 0.9s ease-in-out 2;
+}
+.hero__illustration:hover .hi__book--left,
+.hero__illustration.is-animated .hi__book--left {
+  animation: hi-book-l 0.9s ease-in-out 2;
+}
+.hero__illustration:hover .hi__sparkle,
+.hero__illustration.is-animated .hi__sparkle {
+  animation: hi-sparkle 1.4s ease-in-out 2;
+}
+.hero__illustration:hover .hi__sparkle--2,
+.hero__illustration.is-animated .hi__sparkle--2 { animation-delay: 0.15s; }
+.hero__illustration:hover .hi__sparkle--3,
+.hero__illustration.is-animated .hi__sparkle--3 { animation-delay: 0.3s; }
+.hero__illustration:hover .hi__sparkle--4,
+.hero__illustration.is-animated .hi__sparkle--4 { animation-delay: 0.45s; }
+.hero__illustration:hover .hi__sparkle--5,
+.hero__illustration.is-animated .hi__sparkle--5 { animation-delay: 0.6s; }
+
+@keyframes hi-wave-left {
+  0%, 100% { transform: rotate(0); }
+  25%      { transform: rotate(-18deg); }
+  50%      { transform: rotate(0); }
+  75%      { transform: rotate(-22deg); }
+}
+@keyframes hi-wave-right {
+  0%, 100% { transform: rotate(0); }
+  25%      { transform: rotate(18deg); }
+  50%      { transform: rotate(0); }
+  75%      { transform: rotate(22deg); }
+}
+@keyframes hi-book-r {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  50%      { transform: translate(10px, -6px) rotate(6deg); }
+}
+@keyframes hi-book-l {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  50%      { transform: translate(-10px, -6px) rotate(-6deg); }
+}
+@keyframes hi-sparkle {
+  0%   { opacity: 0; transform: scale(0.4) rotate(-20deg); }
+  35%  { opacity: 1; transform: scale(1.3) rotate(0); }
+  70%  { opacity: 0.9; transform: scale(1) rotate(10deg); }
+  100% { opacity: 0; transform: scale(0.6) rotate(20deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hi__books { animation: none; }
+  .hero__illustration:hover *,
+  .hero__illustration.is-animated * { animation: none !important; }
+  .hero__illustration-hint__dot { animation: none; }
+}
+
+/* Decoration originale (§) ora opzionale: la lasciamo come fallback
+   per browser molto vecchi che non gestiscono la grid. */
+.hero__decoration { display: none; }
+
+/* Adattamenti responsive */
+@media (max-width: 880px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: var(--sp-6);
+  }
+  .hero__content { max-width: none; grid-column: 1; }
+  .hero__illustration {
+    order: -1;                       /* l'illustrazione passa SOPRA il testo su mobile */
+    grid-column: 1;
+    max-width: 280px;
+    justify-self: center;
+  }
 }
 
 /* ---- 9. Griglia libri / schede ------------------------- */
@@ -2351,3 +2550,282 @@ a:hover { color: var(--color-burgundy-dk); }
    Questo regola universale ripristina la semantica nativa: un elemento
    con l'attributo hidden viene nascosto, sempre. ----------------- */
 [hidden] { display: none !important; }
+
+/* =====================================================================
+   27. ESTENSIONI v0.6 — risultati di ricerca a elenco (explore.html)
+   ===================================================================== */
+
+/* Contenitore: gli item entrano con animazione a cascata quando viene
+   aggiunta la classe .results-in (riattivata a ogni ricerca). */
+#books-results.results-in .result-item {
+  animation: result-in 0.45s cubic-bezier(.2,.7,.3,1) backwards;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+@keyframes result-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #books-results.results-in .result-item { animation: none; }
+}
+
+/* Riga-risultato: layout a tre zone (copertina | dati | stato). */
+.result-item {
+  display: grid;
+  grid-template-columns: 84px 1fr auto;
+  gap: var(--sp-4);
+  align-items: center;
+  padding: var(--sp-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+  text-decoration: none;
+  color: inherit;
+  margin-bottom: var(--sp-3);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.result-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-burgundy);
+  box-shadow: 0 10px 26px var(--color-shadow);
+}
+
+.result-item__cover {
+  width: 84px; height: 110px;
+  border-radius: 2px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 6px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08), 0 4px 12px var(--color-shadow);
+}
+.result-item__cover span {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  line-height: 1.15;
+  color: rgba(244,239,230,0.95);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.35);
+}
+
+.result-item__main { min-width: 0; }
+.result-item__category {
+  display: inline-block;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  margin-bottom: 4px;
+}
+.result-item__title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  line-height: 1.15;
+  margin: 0 0 2px;
+  color: var(--color-ink);
+}
+.result-item__author {
+  font-size: var(--fs-sm);
+  color: var(--color-ink-soft);
+  margin: 0 0 var(--sp-2);
+}
+
+/* Posizione: messa in risalto — è l'informazione chiave per chi
+   cerca un prestito vicino. Pin colorato + città in grassetto. */
+.result-item__place {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--color-burgundy);
+}
+.result-item__pin { flex-shrink: 0; margin-top: 2px; }
+.result-item__place-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+.result-item__place-text strong {
+  font-size: var(--fs-sm);
+  color: var(--color-ink);
+}
+.result-item__owner {
+  font-size: 0.72rem;
+  color: var(--color-ink-soft);
+}
+
+.result-item__aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  text-align: right;
+}
+.result-item__cta {
+  font-size: 0.72rem;
+  color: var(--color-burgundy);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  white-space: nowrap;
+}
+.result-item:hover .result-item__cta { opacity: 1; }
+
+/* ---- Badge di disponibilità animato --------------------------------
+   "Disponibile" usa il verde salvia della palette (colore d'accento
+   positivo) con un puntino pulsante che attira l'occhio senza
+   risultare invadente. "In prestito" resta neutro. */
+.result-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.result-badge--available {
+  color: #3f5233;
+  background: rgba(110, 122, 90, 0.16);
+  position: relative;
+}
+.result-badge--available .result-badge__dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--color-sage);
+  box-shadow: 0 0 0 0 rgba(110, 122, 90, 0.6);
+  animation: badge-pulse 1.8s ease-out infinite;
+}
+@keyframes badge-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(110, 122, 90, 0.55); }
+  70%  { box-shadow: 0 0 0 8px rgba(110, 122, 90, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(110, 122, 90, 0); }
+}
+/* Variante che cattura ancora di più l'attenzione: leggera oscillazione
+   del colore del testo del badge disponibile, sul ciclo del puntino. */
+.result-badge--available {
+  animation: badge-glow 2.6s ease-in-out infinite;
+}
+@keyframes badge-glow {
+  0%, 100% { background: rgba(110, 122, 90, 0.16); }
+  50%      { background: rgba(110, 122, 90, 0.28); }
+}
+.result-badge--loaned {
+  color: var(--color-ink-soft);
+  background: var(--color-paper-dark);
+}
+@media (prefers-reduced-motion: reduce) {
+  .result-badge--available,
+  .result-badge--available .result-badge__dot { animation: none; }
+}
+
+/* Responsive: su mobile la riga diventa più compatta, lo stato va sotto */
+@media (max-width: 620px) {
+  .result-item {
+    grid-template-columns: 64px 1fr;
+    grid-template-areas: "cover main" "aside aside";
+    gap: var(--sp-3);
+  }
+  .result-item__cover { grid-area: cover; width: 64px; height: 86px; }
+  .result-item__main  { grid-area: main; }
+  .result-item__aside {
+    grid-area: aside;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    text-align: left;
+    padding-top: var(--sp-2);
+    border-top: 1px solid var(--color-line);
+  }
+  .result-item__cta { opacity: 1; }
+}
+
+/* =====================================================================
+   28. ESTENSIONI v0.6 — flusso "Lettore" (borrower)
+   ===================================================================== */
+
+/* Griglia a 3 colonne per la scelta tipo-account (persona/lettore/ente).
+   Su mobile si impila in colonna. */
+.account-type-choice--three {
+  grid-template-columns: repeat(3, 1fr);
+}
+@media (max-width: 700px) {
+  .account-type-choice--three { grid-template-columns: 1fr; }
+}
+
+/* Box-suggerimento generico (hint): tono informativo, non invadente,
+   coerente con la palette. Usato in registrazione e nel dialog prestito. */
+.hint-box {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius);
+  background: rgba(176, 136, 64, 0.10);
+  border-left: 3px solid var(--color-gold);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  color: var(--color-ink);
+  margin: var(--sp-3) 0 var(--sp-5);
+}
+.hint-box__icon { font-size: 1.1rem; line-height: 1.3; flex-shrink: 0; }
+
+/* Banner "stai per registrarti per un prestito": più prominente del hint,
+   usa l'accento bordeaux perché segnala il contesto della sessione. */
+.intent-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--radius);
+  background: rgba(122, 30, 43, 0.07);
+  border: 1px solid rgba(122, 30, 43, 0.2);
+  border-left: 3px solid var(--color-burgundy);
+  margin-bottom: var(--sp-6);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  color: var(--color-ink);
+  animation: intent-in 0.45s cubic-bezier(.2,.7,.3,1);
+}
+.intent-banner strong { display: block; color: var(--color-burgundy); margin-bottom: 2px; }
+.intent-banner__icon { font-size: 1.5rem; line-height: 1; flex-shrink: 0; }
+@keyframes intent-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .intent-banner { animation: none; } }
+
+/* Indicatore di step "saltato" (lo step "Primi volumi" per i lettori):
+   barrato e attenuato, così l'utente capisce che non lo dovrà compilare. */
+.wizard-step.is-skipped { opacity: 0.45; }
+.wizard-step.is-skipped .wizard-step__label { text-decoration: line-through; }
+.wizard-step.is-skipped .wizard-step__num {
+  background: var(--color-line);
+}
+
+/* Suggerimento "diventa curatore" sulle pagine personali dei lettori */
+.borrower-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-5) var(--sp-6);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(122,30,43,0.06), rgba(176,136,64,0.10));
+  border: 1px dashed var(--color-gold);
+  margin-bottom: var(--sp-6);
+}
+.borrower-cta__text { flex: 1; min-width: 220px; }
+.borrower-cta__text h3 {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  margin: 0 0 4px;
+  color: var(--color-ink);
+}
+.borrower-cta__text p {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--color-ink-soft);
+  line-height: 1.5;
+}

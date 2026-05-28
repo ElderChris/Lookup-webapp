@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Crea la tua libreria — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.5.0" />
+  <link rel="stylesheet" href="css/styles.css?v=0.6.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -38,6 +38,18 @@
         la collezione personale di un lettore oppure il fondo di un ente che mette i
         propri libri a disposizione per il prestito. Tre passi e sei pronto.
       </p>
+
+      <!-- Banner mostrato a chi arriva da una richiesta di prestito interrotta -->
+      <div class="intent-banner" id="intent-banner" role="status" hidden>
+        <span class="intent-banner__icon" aria-hidden="true">📖</span>
+        <div>
+          <strong>Un ultimo passo prima del prestito.</strong>
+          Per richiedere un libro in prestito è necessaria una rapida iscrizione.
+          Abbiamo già selezionato per te l'opzione <em>Lettore</em>: ti bastano due
+          minuti, e nessun obbligo di pubblicare volumi. Al termine tornerai al libro
+          per inviare la richiesta.
+        </div>
+      </div>
 
       <!-- Indicatore di avanzamento -->
       <ol class="wizard-steps" aria-label="Avanzamento registrazione">
@@ -84,13 +96,22 @@
             </div>
           </div>
 
-          <div class="account-type-choice" role="radiogroup" aria-label="Tipo di account">
+          <div class="account-type-choice account-type-choice--three" role="radiogroup" aria-label="Tipo di account">
             <label class="account-type-card">
               <input type="radio" name="account_type" value="person" checked />
               <div class="account-type-card__icon" aria-hidden="true">☺</div>
               <div class="account-type-card__title">Persona</div>
               <div class="account-type-card__desc">
                 Un lettore che condivide la propria collezione privata con il vicinato.
+              </div>
+            </label>
+            <label class="account-type-card">
+              <input type="radio" name="account_type" value="borrower" />
+              <div class="account-type-card__icon" aria-hidden="true">⇄</div>
+              <div class="account-type-card__title">Lettore</div>
+              <div class="account-type-card__desc">
+                Voglio solo prendere in prestito. Potrò aprire la mia libreria
+                quando vorrò.
               </div>
             </label>
             <label class="account-type-card">
@@ -102,6 +123,17 @@
                 o un centro culturale.
               </div>
             </label>
+          </div>
+
+          <!-- Suggerimento contestuale per chi sceglie "Lettore" -->
+          <div class="hint-box" id="borrower-hint" hidden>
+            <span class="hint-box__icon" aria-hidden="true">💡</span>
+            <span>
+              Da lettore puoi richiedere prestiti subito dopo l'iscrizione, senza
+              pubblicare alcun volume. Quando vorrai condividere i tuoi libri,
+              potrai aprire la tua libreria in qualsiasi momento dalla tua area
+              personale — diventando a tutti gli effetti un curatore.
+            </span>
           </div>
 
           <h3 style="font-family: var(--font-display); font-size: 1.3rem; margin: 1.5rem 0 .5rem;">Credenziali di accesso</h3>
@@ -358,11 +390,11 @@
       <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
       <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
       <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.5.0</span></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.6.0</span></div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.5.0"></script>
+  <script src="js/app.js?v=0.6.0"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -385,25 +417,64 @@
         bkCategory.appendChild(o);
       });
 
-      /* ----- Mostra/nascondi i campi-ente in base al tipo account ----- */
+      /* ----- Mostra/nascondi i campi in base al tipo account ----- */
       const orgFields = document.getElementById('org-fields');
+      const borrowerHint = document.getElementById('borrower-hint');
+      const step3Indicator = document.querySelector('.wizard-step[data-step="3"]');
+
+      // Il "lettore" è una persona che per ora vuole solo prendere in
+      // prestito: salta lo step dei primi volumi e parte con library_role
+      // 'borrower'. Resta una persona a livello di account_type.
+      function isBorrower() { return form.account_type.value === 'borrower'; }
+      function lastStep()   { return isBorrower() ? 2 : 3; }
+
       function syncAccountType() {
         const type = form.account_type.value;
         const isOrg = type === 'organization';
+        const borrower = type === 'borrower';
+
         orgFields.classList.toggle('is-visible', isOrg);
         orgFields.setAttribute('aria-hidden', String(!isOrg));
-        // I campi-ente obbligatori sono richiesti solo se è un ente
         ['legal_name', 'org_category', 'contact_person', 'public_address', 'opening_hours']
           .forEach(name => {
             const f = form.elements[name];
             if (f) f.required = isOrg;
           });
-        // Etichette che cambiano fra persona ed ente
+        // Etichette che cambiano fra persona/lettore ed ente
         document.querySelectorAll('[data-label-person]').forEach(el => el.hidden = isOrg);
         document.querySelectorAll('[data-label-org]').forEach(el => el.hidden = !isOrg);
+
+        // Suggerimento del lettore
+        borrowerHint.hidden = !borrower;
+
+        // Per il lettore lo step "Primi volumi" è facoltativo/saltato:
+        // lo segnaliamo nell'indicatore di avanzamento e rendiamo la
+        // biografia non obbligatoria (meno attrito per chi vuole solo leggere).
+        step3Indicator.classList.toggle('is-skipped', borrower);
+        const bioField = form.elements['bio'];
+        if (bioField) {
+          bioField.required = !borrower;
+          // Aggiorna il testo di aiuto della bio
+          const help = bioField.parentElement.querySelector('.form__help');
+          if (help) help.textContent = borrower
+            ? 'Facoltativa per i lettori — scrivi due righe se vuoi presentarti.'
+            : 'Tra 20 e 500 caratteri.';
+        }
       }
       form.querySelectorAll('input[name="account_type"]').forEach(r =>
         r.addEventListener('change', syncAccountType));
+
+      /* ----- Intento "prestito": se l'utente arriva qui dopo aver
+         tentato di richiedere un prestito da non iscritto
+         (register.html?intent=borrow), pre-selezioniamo la card
+         "Lettore" e mostriamo un banner che spiega perché si trova qui. */
+      const intent = new URLSearchParams(location.search).get('intent');
+      if (intent === 'borrow') {
+        const borrowerRadio = form.querySelector('input[value="borrower"]');
+        if (borrowerRadio) borrowerRadio.checked = true;
+        const banner = document.getElementById('intent-banner');
+        if (banner) banner.hidden = false;
+      }
       syncAccountType();
 
       /* ----- Validazione live su tutti i campi del form ----- */
@@ -427,15 +498,18 @@
           s.classList.toggle('is-active', sn === n);
           s.classList.toggle('is-done', sn < n);
         });
-        /* Logica della wizard-nav semplificata:
-           - Step 1: solo "Continua →"
-           - Step 2: "← Indietro" + "Continua →"
-           - Step 3 (finale): solo "Crea la libreria"
-           "Indietro" e "Crea la libreria" non coesistono mai nella
-           stessa schermata: la decisione finale resta pulita. */
-        backBtn.hidden = (n === 1) || (n === 3);
-        nextBtn.hidden = (n === 3);
-        finishBtn.hidden = (n !== 3);
+        /* Logica della wizard-nav, adattata al tipo account:
+           - L'ultimo step è il 3 per persone/enti, il 2 per i lettori.
+           - Primo step: solo "Continua →"
+           - Step intermedio: "← Indietro" + "Continua →"
+           - Ultimo step: solo "Crea la libreria" (per i lettori
+             l'etichetta diventa "Completa l'iscrizione").
+           "Indietro" e il pulsante finale non coesistono mai. */
+        const last = lastStep();
+        backBtn.hidden   = (n === 1) || (n === last);
+        nextBtn.hidden   = (n >= last);
+        finishBtn.hidden = (n !== last);
+        finishBtn.textContent = isBorrower() ? "Completa l'iscrizione" : 'Crea la libreria';
         errorBox.hidden = true;
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -530,25 +604,34 @@
         document.getElementById('bk_title').focus();
       });
 
-      /* ----- Submit finale: crea utente + volumi + login ----- */
+      /* ----- Submit finale: crea utente + (eventuali) volumi + login ----- */
       form.addEventListener('submit', (e) => {
         e.preventDefault();
 
-        // Rivalida tutti gli step per sicurezza
-        for (let n = 1; n <= 2; n++) {
+        const borrower = isBorrower();
+
+        // Rivalida tutti gli step necessari (per i lettori solo 1 e 2)
+        for (let n = 1; n <= lastStep(); n++) {
           const errs = validateStep(n);
           if (errs.length) { showStep(n); showErrors(errs); return; }
         }
-        if (addedBooks.length === 0) {
-          showErrors(['Aggiungi almeno un volume per completare la registrazione.']);
+        // I volumi sono obbligatori solo per chi apre una libreria,
+        // non per i lettori (che vogliono solo prendere in prestito).
+        if (!borrower && addedBooks.length === 0) {
+          showErrors(['Aggiungi almeno un volume per completare la creazione della libreria.']);
           return;
         }
 
-        const type = form.account_type.value;
+        const choice = form.account_type.value;   // person | borrower | organization
+        // Il lettore è una persona con ruolo 'borrower'; tutti gli altri
+        // sono curatori della propria libreria.
+        const accountType = choice === 'organization' ? 'organization' : 'person';
+        const libraryRole = borrower ? 'borrower' : 'curator';
 
         // Costruisce il payload per API.createUser
         const payload = {
-          account_type: type,
+          account_type: accountType,
+          library_role: libraryRole,
           username: form.username.value.trim(),
           display_name: form.display_name.value.trim(),
           email: form.email.value.trim(),
@@ -558,7 +641,7 @@
           theme: form.theme.value
         };
 
-        if (type === 'organization') {
+        if (choice === 'organization') {
           payload.org_profile = {
             legal_name: form.legal_name.value.trim(),
             org_category: form.org_category.value,
@@ -574,7 +657,7 @@
         // Crea l'utente
         const newUser = API.createUser(payload);
 
-        // Aggiunge i volumi dell'onboarding alla sua libreria
+        // Aggiunge gli eventuali volumi dell'onboarding alla sua libreria
         addedBooks.forEach(b => {
           API.addBook({
             title: b.title,
@@ -594,8 +677,24 @@
         API.setAuthState('user');
         API.setCurrentUser(newUser.id);
 
-        UI.toast('Libreria creata con successo. Benvenuto!', 'info');
-        setTimeout(() => location.href = `library.html?id=${newUser.id}`, 1400);
+        // Se l'iscrizione nasce da una richiesta di prestito interrotta
+        // (intent=borrow con un libro in sospeso), torniamo a quel libro
+        // così l'utente può finalmente inviare la richiesta.
+        const pendingBook = sessionStorage.getItem('pending_loan_book');
+        if (pendingBook) {
+          sessionStorage.removeItem('pending_loan_book');
+          UI.toast('Iscrizione completata! Ora puoi richiedere il prestito.', 'info');
+          setTimeout(() => location.href = `book-detail.html?id=${pendingBook}&loan=1`, 1400);
+          return;
+        }
+
+        if (borrower) {
+          UI.toast('Iscrizione completata. Benvenuto fra i lettori!', 'info');
+          setTimeout(() => location.href = `library.html?id=${newUser.id}`, 1400);
+        } else {
+          UI.toast('Libreria creata con successo. Benvenuto!', 'info');
+          setTimeout(() => location.href = `library.html?id=${newUser.id}`, 1400);
+        }
       });
 
       /* Effetto "ripple" sui bottoni del wizard (e su tutti i btn--lg
