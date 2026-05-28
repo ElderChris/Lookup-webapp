@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Crea la tua libreria — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.4.0" />
+  <link rel="stylesheet" href="css/styles.css?v=0.5.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -69,12 +69,20 @@
         <!-- ============ STEP 1 — Tipo account + credenziali ============ -->
         <div class="wizard-panel is-active" data-panel="1">
 
-          <h2 style="font-family: var(--font-display); font-size: 1.6rem; margin-bottom: .25rem;">
-            Che tipo di libreria stai creando?
-          </h2>
-          <p style="color: var(--color-ink-soft); font-size: var(--fs-sm); margin-bottom: 1rem;">
-            La scelta determina quali informazioni potrai pubblicare sul tuo profilo.
-          </p>
+          <div class="wizard-panel-header">
+            <div class="wizard-panel-header__icon" aria-hidden="true">
+              <!-- Icona "scelta": due cerchi affiancati che evocano la dualità persona/ente -->
+              <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="28" cy="36" r="14" fill="none" stroke="currentColor" stroke-width="2.4"/>
+                <circle cx="52" cy="44" r="14" fill="none" stroke="currentColor" stroke-width="2.4" opacity="0.5"/>
+                <path d="M40 56 v 14 m -6 -6 l 6 6 l 6 -6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+              </svg>
+            </div>
+            <div class="wizard-panel-header__text">
+              <h2>Che tipo di libreria stai creando?</h2>
+              <p>La scelta determina quali informazioni potrai pubblicare sul tuo profilo.</p>
+            </div>
+          </div>
 
           <div class="account-type-choice" role="radiogroup" aria-label="Tipo di account">
             <label class="account-type-card">
@@ -191,13 +199,20 @@
 
         <!-- ============ STEP 2 — Profilo della libreria ============ -->
         <div class="wizard-panel" data-panel="2">
-          <h2 style="font-family: var(--font-display); font-size: 1.6rem; margin-bottom: .25rem;">
-            Racconta la tua libreria
-          </h2>
-          <p style="color: var(--color-ink-soft); font-size: var(--fs-sm); margin-bottom: 1rem;">
-            Queste informazioni compaiono sulla pagina pubblica della libreria.
-            Potrai arricchirle e cambiare l'aspetto in seguito dalla pagina «Personalizza».
-          </p>
+          <div class="wizard-panel-header">
+            <div class="wizard-panel-header__icon" aria-hidden="true">
+              <!-- Icona "narrazione": penna che scrive su una linea ondulata -->
+              <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 58 C 22 50, 30 66, 38 58 S 54 50, 62 58" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M48 18 L 60 30 L 30 60 L 18 60 L 18 48 Z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+                <line x1="44" y1="22" x2="56" y2="34" stroke="currentColor" stroke-width="2.4"/>
+              </svg>
+            </div>
+            <div class="wizard-panel-header__text">
+              <h2>Racconta la tua libreria</h2>
+              <p>Queste informazioni compaiono sulla pagina pubblica della libreria. Potrai arricchirle e cambiare l'aspetto in seguito dalla pagina «Personalizza».</p>
+            </div>
+          </div>
 
           <div class="form">
             <div class="form__group">
@@ -263,13 +278,24 @@
 
         <!-- ============ STEP 3 — Primi volumi ============ -->
         <div class="wizard-panel" data-panel="3">
-          <h2 style="font-family: var(--font-display); font-size: 1.6rem; margin-bottom: .25rem;">
-            Aggiungi i tuoi primi volumi
-          </h2>
-          <p style="color: var(--color-ink-soft); font-size: var(--fs-sm); margin-bottom: 1rem;">
-            Inserisci almeno un libro per dare vita alla tua libreria. Potrai aggiungerne
-            altri in qualunque momento — questo è solo l'inizio.
-          </p>
+          <div class="wizard-panel-header">
+            <div class="wizard-panel-header__icon" aria-hidden="true">
+              <!-- Icona "pila di libri": tre volumi impilati con piccolo "+" -->
+              <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                <rect x="14" y="48" width="44" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2.4"/>
+                <rect x="18" y="34" width="40" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2.4"/>
+                <rect x="22" y="20" width="36" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2.4"/>
+                <line x1="22" y1="40" x2="34" y2="40" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+                <line x1="26" y1="26" x2="38" y2="26" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+                <circle cx="62" cy="20" r="9" fill="currentColor" opacity="0.15"/>
+                <path d="M62 16 v 8 M 58 20 h 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="wizard-panel-header__text">
+              <h2>Aggiungi i tuoi primi volumi</h2>
+              <p>Inserisci almeno un libro per dare vita alla tua libreria. Potrai aggiungerne altri in qualunque momento — questo è solo l'inizio.</p>
+            </div>
+          </div>
 
           <div class="form">
             <div class="form__row">
@@ -332,11 +358,11 @@
       <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
       <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
       <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.4.0</span></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.5.0</span></div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.4.0"></script>
+  <script src="js/app.js?v=0.5.0"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -401,9 +427,15 @@
           s.classList.toggle('is-active', sn === n);
           s.classList.toggle('is-done', sn < n);
         });
-        backBtn.hidden = n === 1;
-        nextBtn.hidden = n === 3;
-        finishBtn.hidden = n !== 3;
+        /* Logica della wizard-nav semplificata:
+           - Step 1: solo "Continua →"
+           - Step 2: "← Indietro" + "Continua →"
+           - Step 3 (finale): solo "Crea la libreria"
+           "Indietro" e "Crea la libreria" non coesistono mai nella
+           stessa schermata: la decisione finale resta pulita. */
+        backBtn.hidden = (n === 1) || (n === 3);
+        nextBtn.hidden = (n === 3);
+        finishBtn.hidden = (n !== 3);
         errorBox.hidden = true;
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -566,6 +598,23 @@
         setTimeout(() => location.href = `library.html?id=${newUser.id}`, 1400);
       });
 
+      /* Effetto "ripple" sui bottoni del wizard (e su tutti i btn--lg
+         della pagina). Crea un'onda concentrica sul punto del click,
+         tipico delle interfacce mobile moderne. Rispetta automatica-
+         mente prefers-reduced-motion (l'animazione CSS è disattivata). */
+      document.querySelectorAll('.wizard-nav .btn, .btn--lg').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const rect = btn.getBoundingClientRect();
+          const size = Math.max(rect.width, rect.height);
+          const ripple = document.createElement('span');
+          ripple.className = 'btn-ripple';
+          ripple.style.width = ripple.style.height = `${size}px`;
+          ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+          ripple.style.top  = `${e.clientY - rect.top  - size / 2}px`;
+          btn.appendChild(ripple);
+          setTimeout(() => ripple.remove(), 600);
+        });
+      });
     });
   </script>
 </body>

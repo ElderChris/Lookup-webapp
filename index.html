@@ -8,7 +8,7 @@
   <!-- Il parametro ?v= serve come "cache-busting": cambiando versione,
        il browser è costretto a riscaricare il file invece di servire
        una copia obsoleta dalla cache. -->
-  <link rel="stylesheet" href="css/styles.css?v=0.4.0" />
+  <link rel="stylesheet" href="css/styles.css?v=0.5.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -71,6 +71,28 @@
           consultazioni e prestiti.
         </p>
 
+        <!-- CTA primarie immediatamente sotto il lead: sono fra le
+             prime cose che un utente vede aprendo la home, sia su
+             desktop sia (soprattutto) su mobile, dove restano above
+             the fold. Per i visitatori il pulsante guida alla
+             registrazione; per gli utenti loggati alla pubblicazione
+             di un volume. "Esplora la mappa" resta come azione
+             secondaria affiancata. -->
+        <div class="hero__actions">
+          <a href="register.html" class="btn btn--primary btn--lg btn--pulse guest-only">
+            <span class="btn__icon" aria-hidden="true">→</span>
+            Inizia a scambiare
+          </a>
+          <a href="add-book.html" class="btn btn--primary btn--lg btn--pulse auth-only">
+            <span class="btn__icon" aria-hidden="true">+</span>
+            Pubblica un volume
+          </a>
+          <a href="explore.html" class="btn btn--ghost btn--lg">
+            <span class="btn__icon" aria-hidden="true">◐</span>
+            Esplora la mappa
+          </a>
+        </div>
+
         <!-- Contatori "live": minimali, integrati nell'hero.
              I valori si incrementano periodicamente per simulare la
              crescita della piattaforma in tempo reale. -->
@@ -93,12 +115,6 @@
             <span class="hero__stat-value" id="stat-views" data-stat="views">0</span>
             <span class="hero__stat-label">consultazioni totali</span>
           </div>
-        </div>
-
-        <div class="hero__actions">
-          <a href="explore.html" class="btn btn--primary">Esplora la mappa</a>
-          <a href="add-book.html" class="btn auth-only">Pubblica un libro</a>
-          <a href="register.html" class="btn guest-only">Crea un account</a>
         </div>
       </div>
     </section>
@@ -125,28 +141,82 @@
         <h2 id="how-title">Come funziona</h2>
         <span class="section-meta">N° 02 — in tre gesti</span>
       </div>
-      <div class="books-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
-        <article>
-          <span class="eyebrow">Primo</span>
-          <h3 style="margin-bottom: .75rem;">Crea il tuo profilo</h3>
-          <p style="color: var(--color-ink-soft);">
-            Registrati, indica la tua zona (con il dettaglio di privacy che preferisci) e descrivi i tuoi interessi di lettura. Personalizza la tua libreria con il tema e la modalità di visualizzazione che preferisci.
+
+      <!-- Infografica: tre passi con icone SVG line-art editoriali e
+           una linea di connessione che li unisce visivamente.
+           Mobile-first: gli step si impilano in verticale, su desktop
+           si dispongono in orizzontale. -->
+      <ol class="how-steps" role="list">
+        <li class="how-step">
+          <span class="how-step__num" aria-hidden="true">1</span>
+          <div class="how-step__icon" aria-hidden="true">
+            <!-- Icona "profilo": cerchio + busto stilizzato + check -->
+            <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="40" cy="30" r="13" fill="none" stroke="currentColor" stroke-width="2.2"/>
+              <path d="M14 68 C 14 52, 26 46, 40 46 S 66 52, 66 68" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+              <circle cx="60" cy="20" r="7" fill="currentColor" opacity="0.18"/>
+              <path d="M57 20 l3 3 l5 -6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="how-step__title">Crea la tua libreria</h3>
+          <p class="how-step__desc">
+            Pochi minuti per registrarti, indicare la tua zona e scegliere
+            l'identità visiva. Persona o ente: scegli tu, la libreria è
+            tua e modificabile in ogni momento.
           </p>
-        </article>
-        <article>
-          <span class="eyebrow">Secondo</span>
-          <h3 style="margin-bottom: .75rem;">Pubblica i tuoi volumi</h3>
-          <p style="color: var(--color-ink-soft);">
-            Inserisci titolo, autore e categoria di ogni libro. Carica una foto della copertina: verrà automaticamente ottimizzata. Il modulo verifica i dati in tempo reale per evitare errori.
+        </li>
+
+        <li class="how-step">
+          <span class="how-step__num" aria-hidden="true">2</span>
+          <div class="how-step__icon" aria-hidden="true">
+            <!-- Icona "libro aperto" con freccia di upload -->
+            <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14 24 C 22 20, 32 20, 40 26 C 48 20, 58 20, 66 24 L 66 60 C 58 56, 48 56, 40 62 C 32 56, 22 56, 14 60 Z"
+                    fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>
+              <line x1="40" y1="26" x2="40" y2="62" stroke="currentColor" stroke-width="2.2"/>
+              <path d="M40 16 l 0 -8 m -5 5 l 5 -5 l 5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+            </svg>
+          </div>
+          <h3 class="how-step__title">Pubblica i tuoi volumi</h3>
+          <p class="how-step__desc">
+            Titolo, autore, categoria, una foto della copertina. Il modulo
+            controlla i dati in tempo reale e genera automaticamente le
+            miniature ottimizzate.
           </p>
-        </article>
-        <article>
-          <span class="eyebrow">Terzo</span>
-          <h3 style="margin-bottom: .75rem;">Scambia, presta, consulta</h3>
-          <p style="color: var(--color-ink-soft);">
-            Altri lettori vicini potranno richiederti un prestito o una consultazione. Tu gestisci le richieste in piena autonomia, con il livello di privacy che hai scelto.
+        </li>
+
+        <li class="how-step">
+          <span class="how-step__num" aria-hidden="true">3</span>
+          <div class="how-step__icon" aria-hidden="true">
+            <!-- Icona "scambio": libro al centro fra due archi che richiamano due lettori -->
+            <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+              <rect x="30" y="28" width="20" height="26" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/>
+              <line x1="40" y1="28" x2="40" y2="54" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+              <circle cx="14" cy="42" r="6" fill="none" stroke="currentColor" stroke-width="2.2"/>
+              <circle cx="66" cy="42" r="6" fill="none" stroke="currentColor" stroke-width="2.2"/>
+              <path d="M20 42 L 30 42" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="2 3"/>
+              <path d="M60 42 L 50 42" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="2 3"/>
+            </svg>
+          </div>
+          <h3 class="how-step__title">Scambia, presta, consulta</h3>
+          <p class="how-step__desc">
+            Altri lettori della zona possono chiederti un prestito o una
+            consultazione. Tu gestisci tutto in autonomia, con la privacy
+            che hai scelto.
           </p>
-        </article>
+        </li>
+      </ol>
+
+      <!-- CTA ripresa: chi è arrivato fin qui sa già cosa fare -->
+      <div class="how-cta">
+        <a href="register.html" class="btn btn--primary btn--lg btn--pulse guest-only">
+          <span class="btn__icon" aria-hidden="true">→</span>
+          Apri ora la tua libreria
+        </a>
+        <a href="add-book.html" class="btn btn--primary btn--lg btn--pulse auth-only">
+          <span class="btn__icon" aria-hidden="true">+</span>
+          Pubblica il tuo primo volume
+        </a>
       </div>
     </section>
 
@@ -160,6 +230,15 @@
     </section>
 
   </main>
+
+  <!-- CTA flottante per visitatori su mobile: la registrazione resta
+       sempre a portata di pollice mentre l'utente scrolla. -->
+  <div class="floating-cta guest-only" aria-hidden="true">
+    <a href="register.html" class="btn btn--primary btn--lg btn--pulse">
+      <span class="btn__icon" aria-hidden="true">→</span>
+      Inizia a scambiare
+    </a>
+  </div>
 
   <!-- ============ FOOTER ============ -->
   <footer class="site-footer" role="contentinfo">
@@ -191,12 +270,12 @@
 
       <div class="site-footer__colophon">
         <span>© 2026 Libreria Diffusa — Prototipo didattico</span>
-        <span>v0.4.0 — GPL-3.0</span>
+        <span>v0.5.0 — GPL-3.0</span>
       </div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.4.0"></script>
+  <script src="js/app.js?v=0.5.0"></script>
   <script>
     /* Popolamento dei contenuti dinamici della homepage */
 
@@ -299,6 +378,23 @@
       document.addEventListener('auth:change', () => {
         updateGreeting();
         renderNearby();
+      });
+
+      /* Effetto "ripple" sui CTA grandi (Inizia a scambiare, Esplora
+         la mappa, e i CTA della sezione "Come funziona"). Si attiva
+         al click con un'animazione concentrica sul punto premuto. */
+      document.querySelectorAll('.btn--lg').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const rect = btn.getBoundingClientRect();
+          const size = Math.max(rect.width, rect.height);
+          const ripple = document.createElement('span');
+          ripple.className = 'btn-ripple';
+          ripple.style.width = ripple.style.height = `${size}px`;
+          ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+          ripple.style.top  = `${e.clientY - rect.top  - size / 2}px`;
+          btn.appendChild(ripple);
+          setTimeout(() => ripple.remove(), 600);
+        });
       });
     });
   </script>
