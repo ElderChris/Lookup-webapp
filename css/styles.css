@@ -2050,3 +2050,304 @@ a:hover { color: var(--color-burgundy-dk); }
   .account-type-choice { grid-template-columns: 1fr; }
   .wizard-step__label span:not(.wizard-step__num span) { display: none; }
 }
+
+/* =====================================================================
+   26. ESTENSIONI v0.5 — CTA primarie, infografica, mobile-first
+   ===================================================================== */
+
+/* ---- 26.1 Bottoni "large" + pulse + ripple ----------------------- */
+/* Variante grande per i CTA primari della home: dimensioni touch-
+   friendly (≥48px di altezza), ben visibili anche above-the-fold
+   su mobile. */
+.btn--lg {
+  padding: 0.95rem 1.6rem;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  min-height: 48px;
+  border-radius: 999px;          /* CTA arrotondate: stile più amichevole */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  position: relative;
+  overflow: hidden;              /* per contenere l'eventuale ripple */
+  transition: transform 0.18s cubic-bezier(.2,.7,.3,1.2), box-shadow 0.2s ease;
+}
+.btn--lg:hover  { transform: translateY(-2px); }
+.btn--lg:active { transform: translateY(0) scale(0.98); }
+
+.btn__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: rgba(244,239,230,0.18);
+  font-size: 0.85rem;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(.2,.7,.3,1.2);
+}
+.btn:hover .btn__icon { transform: translateX(3px); }
+.btn--ghost .btn__icon { background: rgba(122,30,43,0.1); color: var(--color-burgundy); }
+
+/* Pulse: alone sottile che pulsa attorno al CTA primario per
+   attirare l'attenzione senza essere invadente */
+.btn--pulse {
+  box-shadow: 0 0 0 0 rgba(122, 30, 43, 0.4);
+  animation: btn-pulse 2.6s cubic-bezier(.4,0,.6,1) infinite;
+}
+@keyframes btn-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(122, 30, 43, 0.45); }
+  60%  { box-shadow: 0 0 0 14px rgba(122, 30, 43, 0); }
+  100% { box-shadow: 0 0 0 0   rgba(122, 30, 43, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn--pulse        { animation: none; }
+  .btn:hover         { transform: none; }
+  .btn:hover .btn__icon { transform: none; }
+  .btn--lg:active    { transform: none; }
+}
+
+/* ---- 26.2 Hero actions: layout mobile-first ---------------------- */
+/* Default: i CTA si dispongono in flex con wrap, occupando l'intera
+   larghezza su mobile per essere bersagli grossi e immediati. */
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
+@media (max-width: 600px) {
+  .hero__actions { flex-direction: column; align-items: stretch; }
+  .hero__actions .btn--lg { width: 100%; }
+}
+
+/* ---- 26.3 Infografica "Come funziona" ---------------------------- */
+.how-steps {
+  list-style: none;
+  padding: 0;
+  margin: var(--sp-6) 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4);
+  position: relative;
+  counter-reset: step;
+}
+
+/* Linea di connessione orizzontale fra le tre tappe (solo desktop).
+   Realizzata con un pseudo-elemento posizionato dietro le icone. */
+.how-steps::before {
+  content: "";
+  position: absolute;
+  top: 76px;                     /* allinea con il centro delle icone */
+  left: 16.67%; right: 16.67%;   /* parte dal centro della 1ª e va al centro della 3ª */
+  height: 2px;
+  background-image: linear-gradient(to right,
+    var(--color-line) 50%, transparent 50%);
+  background-size: 14px 2px;     /* tratteggio editoriale */
+  background-repeat: repeat-x;
+  z-index: 0;
+}
+
+.how-step {
+  position: relative;
+  padding: var(--sp-5) var(--sp-4);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  text-align: center;
+  z-index: 1;                    /* sopra la linea di connessione */
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.how-step:hover {
+  transform: translateY(-4px);
+  border-color: var(--color-burgundy);
+  box-shadow: 0 14px 30px var(--color-shadow);
+}
+
+.how-step__num {
+  position: absolute;
+  top: -16px; left: 50%;
+  transform: translateX(-50%);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  box-shadow: 0 4px 10px rgba(122, 30, 43, 0.25);
+}
+
+.how-step__icon {
+  width: 96px; height: 96px;
+  margin: var(--sp-3) auto var(--sp-4);
+  color: var(--color-burgundy);
+  background: radial-gradient(circle at center,
+    rgba(176, 136, 64, 0.15), transparent 65%);
+  border-radius: 50%;
+  display: grid; place-items: center;
+  position: relative;
+}
+.how-step__icon svg {
+  width: 64px; height: 64px;
+  transition: transform 0.4s cubic-bezier(.34,1.56,.64,1);
+}
+.how-step:hover .how-step__icon svg {
+  transform: scale(1.08) rotate(-2deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .how-step:hover .how-step__icon svg { transform: none; }
+  .how-step:hover { transform: none; }
+}
+
+.how-step__title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  margin: 0 0 var(--sp-2);
+  color: var(--color-ink);
+}
+.how-step__desc {
+  font-size: var(--fs-sm);
+  color: var(--color-ink-soft);
+  line-height: 1.6;
+  max-width: 38ch;
+  margin: 0 auto;
+}
+
+/* CTA dopo l'infografica */
+.how-cta {
+  text-align: center;
+  margin-top: var(--sp-8);
+}
+
+/* Adattamento tablet/mobile */
+@media (max-width: 900px) {
+  .how-steps { grid-template-columns: 1fr; gap: var(--sp-5); }
+  .how-steps::before { display: none; }     /* la linea ha senso solo in orizzontale */
+}
+
+/* ---- 26.4 Sticky CTA flottante su mobile per i guest ------------- */
+/* Su schermi piccoli e mentre l'utente scrolla, una CTA persistente
+   in fondo allo schermo mantiene la registrazione sempre raggiungibile.
+   Si mostra solo per i visitatori anonimi e solo su mobile. */
+@media (max-width: 768px) {
+  .floating-cta {
+    position: fixed;
+    bottom: var(--sp-3);
+    left: var(--sp-3);
+    right: var(--sp-3);
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .floating-cta .btn {
+    pointer-events: auto;
+    width: 100%;
+    max-width: 360px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  }
+  /* Lascia spazio in fondo alla pagina per non sovrapporsi al footer */
+  [data-auth-state="guest"] main { padding-bottom: 70px; }
+}
+@media (min-width: 769px) {
+  .floating-cta { display: none; }
+}
+
+/* ---- 26.5 Wizard di registrazione: animazioni e infografica ------ */
+/* Header animato di ogni step con icona */
+.wizard-panel-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--color-line);
+}
+.wizard-panel-header__icon {
+  flex-shrink: 0;
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center,
+    rgba(176, 136, 64, 0.2), transparent 65%);
+  display: grid; place-items: center;
+  color: var(--color-burgundy);
+  animation: wizard-icon-in 0.5s cubic-bezier(.34,1.56,.64,1);
+}
+.wizard-panel-header__icon svg {
+  width: 48px; height: 48px;
+}
+@keyframes wizard-icon-in {
+  from { transform: scale(0.4) rotate(-15deg); opacity: 0; }
+  to   { transform: scale(1) rotate(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wizard-panel-header__icon { animation: none; }
+}
+.wizard-panel-header__text { min-width: 0; }
+.wizard-panel-header__text h2 {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--color-ink);
+}
+.wizard-panel-header__text p {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--color-ink-soft);
+  line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .wizard-panel-header { flex-direction: column; text-align: center; }
+  .wizard-panel-header__icon { width: 60px; height: 60px; }
+  .wizard-panel-header__icon svg { width: 40px; height: 40px; }
+}
+
+/* Bottoni della wizard-nav con animazione coerente */
+.wizard-nav .btn {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s cubic-bezier(.2,.7,.3,1.2), box-shadow 0.2s ease, background 0.2s ease;
+}
+.wizard-nav .btn--primary { padding: 0.85rem 1.6rem; font-size: 1rem; }
+.wizard-nav .btn--primary:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(122,30,43,0.25); }
+.wizard-nav .btn--primary:active { transform: translateY(0) scale(0.98); }
+
+/* Ripple effect alla pressione (effetto materiale, sobrio) */
+.btn-ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  background: rgba(244,239,230,0.4);
+  pointer-events: none;
+  animation: btn-ripple 0.55s ease-out;
+}
+@keyframes btn-ripple {
+  to { transform: scale(2.5); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-ripple { display: none; }
+  .wizard-nav .btn:hover, .wizard-nav .btn:active { transform: none; }
+}
+
+/* Mobile: wizard-nav a tutta larghezza con CTA primaria full-width */
+@media (max-width: 600px) {
+  .wizard-nav {
+    flex-direction: column-reverse;     /* primario in alto, secondario sotto */
+    gap: var(--sp-2);
+  }
+  .wizard-nav .btn { width: 100%; justify-content: center; }
+  .wizard-nav > div { display: none; }   /* il filler "flex: 1" non serve in colonna */
+}
+
+
+/* ---- 26.6 Patch: l'attributo [hidden] deve sempre vincere ---------
+   Alcune regole di .btn/.btn--lg impostano display: inline-flex, che
+   ha la stessa specificità di [hidden] ma vince per ordine sorgente.
+   Questo regola universale ripristina la semantica nativa: un elemento
+   con l'attributo hidden viene nascosto, sempre. ----------------- */
+[hidden] { display: none !important; }
