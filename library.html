@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="La libreria di un membro della comunità Libreria Diffusa: i suoi volumi disponibili al prestito." />
   <title>Libreria — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.5.0" />
+  <link rel="stylesheet" href="css/styles.css?v=0.6.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -79,12 +79,12 @@
       </div>
       <div class="site-footer__colophon">
         <span>© 2026 Libreria Diffusa — Prototipo didattico</span>
-        <span>v0.5.0 — GPL-3.0</span>
+        <span>v0.6.0 — GPL-3.0</span>
       </div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.5.0"></script>
+  <script src="js/app.js?v=0.6.0"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -128,10 +128,12 @@
 
         const { themeClass, glyph } = API.libraryCoverData(user, prefs);
 
-        /* Etichetta tipo libreria */
+        /* Etichetta tipo libreria: per i lettori senza volumi mostriamo
+           "Lettore" invece di "Libreria personale". */
+        const borrowerNoBooks = API.isBorrower(user.id) && books.length === 0;
         const typeLabel = is_organization
           ? API.orgCategoryLabel(org_profile && org_profile.org_category)
-          : 'Libreria personale';
+          : (borrowerNoBooks ? 'Lettore' : 'Libreria personale');
         const typeClass = is_organization ? 'library-hero__type--org' : '';
 
         /* Distanza: mostrata solo per i visitatori. Per il proprietario
@@ -173,8 +175,25 @@
           ? renderOrgPanel(org_profile)
           : '';
 
+        /* Suggerimento per i lettori: se il proprietario è iscritto come
+           "lettore" e non ha ancora pubblicato volumi, lo invitiamo ad
+           aprire la propria libreria aggiungendo il primo libro. */
+        const isBorrower = API.isBorrower(user.id);
+        const borrowerCta = (can_edit && isBorrower && stats.total === 0)
+          ? `<div class="borrower-cta">
+               <div class="borrower-cta__text">
+                 <h3>Sei iscritto come lettore</h3>
+                 <p>Puoi richiedere prestiti agli altri membri della comunità. Quando
+                 vorrai condividere i tuoi libri, aggiungi il primo volume: la tua
+                 libreria si aprirà automaticamente e diventerai un curatore.</p>
+               </div>
+               <a href="add-book.html" class="btn btn--primary">Apri la mia libreria</a>
+             </div>`
+          : '';
+
         root.innerHTML = `
           ${ownershipBanner}
+          ${borrowerCta}
 
           <div class="library-hero">
             <div class="library-hero__cover ${themeClass}">

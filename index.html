@@ -8,7 +8,7 @@
   <!-- Il parametro ?v= serve come "cache-busting": cambiando versione,
        il browser è costretto a riscaricare il file invece di servire
        una copia obsoleta dalla cache. -->
-  <link rel="stylesheet" href="css/styles.css?v=0.5.0" />
+  <link rel="stylesheet" href="css/styles.css?v=0.6.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -50,7 +50,82 @@
 
     <!-- ============ HERO con CONTATORI LIVE ============ -->
     <section class="hero container" aria-labelledby="hero-title">
-      <div class="hero__decoration" aria-hidden="true">§</div>
+
+      <!-- Illustrazione interattiva: due lettori che si scambiano un
+           volume. Sintetizza in colpo d'occhio cosa fa la piattaforma.
+           Al click (desktop) o al tocco (mobile) si attiva
+           un'animazione di saluto + scambio. -->
+      <button class="hero__illustration" type="button" id="hero-illustration"
+              aria-label="Illustrazione: due lettori si scambiano un libro. Tocca o passa il dito per vedere l'animazione."
+              title="Tocca per animare">
+        <svg viewBox="0 0 440 340" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+          <!-- Cerchio di fondo come "luogo dell'incontro" -->
+          <circle cx="220" cy="180" r="160" class="hi__bg"/>
+
+          <!-- Brillii decorativi: invisibili a riposo, appaiono durante l'animazione -->
+          <g class="hi__sparkles">
+            <text x="70"  y="60"  class="hi__sparkle hi__sparkle--1">✦</text>
+            <text x="370" y="60"  class="hi__sparkle hi__sparkle--2">✦</text>
+            <text x="220" y="42"  class="hi__sparkle hi__sparkle--3">✦</text>
+            <text x="55"  y="240" class="hi__sparkle hi__sparkle--4">·</text>
+            <text x="385" y="240" class="hi__sparkle hi__sparkle--5">·</text>
+          </g>
+
+          <!-- ===== Persona A (sinistra, coda di cavallo) ===== -->
+          <g class="hi__person hi__person--left">
+            <!-- Testa e capelli -->
+            <circle cx="115" cy="110" r="24" class="hi__head"/>
+            <path d="M 135 100 Q 156 105, 150 130 Q 146 142, 138 138" class="hi__hair" fill="none"/>
+            <!-- Corpo -->
+            <path d="M 115 134 L 115 220" />
+            <!-- Maglia: piccola V scollatura per dare leggerezza -->
+            <path d="M 105 142 L 115 152 L 125 142" />
+            <!-- Braccio che porge il libro (verso il centro) -->
+            <path d="M 115 158 Q 145 168, 178 170" class="hi__arm-static" />
+            <!-- Braccio che saluta -->
+            <path d="M 115 158 L 78 188 L 78 208" class="hi__arm-wave hi__arm-wave--left" />
+            <!-- Gambe -->
+            <path d="M 115 220 L 95 295 L 92 312" />
+            <path d="M 115 220 L 135 295 L 138 312" />
+          </g>
+
+          <!-- ===== Persona B (destra, capelli corti) ===== -->
+          <g class="hi__person hi__person--right">
+            <circle cx="325" cy="110" r="24" class="hi__head"/>
+            <!-- Capelli corti: tre piccoli ciuffi -->
+            <path d="M 305 88 Q 309 80, 315 84 M 320 82 Q 326 78, 333 84 M 339 88 Q 343 82, 346 88" class="hi__hair" fill="none"/>
+            <path d="M 325 134 L 325 220" />
+            <path d="M 315 142 L 325 152 L 335 142" />
+            <path d="M 325 158 Q 295 168, 262 170" class="hi__arm-static" />
+            <path d="M 325 158 L 362 188 L 362 208" class="hi__arm-wave hi__arm-wave--right" />
+            <path d="M 325 220 L 305 295 L 302 312" />
+            <path d="M 325 220 L 345 295 L 348 312" />
+          </g>
+
+          <!-- ===== Libri scambiati al centro ===== -->
+          <g class="hi__books">
+            <!-- Libro che va verso destra (A → B) -->
+            <g class="hi__book hi__book--right">
+              <rect x="175" y="160" width="38" height="24" rx="1.5" class="hi__book-cover" />
+              <line x1="194" y1="160" x2="194" y2="184" class="hi__book-spine" />
+              <line x1="181" y1="168" x2="190" y2="168" class="hi__book-line" />
+              <line x1="181" y1="174" x2="188" y2="174" class="hi__book-line" />
+            </g>
+            <!-- Libro che va verso sinistra (B → A) -->
+            <g class="hi__book hi__book--left">
+              <rect x="227" y="160" width="38" height="24" rx="1.5" class="hi__book-cover" />
+              <line x1="246" y1="160" x2="246" y2="184" class="hi__book-spine" />
+              <line x1="250" y1="168" x2="259" y2="168" class="hi__book-line" />
+              <line x1="252" y1="174" x2="259" y2="174" class="hi__book-line" />
+            </g>
+          </g>
+        </svg>
+        <!-- Etichetta visibile come "affordance": dice all'utente che è interattivo -->
+        <span class="hero__illustration-hint" aria-hidden="true">
+          <span class="hero__illustration-hint__dot"></span>
+          tocca per animare
+        </span>
+      </button>
 
       <div class="hero__content">
         <span class="eyebrow">piattaforma di condivisione culturale</span>
@@ -270,12 +345,12 @@
 
       <div class="site-footer__colophon">
         <span>© 2026 Libreria Diffusa — Prototipo didattico</span>
-        <span>v0.5.0 — GPL-3.0</span>
+        <span>v0.6.0 — GPL-3.0</span>
       </div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.5.0"></script>
+  <script src="js/app.js?v=0.6.0"></script>
   <script>
     /* Popolamento dei contenuti dinamici della homepage */
 
@@ -396,6 +471,28 @@
           setTimeout(() => ripple.remove(), 600);
         });
       });
+
+      /* ----- Illustrazione interattiva dell'hero -----
+         Al click (desktop) o tocco (mobile) l'illustrazione si anima:
+         i lettori salutano, i libri rimbalzano, appaiono i brillii.
+         Su desktop l'effetto :hover del CSS fa già il suo; questo
+         gestisce il tocco/click e l'accessibilità da tastiera.
+         La classe is-animated viene rimossa dopo il ciclo così che
+         un nuovo tocco la ri-attivi (trucco del reflow per il restart). */
+      const heroIll = document.getElementById('hero-illustration');
+      if (heroIll) {
+        let animTimer = null;
+        const playAnimation = () => {
+          heroIll.classList.remove('is-animated');
+          void heroIll.offsetWidth;            // forza reflow → riavvia le animazioni CSS
+          heroIll.classList.add('is-animated');
+          clearTimeout(animTimer);
+          animTimer = setTimeout(() => heroIll.classList.remove('is-animated'), 2400);
+        };
+        heroIll.addEventListener('click', playAnimation);
+        // su touch evitiamo il doppio-fire (touchstart + click sintetico)
+        heroIll.addEventListener('touchstart', (e) => { playAnimation(); }, { passive: true });
+      }
     });
   </script>
 </body>

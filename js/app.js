@@ -624,6 +624,21 @@ const API = {
     Storage.set(`org_profile_${userId}`, profile);
   },
 
+  /* Ruolo della libreria: 'curator' (cura volumi propri) oppure
+     'borrower' (iscritto per prendere in prestito). Chi ha pubblicato
+     almeno un volume è considerato curatore a prescindere dal valore
+     memorizzato — pubblicare un libro "promuove" di fatto il lettore. */
+  getLibraryRole(userId) {
+    const stored = (this.getProfilePrefs(userId) || {}).library_role || 'curator';
+    if (stored === 'borrower' && this.getBooksByOwner(userId).length > 0) {
+      return 'curator';
+    }
+    return stored;
+  },
+  isBorrower(userId) {
+    return this.getLibraryRole(userId) === 'borrower';
+  },
+
   /** Etichetta leggibile della categoria di ente */
   orgCategoryLabel(key) {
     return ORG_CATEGORIES[key] || ORG_CATEGORIES.altro;
@@ -682,7 +697,11 @@ const API = {
       motto: data.motto || '',
       sort_by: 'recent',
       privacy_level: user.account_type === 'organization' ? 3 : 2,
-      show_email: user.account_type === 'organization'
+      show_email: user.account_type === 'organization',
+      // 'curator'  = cura una propria libreria (persona/ente)
+      // 'borrower' = iscritto per prendere in prestito; potrà aprire
+      //              la libreria in seguito aggiungendo un volume.
+      library_role: data.library_role || 'curator'
     });
 
     // Se è un ente, salva anche il profilo esteso
@@ -774,6 +793,58 @@ const UI = {
     }
     container.innerHTML = books.map(b => this.renderBookCard(b)).join('');
     container.classList.add('stagger');
+  },
+
+  /* -------------------------------------------------------------
+     Render dei RISULTATI DI RICERCA in formato elenco leggibile.
+     Pensato per explore.html: ogni riga mette in evidenza la
+     posizione del volume (dove si trova fisicamente, il dato più
+     importante per chi cerca un prestito di prossimità) e lo stato
+     di disponibilità con un badge animato a colori d'accento.
+     Le righe entrano con un'animazione a cascata. ------------- */
+  renderSearchResults(container, books) {
+    if (!books.length) {
+      container.innerHTML = `<p class="alert alert--info">Nessun libro trovato con i filtri correnti. Prova ad allargare il raggio o a cambiare categoria.</p>`;
+      return;
+    }
+    container.innerHTML = books.map((b, i) => {
+      const owner = API.getUser(b.owner_id);
+      const isOrg = owner && API.isOrganization(owner);
+      const ownerLabel = owner ? owner.display_name : 'Sconosciuto';
+      const place = owner ? (owner.city || '—') : '—';
+      const availBadge = b.available
+        ? `<span class="result-badge result-badge--available">
+             <span class="result-badge__dot" aria-hidden="true"></span>Disponibile
+           </span>`
+        : `<span class="result-badge result-badge--loaned">In prestito</span>`;
+
+      return `
+        <a href="book-detail.html?id=${b.id}" class="result-item" style="--i: ${i};">
+          <div class="result-item__cover" style="background: ${b.cover_gradient};" aria-hidden="true">
+            <span>${b.title.split(' ').slice(0, 3).join(' ')}</span>
+          </div>
+          <div class="result-item__main">
+            <span class="result-item__category">${b.category}</span>
+            <h3 class="result-item__title">${b.title}</h3>
+            <p class="result-item__author">${b.author} · ${b.year}</p>
+            <div class="result-item__place">
+              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" class="result-item__pin">
+                <path d="M12 2 C 8 2, 5 5, 5 9 c 0 5, 7 13, 7 13 s 7 -8, 7 -13 c 0 -4, -3 -7, -7 -7 z"
+                      fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="12" cy="9" r="2.5" fill="currentColor"/>
+              </svg>
+              <span class="result-item__place-text">
+                <strong>${place}</strong>
+                <span class="result-item__owner">${isOrg ? '🏛 ' : ''}libreria di ${ownerLabel}</span>
+              </span>
+            </div>
+          </div>
+          <div class="result-item__aside">
+            ${availBadge}
+            <span class="result-item__cta" aria-hidden="true">vedi dettagli →</span>
+          </div>
+        </a>`;
+    }).join('');
   },
 
   /** Gestione navigazione mobile */
