@@ -331,11 +331,26 @@ const API = {
     let results = this.getBooks();
     if (query) {
       const q = query.toLowerCase();
-      results = results.filter(b =>
-        b.title.toLowerCase().includes(q) ||
-        b.author.toLowerCase().includes(q) ||
-        b.description?.toLowerCase().includes(q)
-      );
+      results = results.filter(b => {
+        // Testo bibliografico
+        if (b.title.toLowerCase().includes(q) ||
+            b.author.toLowerCase().includes(q) ||
+            (b.description && b.description.toLowerCase().includes(q))) {
+          return true;
+        }
+        // Informazioni spaziali del proprietario: città, e — per gli enti —
+        // indirizzo pubblico (che contiene via e CAP). Permette di cercare
+        // per nome di città, quartiere, indirizzo o codice di avviamento
+        // postale, oltre che per titolo/autore.
+        const owner = this.getUser(b.owner_id);
+        if (owner) {
+          if (owner.city && owner.city.toLowerCase().includes(q)) return true;
+          const org = this.getOrgProfile ? this.getOrgProfile(owner.id) : null;
+          if (org && org.public_address &&
+              org.public_address.toLowerCase().includes(q)) return true;
+        }
+        return false;
+      });
     }
     if (filters.category) results = results.filter(b => b.category === filters.category);
     if (filters.available !== undefined) results = results.filter(b => b.available === filters.available);
