@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Esplora la mappa — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.6.0" />
+  <link rel="stylesheet" href="css/styles.css?v=0.7.0" />
   <!-- Leaflet: libreria per mappe interattive (OpenStreetMap tiles) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
@@ -39,7 +39,7 @@
       <span class="eyebrow">Ricerca</span>
       <h1 style="font-size: 2.75rem; margin-bottom: 1rem;">Esplora il <em style="color: var(--color-burgundy);">patrimonio diffuso</em></h1>
       <p style="max-width: 60ch; color: var(--color-ink-soft);">
-        Cerca per titolo, autore o categoria. Usa la mappa per scoprire volumi nelle tue vicinanze.
+        Cerca per titolo, autore o <strong>luogo</strong> — città, CAP o indirizzo. Usa la mappa per scoprire volumi nelle tue vicinanze.
       </p>
     </section>
 
@@ -48,9 +48,10 @@
       <!-- ============ BARRA DI RICERCA ============ -->
       <form class="search-bar" role="search" aria-label="Ricerca libri" id="search-form">
         <div>
-          <label class="sr-only" for="search-query">Cerca per titolo o autore</label>
+          <label class="sr-only" for="search-query">Cerca per titolo, autore o luogo</label>
           <input type="search" id="search-query" name="q" class="form__input"
-                 placeholder="Cerca titolo o autore…" autocomplete="off" />
+                 placeholder="Cerca: titolo, autore, città, CAP, indirizzo…" autocomplete="off"
+                 aria-describedby="search-hint" />
         </div>
         <div>
           <label class="sr-only" for="search-category">Categoria</label>
@@ -70,22 +71,39 @@
         </div>
         <button type="submit" class="btn btn--primary">Cerca</button>
       </form>
+      <p class="search-hint" id="search-hint">
+        Puoi cercare per <strong>titolo</strong> o <strong>autore</strong>, ma anche per
+        <strong>luogo</strong>: nome di una città o quartiere (es. «Vomero»),
+        <strong>CAP</strong> (es. «80136») o indirizzo di un ente.
+      </p>
 
       <!-- ============ MAPPA ============ -->
       <div class="map-wrapper" role="region" aria-label="Mappa interattiva dei lettori">
         <div id="map"></div>
       </div>
 
-      <!-- ============ RISULTATI ============ -->
-      <div class="section-header" style="margin-top: 3rem;">
-        <h2 id="results-title">Risultati</h2>
-        <span class="section-meta" id="results-count">— volumi</span>
+      <!-- Stato iniziale: invito a cercare. Visibile finché non si avvia
+           la prima ricerca; poi viene sostituito dai risultati. -->
+      <div class="search-empty" id="search-empty">
+        <div class="search-empty__icon" aria-hidden="true">🔍</div>
+        <h2>Cerca un volume da scoprire</h2>
+        <p>Digita un titolo, un autore o un luogo nella barra qui sopra e premi
+        «Cerca». I risultati appariranno qui, con l'indicazione di dove trovare
+        ciascun libro.</p>
       </div>
 
-      <!-- Messaggio live region per annunci a screen reader -->
-      <div class="sr-only" aria-live="polite" id="search-status"></div>
+      <!-- ============ RISULTATI (nascosti finché non si cerca) ============ -->
+      <div id="results-section" hidden>
+        <div class="section-header" style="margin-top: 3rem;">
+          <h2 id="results-title">Risultati</h2>
+          <span class="section-meta" id="results-count">— volumi</span>
+        </div>
 
-      <div class="search-results-list" id="books-results"></div>
+        <!-- Messaggio live region per annunci a screen reader -->
+        <div class="sr-only" aria-live="polite" id="search-status"></div>
+
+        <div class="search-results-list" id="books-results"></div>
+      </div>
     </section>
 
   </main>
@@ -101,12 +119,12 @@
       <div><h4>Informazioni</h4><a href="#">Privacy</a></div>
       <div class="site-footer__colophon">
         <span>© 2026 Libreria Diffusa</span>
-        <span>v0.6.0</span>
+        <span>v0.7.0</span>
       </div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.6.0"></script>
+  <script src="js/app.js?v=0.7.0"></script>
   <script>
     /* =============================================================
        LOGICA DELLA PAGINA ESPLORA
@@ -128,31 +146,58 @@
         catSelect.appendChild(opt);
       });
 
-      // Lettura parametri URL (es. ?cat=Poesia)
+      // Lettura parametri URL (es. ?cat=Poesia, ?q=...)
       const params = new URLSearchParams(location.search);
       if (params.get('cat')) catSelect.value = params.get('cat');
       if (params.get('q')) document.getElementById('search-query').value = params.get('q');
 
-      // La mappa dipende da Leaflet (CDN). Se non è disponibile (rete
-      // assente, blocco del CDN…), la incapsuliamo in try/catch così
-      // che i risultati di ricerca vengano comunque mostrati: la
-      // funzione primaria della pagina non deve dipendere dalla mappa.
+      // La mappa dipende da Leaflet (CDN). Se non è disponibile la
+      // incapsuliamo in try/catch così che la ricerca funzioni comunque.
       try {
         initMap();
+        // All'avvio la mappa mostra tutte le librerie (utile per esplorare),
+        // ma l'ELENCO dei risultati resta nascosto finché non si cerca.
+        updateMapMarkers(API.getBooks());
       } catch (err) {
         console.warn('Mappa non disponibile:', err);
         const mw = document.querySelector('.map-wrapper');
         if (mw) mw.innerHTML =
-          '<p class="alert alert--info" style="margin:0;">Mappa non disponibile al momento. I risultati della ricerca sono comunque elencati qui sotto.</p>';
+          '<p class="alert alert--info" style="margin:0;">Mappa non disponibile al momento. Usa la ricerca qui sotto.</p>';
       }
-      // Al primo caricamento mostriamo i risultati senza scrollare:
-      // lo scroll automatico ha senso solo dopo una ricerca esplicita.
-      runSearch();
 
-      document.getElementById('search-form').addEventListener('submit', e => {
+      // NB: nessuna ricerca automatica all'avvio. La sezione risultati
+      // resta nascosta (mostriamo l'invito a cercare) finché l'utente
+      // non avvia una ricerca esplicita: solo allora compaiono i
+      // risultati e parte lo scroll automatico.
+
+      const form = document.getElementById('search-form');
+      const queryInput = document.getElementById('search-query');
+
+      form.addEventListener('submit', e => {
         e.preventDefault();
+
+        // Validazione: serve un testo da cercare. Se il campo è vuoto,
+        // evidenziamo il bordo in rosso con una micro-animazione di
+        // "shake" e non eseguiamo la ricerca.
+        if (!queryInput.value.trim()) {
+          queryInput.classList.remove('input-error');
+          void queryInput.offsetWidth;          // reflow → riavvia l'animazione
+          queryInput.classList.add('input-error');
+          queryInput.setAttribute('aria-invalid', 'true');
+          queryInput.focus();
+          return;
+        }
+        queryInput.classList.remove('input-error');
+        queryInput.removeAttribute('aria-invalid');
+
         scrollOnSearch = true;
         runSearch();
+      });
+
+      // Appena l'utente ricomincia a digitare, togliamo lo stato d'errore.
+      queryInput.addEventListener('input', () => {
+        queryInput.classList.remove('input-error');
+        queryInput.removeAttribute('aria-invalid');
       });
     });
 
@@ -189,7 +234,13 @@
         results = results.filter(b => nearbyIds.has(b.id));
       }
 
-      // 3. Aggiornamento UI — elenco leggibile con enfasi sulla posizione
+      // 3. Aggiornamento UI — elenco leggibile con enfasi sulla posizione.
+      //    Rivela la sezione risultati (nascosta finché non si cerca) e
+      //    rimuove l'invito iniziale.
+      const emptyState = document.getElementById('search-empty');
+      if (emptyState) emptyState.hidden = true;
+      document.getElementById('results-section').hidden = false;
+
       const resultsBox = document.getElementById('books-results');
       UI.renderSearchResults(resultsBox, results);
       document.getElementById('results-count').textContent =

@@ -251,244 +251,173 @@ a:hover { color: var(--color-burgundy-dk); }
   border-bottom: 1px solid var(--color-line);
   position: relative;
   overflow: hidden;
-  /* Layout a due colonne su desktop: testo a sinistra, illustrazione
-     a destra. Su mobile (governato dal breakpoint più giù) torna a
-     singola colonna con l'illustrazione sopra al testo. */
+}
+
+/* Parte alta: testo a sinistra, illustrazione a destra (desktop).
+   align-items: center mantiene l'illustrazione verticalmente allineata
+   al blocco di testo introduttivo, così risulta "accanto" al titolo
+   e al paragrafo, non sopra. */
+.hero__top {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
   gap: var(--sp-8);
   align-items: center;
+  margin-bottom: var(--sp-7);
 }
-
-.hero__content {
-  max-width: 580px;
-  display: grid;
-  gap: var(--sp-6);
-  grid-column: 1;          /* sempre colonna sinistra su desktop */
-}
+.hero__intro { display: grid; gap: var(--sp-5); max-width: 580px; }
 
 .hero__title {
-  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-size: clamp(2.3rem, 5vw, 4rem);
   font-weight: 300;
-  line-height: 1.05;
+  line-height: 1.06;
   letter-spacing: -0.02em;
 }
-.hero__title em {
-  font-style: italic;
-  color: var(--color-burgundy);
-  font-weight: 400;
-}
+.hero__title em { font-style: italic; color: var(--color-burgundy); font-weight: 400; }
 
 .hero__lead {
   font-size: var(--fs-md);
   color: var(--color-ink-soft);
-  max-width: 60ch;
+  max-width: 56ch;
   line-height: 1.7;
 }
 
-.hero__actions { display: flex; gap: var(--sp-4); flex-wrap: wrap; margin-top: var(--sp-4); }
+.hero__actions { display: flex; gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-6); }
 
-/* ---- ILLUSTRAZIONE INTERATTIVA DELL'HERO ----
-   SVG line-art di due lettori che si scambiano un libro. Riassume in
-   colpo d'occhio la natura del sito. Tocco o click attivano un'animazione
-   di saluto + scambio: i bracci salutano, i libri rimbalzano, brillii
-   appaiono attorno. */
+/* ---- ILLUSTRAZIONE INTERATTIVA (flat) ----
+   Due lettori che condividono un libro, in stile flat con forme piene.
+   Tocco/click → micro-animazione (i lettori si avvicinano, il libro
+   pulsa, salgono dei cuori). */
 .hero__illustration {
-  /* È un <button>: rimuoviamo lo styling nativo per usare solo il
-     nostro. */
   appearance: none;
   background: none;
   border: none;
-  padding: 0;
-  margin: 0;
+  padding: 0; margin: 0;
   cursor: pointer;
   width: 100%;
-  max-width: 380px;
+  max-width: 360px;
   justify-self: end;
-  color: var(--color-burgundy);
   position: relative;
   display: block;
-  grid-column: 2;          /* sempre colonna destra su desktop */
 }
-.hero__illustration svg {
-  width: 100%;
-  height: auto;
-  display: block;
-  overflow: visible;       /* permette ai brillii fuori dal viewBox di essere visibili */
-}
-.hero__illustration:focus-visible {
-  outline: none;
-}
-.hero__illustration:focus-visible .hi__bg {
-  stroke: var(--color-burgundy);
-  stroke-width: 2;
-  stroke-dasharray: 4 4;
+.hero__illustration svg { width: 100%; height: auto; display: block; overflow: visible; }
+.hero__illustration:focus-visible { outline: none; }
+.hero__illustration:focus-visible .hi2__bg-ring {
+  stroke: var(--color-burgundy); stroke-width: 3; stroke-dasharray: 5 5;
 }
 
-/* Etichetta-suggerimento "tocca per animare" */
+/* Etichetta affordance */
 .hero__illustration-hint {
   position: absolute;
-  bottom: -8px;
-  left: 50%;
+  bottom: 4px; left: 50%;
   transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: inline-flex; align-items: center; gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
   background: var(--color-paper);
   border: 1px solid var(--color-line);
-  font-size: 0.65rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--color-ink-soft);
-  font-family: var(--font-body);
   transition: opacity 0.3s ease;
   pointer-events: none;
 }
 .hero__illustration-hint__dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
+  width: 6px; height: 6px; border-radius: 50%;
   background: var(--color-burgundy);
   animation: hi-hint-pulse 1.6s ease-in-out infinite;
 }
 .hero__illustration:hover .hero__illustration-hint,
-.hero__illustration.is-animated .hero__illustration-hint {
-  opacity: 0;
-}
+.hero__illustration.is-animated .hero__illustration-hint { opacity: 0; }
 @keyframes hi-hint-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50%      { transform: scale(1.5); opacity: 0.5; }
+  0%,100% { transform: scale(1); opacity: 1; }
+  50%     { transform: scale(1.5); opacity: 0.5; }
 }
 
-/* ----- Stili degli elementi SVG ----- */
-.hi__bg { fill: rgba(176, 136, 64, 0.10); }
-.hi__person {
-  stroke: currentColor;
-  stroke-width: 2.4;
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.hi__head { fill: var(--color-paper); }
-.hi__hair {
-  stroke: currentColor;
-  stroke-width: 2.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.hi__book-cover {
-  fill: rgba(176, 136, 64, 0.25);
-  stroke: currentColor;
-  stroke-width: 2.2;
-}
-.hi__book-spine { stroke: currentColor; stroke-width: 1.6; opacity: 0.5; }
-.hi__book-line  { stroke: currentColor; stroke-width: 1.2; opacity: 0.55; stroke-linecap: round; }
+/* ---- Elementi dell'illustrazione flat ---- */
+.hi2__bg      { fill: rgba(176, 136, 64, 0.12); }
+.hi2__bg-ring { fill: none; stroke: rgba(176, 136, 64, 0.30); stroke-width: 2; stroke-dasharray: 3 9; stroke-linecap: round; }
 
-.hi__sparkle {
-  fill: var(--color-gold);
-  font-size: 18px;
-  text-anchor: middle;
-  font-family: var(--font-display);
-  opacity: 0;
-  pointer-events: none;
-}
+.hi2__skin-a { fill: #e7b48f; }
+.hi2__skin-b { fill: #d79a72; }
+.hi2__hair-a { fill: #4a3526; }
+.hi2__hair-b { fill: #2f2723; }
+.hi2__top-a  { fill: var(--color-burgundy); }
+.hi2__top-b  { fill: var(--color-sage); }
+.hi2__arm-a  { fill: none; stroke: var(--color-burgundy); stroke-width: 20; stroke-linecap: round; }
+.hi2__arm-b  { fill: none; stroke: var(--color-sage);     stroke-width: 20; stroke-linecap: round; }
+.hi2__face   { fill: #3a2a20; }
+.hi2__smile  { fill: none; stroke: #3a2a20; stroke-width: 2.2; stroke-linecap: round; }
 
-/* Le braccia che salutano hanno l'origine di rotazione sulla spalla,
-   così oscillano attorno al punto di attacco. */
-.hi__arm-wave--left  { transform-origin: 115px 158px; }
-.hi__arm-wave--right { transform-origin: 325px 158px; }
+.hi2__book-cover { fill: var(--color-gold); }
+.hi2__book-spine { stroke: rgba(255,255,255,0.55); stroke-width: 2; }
+.hi2__book-line  { stroke: rgba(255,255,255,0.7); stroke-width: 1.6; stroke-linecap: round; }
 
-/* Movimento idle (continuo, sottile) — invita il visitatore a interagire
-   senza essere invadente. I libri respirano leggermente. */
-.hi__books {
-  animation: hi-breathe 4s ease-in-out infinite;
-  transform-origin: 220px 172px;
-}
-@keyframes hi-breathe {
-  0%, 100% { transform: scale(1) translateY(0); }
-  50%      { transform: scale(1.02) translateY(-2px); }
+.hi2__stack-a { fill: var(--color-burgundy); }
+.hi2__stack-b { fill: var(--color-gold); }
+.hi2__stack-c { fill: var(--color-sage); }
+
+.hi2__heart { fill: var(--color-burgundy); opacity: 0; }
+
+/* Origini di trasformazione */
+.hi2__char-left  { transform-origin: 118px 330px; }
+.hi2__char-right { transform-origin: 322px 330px; }
+.hi2__book       { transform-origin: 220px 224px; }
+
+/* Idle: il libro "respira" piano per invitare al tocco */
+.hi2__book { animation: hi2-idle 4s ease-in-out infinite; }
+@keyframes hi2-idle {
+  0%,100% { transform: translateY(0) scale(1); }
+  50%     { transform: translateY(-3px) scale(1.03); }
 }
 
-/* Stato attivo (hover o click) ----------------------------- */
-.hero__illustration:hover .hi__arm-wave--left,
-.hero__illustration.is-animated .hi__arm-wave--left {
-  animation: hi-wave-left 0.7s ease-in-out 3;
-}
-.hero__illustration:hover .hi__arm-wave--right,
-.hero__illustration.is-animated .hi__arm-wave--right {
-  animation: hi-wave-right 0.7s ease-in-out 3;
-}
-.hero__illustration:hover .hi__book--right,
-.hero__illustration.is-animated .hi__book--right {
-  animation: hi-book-r 0.9s ease-in-out 2;
-}
-.hero__illustration:hover .hi__book--left,
-.hero__illustration.is-animated .hi__book--left {
-  animation: hi-book-l 0.9s ease-in-out 2;
-}
-.hero__illustration:hover .hi__sparkle,
-.hero__illustration.is-animated .hi__sparkle {
-  animation: hi-sparkle 1.4s ease-in-out 2;
-}
-.hero__illustration:hover .hi__sparkle--2,
-.hero__illustration.is-animated .hi__sparkle--2 { animation-delay: 0.15s; }
-.hero__illustration:hover .hi__sparkle--3,
-.hero__illustration.is-animated .hi__sparkle--3 { animation-delay: 0.3s; }
-.hero__illustration:hover .hi__sparkle--4,
-.hero__illustration.is-animated .hi__sparkle--4 { animation-delay: 0.45s; }
-.hero__illustration:hover .hi__sparkle--5,
-.hero__illustration.is-animated .hi__sparkle--5 { animation-delay: 0.6s; }
+/* Stato attivo (hover desktop o .is-animated da tocco) */
+.hero__illustration:hover .hi2__char-left,
+.hero__illustration.is-animated .hi2__char-left { animation: hi2-lean-l 1.3s ease-in-out 2; }
+.hero__illustration:hover .hi2__char-right,
+.hero__illustration.is-animated .hi2__char-right { animation: hi2-lean-r 1.3s ease-in-out 2; }
+.hero__illustration:hover .hi2__book,
+.hero__illustration.is-animated .hi2__book { animation: hi2-bookpulse 1.1s ease-in-out 2; }
+.hero__illustration:hover .hi2__heart,
+.hero__illustration.is-animated .hi2__heart { animation: hi2-heart 1.7s ease-out 1; }
+.hero__illustration:hover .hi2__heart--2,
+.hero__illustration.is-animated .hi2__heart--2 { animation-delay: 0.3s; }
+.hero__illustration:hover .hi2__heart--3,
+.hero__illustration.is-animated .hi2__heart--3 { animation-delay: 0.55s; }
 
-@keyframes hi-wave-left {
-  0%, 100% { transform: rotate(0); }
-  25%      { transform: rotate(-18deg); }
-  50%      { transform: rotate(0); }
-  75%      { transform: rotate(-22deg); }
+@keyframes hi2-lean-l {
+  0%,100% { transform: translateY(0) rotate(0); }
+  50%     { transform: translateY(-5px) rotate(-3deg); }
 }
-@keyframes hi-wave-right {
-  0%, 100% { transform: rotate(0); }
-  25%      { transform: rotate(18deg); }
-  50%      { transform: rotate(0); }
-  75%      { transform: rotate(22deg); }
+@keyframes hi2-lean-r {
+  0%,100% { transform: translateY(0) rotate(0); }
+  50%     { transform: translateY(-5px) rotate(3deg); }
 }
-@keyframes hi-book-r {
-  0%, 100% { transform: translate(0, 0) rotate(0); }
-  50%      { transform: translate(10px, -6px) rotate(6deg); }
+@keyframes hi2-bookpulse {
+  0%,100% { transform: translateY(0) scale(1); }
+  50%     { transform: translateY(-4px) scale(1.12); }
 }
-@keyframes hi-book-l {
-  0%, 100% { transform: translate(0, 0) rotate(0); }
-  50%      { transform: translate(-10px, -6px) rotate(-6deg); }
-}
-@keyframes hi-sparkle {
-  0%   { opacity: 0; transform: scale(0.4) rotate(-20deg); }
-  35%  { opacity: 1; transform: scale(1.3) rotate(0); }
-  70%  { opacity: 0.9; transform: scale(1) rotate(10deg); }
-  100% { opacity: 0; transform: scale(0.6) rotate(20deg); }
+@keyframes hi2-heart {
+  0%   { opacity: 0; transform: translateY(0) scale(0.4); }
+  25%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-46px) scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hi__books { animation: none; }
+  .hi2__book { animation: none; }
   .hero__illustration:hover *,
   .hero__illustration.is-animated * { animation: none !important; }
   .hero__illustration-hint__dot { animation: none; }
 }
 
-/* Decoration originale (§) ora opzionale: la lasciamo come fallback
-   per browser molto vecchi che non gestiscono la grid. */
 .hero__decoration { display: none; }
 
-/* Adattamenti responsive */
+/* Responsive: sotto 880px l'hero__top diventa una colonna. L'illustrazione
+   scende SOTTO il testo introduttivo (non sopra), restando vicina ad esso. */
 @media (max-width: 880px) {
-  .hero {
-    grid-template-columns: 1fr;
-    gap: var(--sp-6);
-  }
-  .hero__content { max-width: none; grid-column: 1; }
+  .hero__top { grid-template-columns: 1fr; gap: var(--sp-5); }
+  .hero__intro { max-width: none; }
   .hero__illustration {
-    order: -1;                       /* l'illustrazione passa SOPRA il testo su mobile */
-    grid-column: 1;
-    max-width: 280px;
+    order: 2;                  /* dopo il testo introduttivo */
+    max-width: 300px;
     justify-self: center;
   }
 }
@@ -2828,4 +2757,54 @@ a:hover { color: var(--color-burgundy-dk); }
   font-size: var(--fs-sm);
   color: var(--color-ink-soft);
   line-height: 1.5;
+}
+
+/* =====================================================================
+   29. ESTENSIONI v0.7 — ricerca esplora: hint, empty state, validazione
+   ===================================================================== */
+
+/* Testo di aiuto sotto la barra di ricerca */
+.search-hint {
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+  margin: var(--sp-2) 0 0;
+  line-height: 1.5;
+}
+.search-hint strong { color: var(--color-ink); font-weight: 600; }
+
+/* Stato iniziale: invito a cercare (mostrato finché non si avvia la ricerca) */
+.search-empty {
+  text-align: center;
+  padding: var(--sp-12) var(--sp-6);
+  color: var(--color-ink-soft);
+}
+.search-empty__icon {
+  font-size: 2.5rem;
+  opacity: 0.5;
+  margin-bottom: var(--sp-3);
+}
+.search-empty h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--color-ink);
+  margin: 0 0 var(--sp-2);
+}
+.search-empty p { max-width: 48ch; margin: 0 auto; line-height: 1.6; font-size: var(--fs-sm); }
+
+/* Campo in errore: bordo rosso + micro-animazione di "shake" per
+   segnalare che bisogna scrivere qualcosa prima di cercare. */
+.form__input.input-error {
+  border-color: var(--color-burgundy) !important;
+  box-shadow: 0 0 0 3px rgba(122, 30, 43, 0.18);
+  animation: input-shake 0.4s ease;
+}
+@keyframes input-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-7px); }
+  40%      { transform: translateX(6px); }
+  60%      { transform: translateX(-4px); }
+  80%      { transform: translateX(2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .form__input.input-error { animation: none; }
 }
