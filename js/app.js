@@ -127,6 +127,21 @@ const ORG_CATEGORIES = {
   altro:                'Altro ente'
 };
 
+/* -----------------------------------------------------------------
+   Dati SOCIAL di esempio (follow, like, notifiche)
+   L'utente dimostrativo (Chiara, id 1) segue già alcune librerie e
+   ha messo "like" ad alcuni volumi, così le funzioni sociali sono
+   popolate al primo avvio. In produzione questi dati vivono nelle
+   tabelle user_follows, book_likes e notifications.
+   ----------------------------------------------------------------- */
+const SAMPLE_FOLLOWS = { 1: [7, 8, 3] };          // chi-segue → [seguiti]
+const SAMPLE_LIKES   = { 1: [15, 5, 17] };        // utente → [libri piaciuti]
+
+/* Base di follower per ogni libreria: il conteggio mostrato sarà
+   base + 1 se l'utente corrente la segue. Approssimazione necessaria
+   in un prototipo a singolo browser (non conosciamo i follow altrui). */
+const SAMPLE_FOLLOWER_BASE = { 1: 4, 2: 6, 3: 9, 4: 3, 5: 5, 6: 2, 7: 38, 8: 21 };
+
 const SAMPLE_BOOKS = [
   { id: 1, title: 'Se questo è un uomo', author: 'Primo Levi', year: 1947,
     category: 'Classici', owner_id: 1, isbn: '9788806217778',
@@ -302,6 +317,14 @@ const Storage = {
       this.set('books', books);
       this.set('_recency_demo_done', true);
     }
+
+    // Dati social di esempio (follow + like) per l'utente dimostrativo
+    Object.entries(SAMPLE_FOLLOWS).forEach(([id, list]) => {
+      if (!this.get(`follows_${id}`)) this.set(`follows_${id}`, list);
+    });
+    Object.entries(SAMPLE_LIKES).forEach(([id, list]) => {
+      if (!this.get(`likes_${id}`)) this.set(`likes_${id}`, list);
+    });
   },
   reset() {
     localStorage.clear();
@@ -654,6 +677,197 @@ const API = {
     return this.getLibraryRole(userId) === 'borrower';
   },
 
+  /* =============================================================
+     SOCIAL — FOLLOW di utenti/librerie
+     Modello: array di id seguiti per ciascun utente
+     (follows_{userId}). In produzione → tabella user_follows.
+     ============================================================= */
+  getFollows(userId) {
+    return Storage.get(`follows_${userId}`, []);
+  },
+  isFollowing(followerId, targetId) {
+    return this.getFollows(followerId).includes(+targetId);
+  },
+  /** Numero di follower mostrato: base di esempio + l'utente corrente */
+  getFollowerCount(targetId) {
+    const base = SAMPLE_FOLLOWER_BASE[targetId] || 0;
+    const me = this.getCurrentUser();
+    const meFollows = me && me.id !== +targetId && this.isFollowing(me.id, targetId);
+    return base + (meFollows ? 1 : 0);
+  },
+  /** L'utente corrente inizia a seguire targetId. Genera le notifiche
+      "recupero attività recente" della libreria seguita. */
+  followUser(targetId) {
+    const me = this.requireAuthSilent();
+    if (!me || me.id === +targetId) return false;
+    const list = this.getFollows(me.id);
+    if (!list.includes(+targetId)) {
+      list.push(+targetId);
+      Storage.set(`follows_${me.id}`, list);
+      this.generateFollowNotifications(me.id, +targetId);
+    }
+    return true;
+  },
+  unfollowUser(targetId) {
+    const me = this.requireAuthSilent();
+    if (!me) return false;
+    Storage.set(`follows_${me.id}`, this.getFollows(me.id).filter(id => id !== +targetId));
+    // Pulizia: rimuove le notifiche provenienti da quella libreria
+    this.removeNotificationsFromActor(me.id, +targetId);
+    return true;
+  },
+  toggleFollow(targetId) {
+    return this.isFollowing((this.getCurrentUser() || {}).id, targetId)
+      ? (this.unfollowUser(targetId), false)
+      : (this.followUser(targetId), true);
+  },
+  /** Le librerie seguite dall'utente, come oggetti utente */
+  getFollowedLibraries(userId) {
+    return this.getFollows(userId).map(id => this.getUser(id)).filter(Boolean);
+  },
+
+  /* =============================================================
+     SOCIAL — LIKE ai volumi
+     Modello: array di id libro per ciascun utente (likes_{userId}).
+     In produzione → tabella book_likes.
+     ============================================================= */
+  getLikes(userId) {
+    return Storage.get(`likes_${userId}`, []);
+  },
+  isLiked(userId, bookId) {
+    return this.getLikes(userId).includes(+bookId);
+  },
+  /** Conteggio "mi piace" mostrato: base derivata dalle visualizzazioni
+      + l'utente corrente se ha messo like. */
+  getLikeCount(bookId) {
+    const book = this.getBook(bookId);
+    const base = book ? Math.max(1, Math.round((book.views || 0) / 18)) : 0;
+    const me = this.getCurrentUser();
+    return base + (me && this.isLiked(me.id, bookId) ? 1 : 0);
+  },
+  toggleLike(bookId) {
+    const me = this.requireAuthSilent();
+    if (!me) return null;                 // gestito dal chiamante (richiede login)
+    const list = this.getLikes(me.id);
+    const i = list.indexOf(+bookId);
+    if (i >= 0) { list.splice(i, 1); }
+    else        { list.push(+bookId); }
+    Storage.set(`likes_${me.id}`, list);
+    return i < 0;                         // true = ora piace
+  },
+  /** I libri a cui l'utente ha messo like, come oggetti libro */
+  getLikedBooks(userId) {
+    return this.getLikes(userId).map(id => this.getBook(id)).filter(Boolean);
+  },
+
+  /* =============================================================
+     NOTIFICHE — alimentano la campanella nell'header
+     Tipi: 'new_book' (nuovo volume da una libreria seguita),
+           'profile_update' (la libreria ha aggiornato le info),
+           'book_available' (un volume con like è tornato disponibile).
+     In produzione → tabella notifications (con read_at).
+     ============================================================= */
+  getNotifications(userId) {
+    return Storage.get(`notifications_${userId}`, [])
+      .slice()
+      .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  },
+  getUnreadCount(userId) {
+    return this.getNotifications(userId).filter(n => !n.read).length;
+  },
+  addNotification(userId, notif) {
+    const list = Storage.get(`notifications_${userId}`, []);
+    list.push(Object.assign({
+      id: 'n' + Date.now() + Math.random().toString(36).slice(2, 6),
+      read: false,
+      created_at: new Date().toISOString()
+    }, notif));
+    Storage.set(`notifications_${userId}`, list);
+  },
+  markAllNotificationsRead(userId) {
+    const list = Storage.get(`notifications_${userId}`, []);
+    list.forEach(n => n.read = true);
+    Storage.set(`notifications_${userId}`, list);
+  },
+  removeNotificationsFromActor(userId, actorId) {
+    Storage.set(`notifications_${userId}`,
+      Storage.get(`notifications_${userId}`, []).filter(n => n.actor_id !== +actorId));
+  },
+  /** Genera le notifiche di "recupero" quando si inizia a seguire una
+      libreria: i suoi volumi più recenti + (per gli enti) un avviso di
+      aggiornamento informazioni. Simula in modo credibile il flusso che
+      in produzione sarebbe alimentato in tempo reale dal backend. */
+  generateFollowNotifications(userId, targetId) {
+    const target = this.getUser(targetId);
+    if (!target) return;
+    // Evita duplicati: prima rimuove eventuali notifiche già presenti da questo attore
+    this.removeNotificationsFromActor(userId, targetId);
+
+    const recent = this.getBooksByOwner(targetId)
+      .slice()
+      .sort((a, b) => (b.added || '').localeCompare(a.added || ''))
+      .slice(0, 2);
+
+    recent.forEach(b => {
+      this.addNotification(userId, {
+        type: 'new_book',
+        actor_id: targetId,
+        book_id: b.id,
+        message: `<strong>${target.display_name}</strong> ha pubblicato «${b.title}»`,
+        created_at: (b.added || new Date().toISOString().slice(0, 10)) + 'T10:00:00'
+      });
+    });
+
+    // Per gli enti, un avviso di aggiornamento informazioni
+    if (this.isOrganization(target)) {
+      this.addNotification(userId, {
+        type: 'profile_update',
+        actor_id: targetId,
+        book_id: null,
+        message: `<strong>${target.display_name}</strong> ha aggiornato le informazioni della libreria`,
+        created_at: new Date(Date.now() - 2 * 86400000).toISOString()
+      });
+    }
+  },
+  /** Variante "silenziosa" di requireAuth: restituisce l'utente o null
+      senza reindirizzare (per azioni come follow/like). */
+  requireAuthSilent() {
+    return this.getCurrentUser();
+  },
+
+  /** Popola una volta sola le notifiche dimostrative per l'utente di
+      esempio: attività recente delle librerie già seguite + un volume
+      con like tornato disponibile. Le notifiche più vecchie di una
+      settimana vengono marcate come lette, per un conteggio realistico. */
+  seedSocialDemo() {
+    if (Storage.get('_social_demo_done')) return;
+    const demoUserId = 1;
+
+    // Notifiche dalle librerie seguite di default
+    this.getFollows(demoUserId).forEach(targetId =>
+      this.generateFollowNotifications(demoUserId, targetId));
+
+    // Un volume con "like" tornato disponibile (dimostra il tipo book_available)
+    const likedAvailable = this.getLikedBooks(demoUserId).find(b => b.available);
+    if (likedAvailable) {
+      this.addNotification(demoUserId, {
+        type: 'book_available',
+        actor_id: this.getBook(likedAvailable.id).owner_id,
+        book_id: likedAvailable.id,
+        message: `Il volume «${likedAvailable.title}», fra i tuoi preferiti, è di nuovo disponibile per il prestito`,
+        created_at: new Date(Date.now() - 4 * 3600000).toISOString()   // 4 ore fa
+      });
+    }
+
+    // Realismo: marca come lette le notifiche più vecchie di 7 giorni
+    const weekAgo = Date.now() - 7 * 86400000;
+    const list = Storage.get(`notifications_${demoUserId}`, []);
+    list.forEach(n => { if (new Date(n.created_at).getTime() < weekAgo) n.read = true; });
+    Storage.set(`notifications_${demoUserId}`, list);
+
+    Storage.set('_social_demo_done', true);
+  },
+
   /** Etichetta leggibile della categoria di ente */
   orgCategoryLabel(key) {
     return ORG_CATEGORIES[key] || ORG_CATEGORIES.altro;
@@ -785,8 +999,22 @@ const UI = {
   renderBookCard(book, user) {
     const owner = user || API.getUser(book.owner_id);
     const coverStyle = `style="background: ${book.cover_gradient};"`;
+    const me = API.getCurrentUser();
+    const liked = me && API.isLiked(me.id, book.id);
+    // Cuore "mi piace" sovrapposto, mostrato solo agli utenti autenticati.
+    const likeChip = me
+      ? `<button type="button" class="like-chip auth-only ${liked ? 'is-liked' : ''}"
+                 data-book-id="${book.id}" aria-pressed="${!!liked}"
+                 aria-label="${liked ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}">
+           <svg viewBox="0 0 24 24" aria-hidden="true">
+             <path d="M12 20 C12 20 3 14 3 8 C3 5 5 3.5 7.2 3.5 C9 3.5 10.6 4.7 12 6.6 C13.4 4.7 15 3.5 16.8 3.5 C19 3.5 21 5 21 8 C21 14 12 20 12 20 Z"
+                   fill="${liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+           </svg>
+         </button>`
+      : '';
     return `
       <a href="book-detail.html?id=${book.id}" class="book-card">
+        ${likeChip}
         <div class="book-card__cover book-card__cover--placeholder" ${coverStyle}>
           ${book.title}
         </div>
@@ -798,6 +1026,29 @@ const UI = {
           <span>${book.available ? 'Disponibile' : 'In prestito'}</span>
         </div>
       </a>`;
+  },
+
+  /* Handler delegato per i cuori "mi piace" sovrapposti alle card.
+     Intercetta il click sul cuore impedendo la navigazione del link
+     contenitore, alterna il like e aggiorna icona + notifiche. */
+  initLikeChips() {
+    if (this._likeChipsInit) return;
+    this._likeChipsInit = true;
+    document.addEventListener('click', (e) => {
+      const chip = e.target.closest('.like-chip');
+      if (!chip) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const me = API.getCurrentUser();
+      if (!me) return;
+      const bookId = +chip.dataset.bookId;
+      const nowLiked = API.toggleLike(bookId);
+      chip.classList.toggle('is-liked', nowLiked);
+      chip.setAttribute('aria-pressed', String(nowLiked));
+      const path = chip.querySelector('path');
+      if (path) path.setAttribute('fill', nowLiked ? 'currentColor' : 'none');
+      if (this._refreshNotifications) this._refreshNotifications();
+    });
   },
 
   /** Render griglia libri */
@@ -1150,6 +1401,124 @@ const UI = {
       update();
       document.dispatchEvent(new CustomEvent('auth:change', { detail: { state: next }}));
     });
+  },
+
+  /* -------------------------------------------------------------
+     CAMPANELLA DI NOTIFICHE
+     Iniettata via JS nell'header di ogni pagina (così non serve
+     duplicare il markup in ogni file HTML). Visibile solo agli
+     utenti autenticati; apre un pannello con la lista degli eventi
+     (nuovi libri da chi segui, info aggiornate, preferiti tornati
+     disponibili) e un badge con il conteggio dei non letti.
+     ------------------------------------------------------------- */
+  initNotifications() {
+    const nav = document.querySelector('.site-nav');
+    if (!nav || nav.querySelector('.notif')) return;
+
+    // Costruisce campanella + pannello
+    const wrap = document.createElement('div');
+    wrap.className = 'notif auth-only';
+    wrap.innerHTML = `
+      <button class="notif__bell" type="button" aria-haspopup="true" aria-expanded="false"
+              aria-label="Notifiche">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M12 3 C8.7 3 6 5.7 6 9 v3.5 L4.4 15.2 C4 15.9 4.5 17 5.4 17 h13.2 c0.9 0 1.4 -1.1 1 -1.8 L18 12.5 V9 c0 -3.3 -2.7 -6 -6 -6 z"
+                fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M9.5 19 a2.6 2.6 0 0 0 5 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        <span class="notif__badge" hidden>0</span>
+      </button>
+      <div class="notif__panel" role="dialog" aria-label="Le tue notifiche" hidden>
+        <div class="notif__head">
+          <span>Notifiche</span>
+          <button type="button" class="notif__readall">Segna tutte come lette</button>
+        </div>
+        <div class="notif__list"></div>
+      </div>`;
+
+    // Inserisce prima del toggle di autenticazione, se presente
+    const toggle = nav.querySelector('.auth-toggle');
+    if (toggle) nav.insertBefore(wrap, toggle); else nav.appendChild(wrap);
+
+    const bell   = wrap.querySelector('.notif__bell');
+    const badge  = wrap.querySelector('.notif__badge');
+    const panel  = wrap.querySelector('.notif__panel');
+    const list   = wrap.querySelector('.notif__list');
+    const readAll = wrap.querySelector('.notif__readall');
+
+    const timeAgo = (iso) => {
+      const diff = Date.now() - new Date(iso).getTime();
+      const m = Math.round(diff / 60000), h = Math.round(diff / 3600000), d = Math.round(diff / 86400000);
+      if (m < 60) return m <= 1 ? 'ora' : `${m} min fa`;
+      if (h < 24) return `${h} h fa`;
+      if (d < 30) return `${d} g fa`;
+      return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
+    };
+    const icon = (t) => t === 'new_book' ? '📚' : t === 'book_available' ? '✅' : 'ℹ️';
+
+    const render = () => {
+      const me = API.getCurrentUser();
+      if (!me) return;
+      const items = API.getNotifications(me.id);
+      const unread = items.filter(n => !n.read).length;
+      badge.textContent = unread;
+      badge.hidden = unread === 0;
+      bell.classList.toggle('has-unread', unread > 0);
+
+      if (!items.length) {
+        list.innerHTML = `<p class="notif__empty">Nessuna notifica. Segui una libreria o metti «mi piace» a un volume per ricevere aggiornamenti.</p>`;
+        return;
+      }
+      list.innerHTML = items.map(n => {
+        const href = n.book_id ? `book-detail.html?id=${n.book_id}`
+                   : n.actor_id ? `library.html?id=${n.actor_id}` : '#';
+        return `<a class="notif__item ${n.read ? '' : 'is-unread'}" href="${href}">
+          <span class="notif__item-icon" aria-hidden="true">${icon(n.type)}</span>
+          <span class="notif__item-body">
+            <span class="notif__item-msg">${n.message}</span>
+            <span class="notif__item-time">${timeAgo(n.created_at)}</span>
+          </span>
+        </a>`;
+      }).join('');
+    };
+
+    const closePanel = () => {
+      panel.hidden = true;
+      bell.setAttribute('aria-expanded', 'false');
+    };
+    const openPanel = () => {
+      render();
+      panel.hidden = false;
+      bell.setAttribute('aria-expanded', 'true');
+    };
+
+    bell.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (panel.hidden) openPanel(); else closePanel();
+    });
+    readAll.addEventListener('click', () => {
+      const me = API.getCurrentUser();
+      if (me) { API.markAllNotificationsRead(me.id); render(); }
+    });
+    // Chiusura cliccando fuori
+    document.addEventListener('click', (e) => {
+      if (!panel.hidden && !wrap.contains(e.target)) closePanel();
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
+
+    // Marca come lette quando il pannello viene chiuso dopo essere stato aperto
+    bell.addEventListener('click', () => {
+      if (panel.hidden) {     // appena chiuso
+        const me = API.getCurrentUser();
+        if (me) { API.markAllNotificationsRead(me.id); setTimeout(render, 50); }
+      }
+    });
+
+    render();
+    // Ricalcola il badge quando cambia lo stato di autenticazione
+    document.addEventListener('auth:change', render);
+    // Espone un refresh globale per altri script (es. dopo un follow/like)
+    UI._refreshNotifications = render;
   }
 };
 
@@ -1159,9 +1528,12 @@ const UI = {
 
 document.addEventListener('DOMContentLoaded', () => {
   Storage.init();
+  API.seedSocialDemo();
   UI.initMobileNav();
   UI.highlightActiveNav();
   UI.initAuthToggle();
+  UI.initNotifications();
+  UI.initLikeChips();
 });
 
 /* Esposizione globale per uso in altri script */

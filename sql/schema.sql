@@ -459,5 +459,59 @@ CREATE TRIGGER organization_profiles_check_type
 
 
 -- =============================================================================
+-- FUNZIONI SOCIALI (v0.8): follow, like, notifiche
+-- =============================================================================
+
+-- ---- FOLLOW: un utente segue un'altra libreria (persona o ente) -------------
+-- Modello "tante a tante" autoreferenziale su users. Permette di ricevere
+-- aggiornamenti quando la libreria seguita pubblica nuovi volumi o aggiorna
+-- le proprie informazioni.
+CREATE TABLE user_follows (
+  follower_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  followed_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (follower_id, followed_id),
+  -- non ci si può seguire da soli
+  CONSTRAINT chk_no_self_follow CHECK (follower_id <> followed_id)
+);
+COMMENT ON TABLE user_follows IS 'Relazioni di follow fra utenti/librerie (v0.8)';
+CREATE INDEX idx_follows_followed ON user_follows (followed_id);   -- per contare i follower
+CREATE INDEX idx_follows_follower ON user_follows (follower_id);   -- per il feed di chi seguo
+
+-- ---- LIKE: un utente mette "mi piace" a un volume ---------------------------
+-- Permette di salvare i volumi preferiti ed essere avvisati quando un titolo
+-- attualmente in prestito torna disponibile.
+CREATE TABLE book_likes (
+  user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  book_id     BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, book_id)
+);
+COMMENT ON TABLE book_likes IS 'Volumi preferiti ("mi piace") di ciascun utente (v0.8)';
+CREATE INDEX idx_likes_book ON book_likes (book_id);   -- per contare i like di un libro
+
+-- ---- NOTIFICHE: eventi destinati a un utente --------------------------------
+-- Alimentano la campanella nell'header. Generate quando una libreria seguita
+-- pubblica un volume o aggiorna le info, o quando un volume con "like" torna
+-- disponibile. In produzione verrebbero create da trigger/job applicativi.
+CREATE TABLE notifications (
+  id           BIGSERIAL PRIMARY KEY,
+  user_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,   -- destinatario
+  type         VARCHAR(20) NOT NULL
+               CHECK (type IN ('new_book', 'profile_update', 'book_available')),
+  actor_id     BIGINT REFERENCES users(id) ON DELETE CASCADE,            -- chi ha generato l'evento
+  book_id      BIGINT REFERENCES books(id) ON DELETE CASCADE,            -- volume coinvolto (se applicabile)
+  message      TEXT NOT NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  read_at      TIMESTAMPTZ                                               -- NULL = non letta
+);
+COMMENT ON TABLE notifications IS 'Notifiche per la campanella (follow + like) (v0.8)';
+-- indice parziale per recuperare velocemente le notifiche non lette di un utente
+CREATE INDEX idx_notifications_unread ON notifications (user_id, created_at DESC)
+  WHERE read_at IS NULL;
+CREATE INDEX idx_notifications_user ON notifications (user_id, created_at DESC);
+
+
+-- =============================================================================
 -- FINE SCHEMA
 -- =============================================================================

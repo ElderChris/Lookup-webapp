@@ -20,6 +20,7 @@ BEGIN;
 
 -- Pulizia preventiva (comoda in fase di sviluppo; commentare in produzione)
 TRUNCATE TABLE view_events, loan_requests, book_images, books,
+               notifications, book_likes, user_follows,
                organization_profiles, user_preferences, categories,
                reports, users RESTART IDENTITY CASCADE;
 
@@ -419,6 +420,57 @@ FROM (VALUES
   ('lettori.erranti',   'grid',   'classic',  'symbol',   '❧',  'Leggere insieme, camminare lontano', 'recent', TRUE)
 ) AS v(username, view_mode, theme, avatar_style, avatar_symbol, motto, sort_by, show_email)
 JOIN users u ON u.username = v.username;
+
+
+-- =============================================================================
+-- DATI SOCIALI (v0.8): follow, like, notifiche
+-- =============================================================================
+
+-- ---- FOLLOW: Chiara segue due enti e una lettrice -----------------------
+INSERT INTO user_follows (follower_id, followed_id)
+SELECT f.id, t.id
+FROM (VALUES
+  ('chiara.morandi', 'biblioteca.sanita'),
+  ('chiara.morandi', 'lettori.erranti'),
+  ('chiara.morandi', 'anna.russo')
+) AS rel(follower, followed)
+JOIN users f ON f.username = rel.follower
+JOIN users t ON t.username = rel.followed;
+
+-- ---- LIKE: i volumi preferiti di Chiara ---------------------------------
+-- (un titolo in prestito + due disponibili, per mostrare entrambi gli stati)
+INSERT INTO book_likes (user_id, book_id)
+SELECT u.id, b.id
+FROM (VALUES
+  ('chiara.morandi', 'Montedidio'),
+  ('chiara.morandi', 'Le città invisibili'),
+  ('chiara.morandi', 'La Storia')
+) AS rel(username, title)
+JOIN users u ON u.username = rel.username
+JOIN books b ON b.title = rel.title;
+
+-- ---- NOTIFICHE: eventi mostrati nella campanella di Chiara --------------
+-- Esempi dei tre tipi. read_at NULL = non letta. actor_id = libreria d'origine.
+INSERT INTO notifications (user_id, type, actor_id, book_id, message, created_at, read_at)
+SELECT dest.id, n.type, act.id, bk.id, n.message,
+       CURRENT_TIMESTAMP - (n.age_hours || ' hours')::interval,
+       CASE WHEN n.is_read THEN CURRENT_TIMESTAMP - INTERVAL '1 hour' ELSE NULL END
+FROM (VALUES
+  -- (destinatario, tipo, attore, titolo libro o NULL, messaggio, ore fa, letta)
+  ('chiara.morandi', 'book_available', 'luca.esposito',     'Montedidio',
+     'Il volume «Montedidio», fra i tuoi preferiti, è di nuovo disponibile per il prestito', 4, FALSE),
+  ('chiara.morandi', 'profile_update', 'lettori.erranti',   NULL,
+     'Associazione I Lettori Erranti ha aggiornato le informazioni della libreria', 48, FALSE),
+  ('chiara.morandi', 'profile_update', 'biblioteca.sanita', NULL,
+     'Biblioteca di Comunità Rione Sanità ha aggiornato le informazioni della libreria', 50, FALSE),
+  ('chiara.morandi', 'new_book',       'biblioteca.sanita', 'La pelle',
+     'Biblioteca di Comunità Rione Sanità ha pubblicato «La pelle»', 240, TRUE),
+  ('chiara.morandi', 'new_book',       'lettori.erranti',   'Le otto montagne',
+     'Associazione I Lettori Erranti ha pubblicato «Le otto montagne»', 360, TRUE)
+) AS n(dest_user, type, actor_user, book_title, message, age_hours, is_read)
+JOIN users dest ON dest.username = n.dest_user
+JOIN users act  ON act.username  = n.actor_user
+LEFT JOIN books bk ON bk.title = n.book_title;
 
 
 COMMIT;
