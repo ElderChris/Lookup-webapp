@@ -962,6 +962,10 @@ a:hover { color: var(--color-burgundy-dk); }
 [data-auth-state="user"] .guest-only {
   display: none !important;
 }
+/* Sezioni di sola presentazione (hero, "Come funziona"): nascoste
+   quando l'utente è autenticato, perché la home gli dà priorità a
+   contenuti personalizzati (novità, preferiti, librerie vicine). */
+[data-auth-state="user"] .guest-presentation { display: none !important; }
 
 /* ---- 23.2 Card "Libreria utente" ---------------------------------- */
 /* Sostituisce la lista chip delle categorie con una vetrina di
@@ -2807,4 +2811,185 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 @media (prefers-reduced-motion: reduce) {
   .form__input.input-error { animation: none; }
+}
+
+/* =====================================================================
+   30. SOCIAL v0.8 — campanella notifiche, follow, like
+   ===================================================================== */
+
+/* ---- 30.1 Campanella di notifiche nell'header -------------------- */
+.notif { position: relative; display: inline-flex; align-items: center; }
+.notif__bell {
+  position: relative;
+  background: none; border: none; cursor: pointer;
+  color: var(--color-ink);
+  padding: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.notif__bell:hover { background: var(--color-paper-dark); color: var(--color-burgundy); }
+.notif__bell.has-unread svg { animation: bell-swing 1.4s ease-in-out 1; transform-origin: top center; }
+@keyframes bell-swing {
+  0%,100% { transform: rotate(0); } 20% { transform: rotate(12deg); }
+  40% { transform: rotate(-10deg); } 60% { transform: rotate(6deg); } 80% { transform: rotate(-4deg); }
+}
+.notif__badge {
+  position: absolute; top: -1px; right: -1px;
+  min-width: 17px; height: 17px; padding: 0 4px;
+  border-radius: 999px;
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  font-size: 0.62rem; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 2px solid var(--color-paper);
+}
+
+.notif__panel {
+  position: absolute;
+  top: calc(100% + 10px); right: 0;
+  width: min(360px, 90vw);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 40px var(--color-shadow);
+  z-index: 200;
+  overflow: hidden;
+  animation: notif-pop 0.2s ease;
+}
+@keyframes notif-pop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+.notif__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--color-line);
+  font-family: var(--font-display); font-size: 1.05rem;
+}
+.notif__readall {
+  background: none; border: none; cursor: pointer;
+  font-size: 0.7rem; color: var(--color-burgundy);
+  font-family: var(--font-body);
+}
+.notif__readall:hover { text-decoration: underline; }
+.notif__list { max-height: min(420px, 70vh); overflow-y: auto; }
+.notif__empty { padding: var(--sp-6) var(--sp-4); color: var(--color-ink-soft); font-size: var(--fs-sm); text-align: center; line-height: 1.5; }
+
+.notif__item {
+  display: flex; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--color-line);
+  text-decoration: none; color: var(--color-ink);
+  transition: background 0.15s ease;
+}
+.notif__item:last-child { border-bottom: none; }
+.notif__item:hover { background: var(--color-paper-dark); }
+.notif__item.is-unread { background: rgba(122, 30, 43, 0.05); }
+.notif__item.is-unread .notif__item-msg::after {
+  content: ""; display: inline-block;
+  width: 7px; height: 7px; margin-left: 6px; border-radius: 50%;
+  background: var(--color-burgundy); vertical-align: middle;
+}
+.notif__item-icon { font-size: 1.1rem; flex-shrink: 0; line-height: 1.3; }
+.notif__item-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.notif__item-msg { font-size: var(--fs-sm); line-height: 1.4; }
+.notif__item-time { font-size: 0.68rem; color: var(--color-ink-soft); }
+
+/* ---- 30.2 Pulsante "Segui" --------------------------------------- */
+.btn--follow {
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.btn--follow .btn--follow__icon { font-size: 0.9em; line-height: 1; }
+.btn--following {
+  background: var(--color-paper-dark);
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+}
+.btn--following:hover {
+  background: rgba(122,30,43,0.08);
+  border-color: var(--color-burgundy);
+  color: var(--color-burgundy);
+}
+/* mostra "Smetti di seguire" al passaggio del mouse sul bottone "Segui già" */
+.btn--following .btn--following__on  { display: inline; }
+.btn--following .btn--following__off { display: none; }
+.btn--following:hover .btn--following__on  { display: none; }
+.btn--following:hover .btn--following__off { display: inline; }
+
+.follower-count { font-size: var(--fs-xs); color: var(--color-ink-soft); }
+.follower-count strong { color: var(--color-ink); font-family: var(--font-mono); }
+
+/* ---- 30.3 Pulsante "like" (cuore) -------------------------------- */
+.like-btn {
+  background: none; border: none; cursor: pointer; padding: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--color-ink-soft);
+  font-family: var(--font-body); font-size: var(--fs-sm);
+  transition: color 0.18s ease;
+}
+.like-btn:hover { color: var(--color-burgundy); }
+.like-btn__heart {
+  width: 22px; height: 22px; display: inline-block;
+  transition: transform 0.25s cubic-bezier(.34,1.56,.64,1);
+}
+.like-btn.is-liked { color: var(--color-burgundy); }
+.like-btn.is-liked .like-btn__heart { animation: heart-pop 0.4s cubic-bezier(.34,1.56,.64,1); }
+@keyframes heart-pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.3); } 100% { transform: scale(1); } }
+
+/* cuore piccolo sovrapposto alle card libro */
+.book-card { position: relative; }
+.like-chip {
+  position: absolute; top: 8px; right: 8px; z-index: 3;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(244, 239, 230, 0.92);
+  border: 1px solid var(--color-line);
+  display: inline-grid; place-items: center;
+  cursor: pointer; color: var(--color-ink-soft);
+  transition: transform 0.18s ease, color 0.18s ease, background 0.18s ease;
+  box-shadow: 0 2px 8px var(--color-shadow);
+}
+.like-chip:hover { transform: scale(1.12); color: var(--color-burgundy); }
+.like-chip.is-liked { color: var(--color-burgundy); background: rgba(122,30,43,0.10); }
+.like-chip svg { width: 18px; height: 18px; }
+.like-chip.is-liked svg { animation: heart-pop 0.4s cubic-bezier(.34,1.56,.64,1); }
+
+/* badge "ti avviseremo" sui preferiti in prestito */
+.like-waiting {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.68rem; color: var(--color-gold);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notif__bell.has-unread svg,
+  .like-btn.is-liked .like-btn__heart,
+  .like-chip.is-liked svg,
+  .notif__panel { animation: none; }
+}
+
+/* ---- 30.4 Home personalizzata (utente loggato) ------------------- */
+.home-welcome {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  flex-wrap: wrap; gap: var(--sp-4);
+  padding-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--color-line);
+}
+.home-welcome__title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 300; line-height: 1.1; margin: 0.25rem 0 0;
+}
+.home-welcome__title em { font-style: italic; color: var(--color-burgundy); }
+.home-welcome__sub { color: var(--color-ink-soft); margin: 0.5rem 0 0; max-width: 52ch; }
+
+.empty-feed {
+  text-align: center;
+  padding: var(--sp-8) var(--sp-6);
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+}
+.empty-feed p { color: var(--color-ink-soft); margin: 0 auto var(--sp-4); max-width: 46ch; line-height: 1.6; }
+
+@media (max-width: 600px) {
+  .home-welcome { align-items: stretch; }
+  .home-welcome .btn { width: 100%; justify-content: center; }
 }

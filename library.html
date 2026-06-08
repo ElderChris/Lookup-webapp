@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="La libreria di un membro della comunità Libreria Diffusa: i suoi volumi disponibili al prestito." />
   <title>Libreria — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.7.0" />
+  <link rel="stylesheet" href="css/styles.css?v=0.8.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -79,12 +79,12 @@
       </div>
       <div class="site-footer__colophon">
         <span>© 2026 Libreria Diffusa — Prototipo didattico</span>
-        <span>v0.7.0 — GPL-3.0</span>
+        <span>v0.8.0 — GPL-3.0</span>
       </div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.7.0"></script>
+  <script src="js/app.js?v=0.8.0"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -159,11 +159,18 @@
                Solo ${user.display_name} può modificarla.</span>
              </div>`;
 
-        /* Azioni: il proprietario gestisce, il visitatore esplora i volumi */
+        /* Azioni: il proprietario gestisce, il visitatore esplora i volumi
+           e — se autenticato — può seguire la libreria. */
+        const followerCount = API.getFollowerCount(user.id);
+        const me = API.getCurrentUser();
+        const followBtn = (!can_edit && me)
+          ? renderFollowButton(user.id)
+          : '';
         const actions = can_edit
           ? `<a href="profile-setup.html" class="btn btn--primary">Personalizza la libreria</a>
              <a href="add-book.html" class="btn btn--ghost">Aggiungi un volume</a>`
-          : `<a href="#volumi" class="btn btn--primary">Sfoglia i ${stats.total} volumi</a>`;
+          : `<a href="#volumi" class="btn btn--primary">Sfoglia i ${stats.total} volumi</a>
+             ${followBtn}`;
 
         /* Riga "nome ufficiale" solo per gli enti */
         const legalRow = (is_organization && org_profile && org_profile.legal_name)
@@ -208,6 +215,7 @@
               <div class="library-hero__meta">
                 <span>📍 <strong>${user.city || '—'}</strong></span>
                 ${distLabel ? `<span>${distLabel}</span>` : ''}
+                <span class="follower-count"><strong id="follower-count">${followerCount}</strong> follower</span>
                 <span>Su Libreria Diffusa dal <strong>${formatDate(user.joined)}</strong></span>
               </div>
               <div class="library-hero__actions">${actions}</div>
@@ -265,6 +273,43 @@
 
         // modalità iniziale = quella scelta dal proprietario
         showMode(prefs.view_mode || 'grid');
+
+        // Wiring del pulsante "Segui" (presente solo per visitatori autenticati)
+        wireFollowButton(user.id);
+      }
+
+      /* Genera il markup del pulsante segui/seguito in base allo stato */
+      function renderFollowButton(targetId) {
+        const following = API.isFollowing((API.getCurrentUser() || {}).id, targetId);
+        return following
+          ? `<button type="button" class="btn btn--follow btn--following" id="follow-btn" data-target="${targetId}" aria-pressed="true">
+               <span class="btn--following__on">✓ Segui già</span>
+               <span class="btn--following__off">Smetti di seguire</span>
+             </button>`
+          : `<button type="button" class="btn btn--primary btn--follow" id="follow-btn" data-target="${targetId}" aria-pressed="false">
+               <span class="btn--follow__icon" aria-hidden="true">+</span> Segui
+             </button>`;
+      }
+
+      /* Collega il click del pulsante segui: aggiorna stato, conteggio
+         follower, notifiche e ridisegna il pulsante. */
+      function wireFollowButton(targetId) {
+        const btn = document.getElementById('follow-btn');
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+          const nowFollowing = API.toggleFollow(targetId);
+          // ridisegna il pulsante
+          btn.outerHTML = renderFollowButton(targetId);
+          wireFollowButton(targetId);
+          // aggiorna conteggio follower
+          const fc = document.getElementById('follower-count');
+          if (fc) fc.textContent = API.getFollowerCount(targetId);
+          // aggiorna la campanella e dà un riscontro
+          if (UI._refreshNotifications) UI._refreshNotifications();
+          UI.toast(nowFollowing
+            ? 'Ora segui questa libreria: riceverai i suoi aggiornamenti.'
+            : 'Non segui più questa libreria.', 'info');
+        });
       }
 
       /* =========================================================

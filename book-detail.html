@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dettaglio libro — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.7.0" />
+  <link rel="stylesheet" href="css/styles.css?v=0.8.0" />
 </head>
 <body>
 
@@ -99,11 +99,11 @@
       <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
       <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
       <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.7.0</span></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.8.0</span></div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.7.0"></script>
+  <script src="js/app.js?v=0.8.0"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -135,6 +135,21 @@
           <span class="book-card__category">${book.category}</span>
           <h1 class="book-detail__title">${book.title}</h1>
           <p class="book-detail__author">di ${book.author}</p>
+
+          <!-- Like + avviso disponibilità -->
+          <div style="display:flex; align-items:center; gap:1.25rem; margin: 0.5rem 0 1.25rem; flex-wrap:wrap;">
+            <button type="button" class="like-btn" id="like-btn" aria-pressed="false">
+              <svg class="like-btn__heart" viewBox="0 0 24 24" aria-hidden="true">
+                <path id="like-heart-path" d="M12 20 C12 20 3 14 3 8 C3 5 5 3.5 7.2 3.5 C9 3.5 10.6 4.7 12 6.6 C13.4 4.7 15 3.5 16.8 3.5 C19 3.5 21 5 21 8 C21 14 12 20 12 20 Z"
+                      fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+              </svg>
+              <span id="like-label">Mi piace</span>
+              <span id="like-count" style="font-family:var(--font-mono);">(${API.getLikeCount(book.id)})</span>
+            </button>
+            ${!book.available
+              ? `<span class="like-waiting">⏳ metti «mi piace» per essere avvisato quando torna disponibile</span>`
+              : ''}
+          </div>
 
           <dl class="book-detail__metadata">
             <div class="book-detail__meta-item">
@@ -173,7 +188,7 @@
               ${book.available
                 ? `<button class="btn btn--primary" id="request-loan-btn">Richiedi prestito</button>`
                 : `<span class="badge badge--pending">Attualmente in prestito</span>`}
-              <a href="profile.html?id=${owner.id}" class="btn btn--ghost">Profilo del lettore</a>
+              <a href="library.html?id=${owner.id}" class="btn btn--ghost">Vai alla libreria</a>
             </div>
           </div>
 
@@ -191,6 +206,43 @@
       if (btn) {
         btn.addEventListener('click', () => document.getElementById('loan-dialog').showModal());
       }
+
+      // Gestione "mi piace": richiede l'iscrizione (come su Vinted, per
+      // ricevere gli avvisi di disponibilità). Se ospite → invito al login.
+      (function wireLike() {
+        const likeBtn = document.getElementById('like-btn');
+        if (!likeBtn) return;
+        const heart = document.getElementById('like-heart-path');
+        const label = document.getElementById('like-label');
+        const count = document.getElementById('like-count');
+
+        function paint() {
+          const me = API.getCurrentUser();
+          const liked = me && API.isLiked(me.id, id);
+          likeBtn.classList.toggle('is-liked', !!liked);
+          likeBtn.setAttribute('aria-pressed', String(!!liked));
+          heart.setAttribute('fill', liked ? 'currentColor' : 'none');
+          label.textContent = liked ? 'Ti piace' : 'Mi piace';
+          count.textContent = `(${API.getLikeCount(id)})`;
+        }
+        paint();
+
+        likeBtn.addEventListener('click', () => {
+          const me = API.getCurrentUser();
+          if (!me) {
+            UI.toast('Iscriviti per salvare i preferiti ed essere avvisato sulla disponibilità.', 'info');
+            sessionStorage.setItem('pending_like_book', id);
+            setTimeout(() => location.href = `register.html?intent=borrow&book=${id}`, 1100);
+            return;
+          }
+          const nowLiked = API.toggleLike(id);
+          paint();
+          if (UI._refreshNotifications) UI._refreshNotifications();
+          UI.toast(nowLiked
+            ? (book.available ? 'Aggiunto ai preferiti.' : 'Aggiunto ai preferiti: ti avviseremo quando tornerà disponibile.')
+            : 'Rimosso dai preferiti.', 'info');
+        });
+      })();
 
       document.getElementById('loan-submit')?.addEventListener('click', e => {
         if (!document.getElementById('loan-consent').checked) return;

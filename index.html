@@ -8,7 +8,7 @@
   <!-- Il parametro ?v= serve come "cache-busting": cambiando versione,
        il browser è costretto a riscaricare il file invece di servire
        una copia obsoleta dalla cache. -->
-  <link rel="stylesheet" href="css/styles.css?v=0.7.0" />
+  <link rel="stylesheet" href="css/styles.css?v=0.8.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -49,7 +49,7 @@
   <main id="main">
 
     <!-- ============ HERO con CONTATORI LIVE ============ -->
-    <section class="hero container" aria-labelledby="hero-title">
+    <section class="hero container guest-presentation" aria-labelledby="hero-title">
 
       <!-- Parte alta dell'hero: testo introduttivo + illustrazione,
            affiancati su desktop. Le CTA e i contatori stanno sotto,
@@ -140,6 +140,41 @@
       </div>
     </section>
 
+    <!-- ============ HOME PERSONALIZZATA (solo utenti autenticati) ============ -->
+    <!-- Quando l'utente è loggato, l'hero di presentazione e "Come funziona"
+         sono nascosti; al loro posto compaiono, in ordine: novità da chi
+         segui, preferiti, librerie vicine. -->
+    <section class="section container auth-only" aria-labelledby="welcome-title" id="welcome-section">
+      <div class="home-welcome">
+        <div>
+          <span class="eyebrow">la tua home</span>
+          <h1 id="welcome-title" class="home-welcome__title">Bentornata, <em id="welcome-name">…</em></h1>
+          <p class="home-welcome__sub">Ecco cosa è successo nelle librerie che segui e fra i tuoi volumi preferiti.</p>
+        </div>
+        <a href="add-book.html" class="btn btn--primary btn--lg btn--pulse">
+          <span class="btn__icon" aria-hidden="true">+</span> Pubblica un volume
+        </a>
+      </div>
+    </section>
+
+    <!-- Novità dalle librerie seguite -->
+    <section class="section container auth-only" aria-labelledby="feed-title">
+      <div class="section-header">
+        <h2 id="feed-title">Novità da chi segui</h2>
+        <span class="section-meta">N° 01 — aggiornamenti recenti</span>
+      </div>
+      <div id="follow-feed" aria-live="polite"></div>
+    </section>
+
+    <!-- Volumi preferiti -->
+    <section class="section container auth-only" aria-labelledby="likes-title">
+      <div class="section-header">
+        <h2 id="likes-title">I tuoi preferiti</h2>
+        <span class="section-meta">N° 02 — volumi con «mi piace»</span>
+      </div>
+      <div id="liked-books" aria-live="polite"></div>
+    </section>
+
     <!-- ============ LIBRERIE VICINO A TE ============ -->
     <section class="section container" aria-labelledby="nearby-title">
       <div class="section-header">
@@ -157,7 +192,7 @@
     </section>
 
     <!-- ============ COME FUNZIONA ============ -->
-    <section class="section container" aria-labelledby="how-title">
+    <section class="section container guest-presentation" aria-labelledby="how-title">
       <div class="section-header">
         <h2 id="how-title">Come funziona</h2>
         <span class="section-meta">N° 02 — in tre gesti</span>
@@ -291,12 +326,12 @@
 
       <div class="site-footer__colophon">
         <span>© 2026 Libreria Diffusa — Prototipo didattico</span>
-        <span>v0.7.0 — GPL-3.0</span>
+        <span>v0.8.0 — GPL-3.0</span>
       </div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.7.0"></script>
+  <script src="js/app.js?v=0.8.0"></script>
   <script>
     /* Popolamento dei contenuti dinamici della homepage */
 
@@ -393,12 +428,66 @@
       }
       updateGreeting();
 
+      /* ----- HOME PERSONALIZZATA (utenti autenticati) -----
+         Popola: nome di benvenuto, novità dalle librerie seguite,
+         volumi preferiti. Le sezioni sono nascoste ai guest via CSS. */
+      function renderPersonalizedHome() {
+        const me = API.getCurrentUser();
+        if (!me) return;
+
+        // Nome di benvenuto
+        const wname = document.getElementById('welcome-name');
+        if (wname) wname.textContent = me.display_name.split(' ')[0];
+
+        // --- Novità da chi segui: volumi recenti delle librerie seguite ---
+        const feed = document.getElementById('follow-feed');
+        if (feed) {
+          const followed = API.getFollows(me.id);
+          if (!followed.length) {
+            feed.innerHTML = `<div class="empty-feed">
+              <p>Non segui ancora nessuna libreria. Visita una libreria e premi
+              <strong>«Segui»</strong> per ricevere qui i suoi nuovi volumi e aggiornamenti.</p>
+              <a href="explore.html" class="btn btn--ghost">Esplora le librerie</a>
+            </div>`;
+          } else {
+            // libri delle librerie seguite, più recenti prima
+            const books = followed
+              .flatMap(uid => API.getBooksByOwner(uid))
+              .sort((a, b) => (b.added || '').localeCompare(a.added || ''))
+              .slice(0, 4);
+            if (books.length) {
+              UI.renderBooksGrid(feed, books);
+            } else {
+              feed.innerHTML = `<p style="color:var(--color-ink-soft);font-style:italic;">Le librerie che segui non hanno ancora pubblicato volumi.</p>`;
+            }
+          }
+        }
+
+        // --- I tuoi preferiti ---
+        const likedBox = document.getElementById('liked-books');
+        if (likedBox) {
+          const liked = API.getLikedBooks(me.id);
+          if (!liked.length) {
+            likedBox.innerHTML = `<div class="empty-feed">
+              <p>Non hai ancora preferiti. Premi il <strong>cuore</strong> su un volume
+              per salvarlo ed essere avvisato quando un titolo in prestito torna disponibile.</p>
+              <a href="explore.html" class="btn btn--ghost">Cerca volumi</a>
+            </div>`;
+          } else {
+            UI.renderBooksGrid(likedBox, liked);
+          }
+        }
+      }
+      renderPersonalizedHome();
+
       /* ----- Reazione al toggle di autenticazione -----
          Cambiando stato cambia anche la posizione di riferimento,
-         quindi le librerie "vicino a te" vanno ricalcolate. ----- */
+         quindi le librerie "vicino a te" vanno ricalcolate, e vanno
+         ripopolate le sezioni personalizzate. ----- */
       document.addEventListener('auth:change', () => {
         updateGreeting();
         renderNearby();
+        renderPersonalizedHome();
       });
 
       /* Effetto "ripple" sui CTA grandi (Inizia a scambiare, Esplora
