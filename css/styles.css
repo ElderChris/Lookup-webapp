@@ -288,21 +288,41 @@ a:hover { color: var(--color-burgundy-dk); }
    Tocco/click → micro-animazione (i lettori si avvicinano, il libro
    pulsa, salgono dei cuori). */
 .hero__illustration {
-  appearance: none;
-  background: none;
-  border: none;
-  padding: 0; margin: 0;
-  cursor: pointer;
   width: 100%;
   max-width: 360px;
   justify-self: end;
   position: relative;
   display: block;
+  cursor: pointer;
 }
-.hero__illustration svg { width: 100%; height: auto; display: block; overflow: visible; }
-.hero__illustration:focus-visible { outline: none; }
-.hero__illustration:focus-visible .hi2__bg-ring {
-  stroke: var(--color-burgundy); stroke-width: 3; stroke-dasharray: 5 5;
+.hero__illustration img {
+  width: 100%;
+  height: auto;
+  display: block;
+  /* Respiro continuo dell'intera illustrazione: lentissimo e quasi
+     impercettibile, in aggiunta al "respiro" interno dei singoli
+     elementi (definito dentro il file SVG). Parte dopo l'intro di ~1s. */
+  animation: hero-ill-breathe 7s ease-in-out 1.2s infinite;
+  transform-origin: center bottom;
+}
+@keyframes hero-ill-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-4px) scale(1.006); }
+}
+/* Tocco/hover: rimbalzo gentile. Essendo ora un'immagine esterna,
+   animiamo il contenitore anziché i singoli elementi interni. */
+.hero__illustration:hover img {
+  transform: translateY(-6px) scale(1.02);
+  transition: transform 0.4s cubic-bezier(.34,1.56,.64,1);
+}
+.hero__illustration.is-tapped img { animation: hero-ill-pop 0.6s cubic-bezier(.34,1.56,.64,1); }
+@keyframes hero-ill-pop {
+  0%   { transform: scale(1) translateY(0); }
+  40%  { transform: scale(1.05) translateY(-8px); }
+  100% { transform: scale(1) translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero__illustration img { animation: none; }
 }
 
 /* Etichetta affordance */
@@ -2993,3 +3013,35 @@ a:hover { color: var(--color-burgundy-dk); }
   .home-welcome { align-items: stretch; }
   .home-welcome .btn { width: 100%; justify-content: center; }
 }
+
+/* =====================================================================
+   31. v0.9 — bottone nav "Registrati / Accedi" e link di accesso
+   ===================================================================== */
+/* CTA di autenticazione nella navbar: un solo ingresso che porta alla
+   registrazione (da lì si passa all'accesso). Compatto per stare in
+   linea con gli altri elementi della nav. */
+.nav-auth-cta {
+  padding: 0.45rem 1rem;
+  font-size: 0.85rem;
+}
+@media (max-width: 880px) {
+  /* su mobile la nav è a colonna: il bottone occupa tutta la larghezza */
+  .nav-auth-cta { width: 100%; justify-content: center; margin-top: var(--sp-2); }
+}
+
+/* Riga "Hai già un account? Accedi" sotto al wizard di registrazione */
+.auth-switch {
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--color-line);
+  text-align: center;
+  font-size: var(--fs-sm);
+  color: var(--color-ink-soft);
+}
+.auth-switch a {
+  color: var(--color-burgundy);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 600;
+}
+.auth-switch a:hover { text-decoration-thickness: 2px; }
