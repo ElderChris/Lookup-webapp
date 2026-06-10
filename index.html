@@ -8,7 +8,7 @@
   <!-- Il parametro ?v= serve come "cache-busting": cambiando versione,
        il browser è costretto a riscaricare il file invece di servire
        una copia obsoleta dalla cache. -->
-  <link rel="stylesheet" href="css/styles.css?v=0.8.0" />
+  <link rel="stylesheet" href="css/styles.css?v=0.9.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -32,8 +32,9 @@
         <a href="profile.html" class="auth-only">Profilo</a>
         <a href="profile-setup.html" class="auth-only">Personalizza</a>
         <a href="stats.html">Statistiche</a>
-        <a href="login.html" class="guest-only">Accedi</a>
-        <a href="register.html" class="guest-only">Registrati</a>
+        <!-- Un solo ingresso: porta alla registrazione; da lì si può
+             passare all'accesso ("Hai già un account? Accedi"). -->
+        <a href="register.html" class="btn btn--primary nav-auth-cta guest-only">Registrati / Accedi</a>
 
         <!-- Toggle stato autenticazione (didattico): simula la prima
              visita di un anonimo o la sessione di un utente loggato. -->
@@ -77,25 +78,16 @@
         </div>
 
         <!-- ░░░░░ ILLUSTRAZIONE INTERATTIVA ░░░░░
-             Per sostituirla con un'illustrazione gratuita esterna
-             (Storyset, unDraw, LottieFiles…): scarica l'asset in una
-             cartella assets/ e rimpiazza TUTTO questo <svg> con, es.:
-               <img src="assets/lettori.svg" alt="Due lettori che condividono un libro" />
-             oppure (per Lottie, dopo aver incluso lo script lottie-player):
-               <lottie-player src="assets/lettori.json" autoplay loop style="width:100%"></lottie-player>
-             Mantieni il contenitore <button id="hero-illustration"> per
-             conservare l'animazione al tocco. -->
-        <button class="hero__illustration" type="button" id="hero-illustration"
-                aria-label="Illustrazione: due lettori condividono un libro. Tocca per animarla."
-                title="Tocca per animare">
-        <svg>
-           <img src="assets/library-animate.svg" alt="Due lettori che condividono un libro" />
-        </svg>
-          <span class="hero__illustration-hint" aria-hidden="true">
-            <span class="hero__illustration-hint__dot"></span>
-            tocca per animare
-          </span>
-        </button>
+             Illustrazione esterna (Freepik/Storyset) in assets/.
+             Il file SVG contiene: un'animazione d'ingresso di ~1s e un
+             leggero "respiro" continuo (galleggiamento dei personaggi,
+             lieve pulsazione di libreria e insegna) iniettato da noi.
+             Per sostituirla basta cambiare il file in assets/ o l'src
+             qui sotto (anche con un .json Lottie + <lottie-player>). -->
+        <div class="hero__illustration" id="hero-illustration">
+          <img src="assets/library-animate.svg?v=0.9.0"
+               alt="Illustrazione: due lettori che condividono un libro in una biblioteca" />
+        </div>
 
       </div>
 
@@ -326,12 +318,12 @@
 
       <div class="site-footer__colophon">
         <span>© 2026 Libreria Diffusa — Prototipo didattico</span>
-        <span>v0.8.0 — GPL-3.0</span>
+        <span>v0.9.0 — GPL-3.0</span>
       </div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.8.0"></script>
+  <script src="js/app.js?v=0.9.0"></script>
   <script>
     /* Popolamento dei contenuti dinamici della homepage */
 
@@ -508,25 +500,23 @@
       });
 
       /* ----- Illustrazione interattiva dell'hero -----
-         Al click (desktop) o tocco (mobile) l'illustrazione si anima:
-         i lettori salutano, i libri rimbalzano, appaiono i brillii.
-         Su desktop l'effetto :hover del CSS fa già il suo; questo
-         gestisce il tocco/click e l'accessibilità da tastiera.
-         La classe is-animated viene rimossa dopo il ciclo così che
-         un nuovo tocco la ri-attivi (trucco del reflow per il restart). */
+         Al tocco/click l'illustrazione fa un rimbalzo gentile. Essendo
+         ora un'immagine esterna (assets/library-animate.svg) il suo
+         "respiro" continuo vive dentro il file SVG; qui gestiamo solo
+         il piccolo feedback al tocco sul contenitore. La classe
+         is-tapped viene rimossa a fine ciclo per poterla riattivare. */
       const heroIll = document.getElementById('hero-illustration');
       if (heroIll) {
-        let animTimer = null;
-        const playAnimation = () => {
-          heroIll.classList.remove('is-animated');
-          void heroIll.offsetWidth;            // forza reflow → riavvia le animazioni CSS
-          heroIll.classList.add('is-animated');
-          clearTimeout(animTimer);
-          animTimer = setTimeout(() => heroIll.classList.remove('is-animated'), 2400);
+        let tapTimer = null;
+        const bounce = () => {
+          heroIll.classList.remove('is-tapped');
+          void heroIll.offsetWidth;            // reflow → riavvia l'animazione
+          heroIll.classList.add('is-tapped');
+          clearTimeout(tapTimer);
+          tapTimer = setTimeout(() => heroIll.classList.remove('is-tapped'), 650);
         };
-        heroIll.addEventListener('click', playAnimation);
-        // su touch evitiamo il doppio-fire (touchstart + click sintetico)
-        heroIll.addEventListener('touchstart', (e) => { playAnimation(); }, { passive: true });
+        heroIll.addEventListener('click', bounce);
+        heroIll.addEventListener('touchstart', () => bounce(), { passive: true });
       }
     });
   </script>
