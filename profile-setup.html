@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Personalizza il tuo profilo — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.9.0" />
+  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
 </head>
 <body>
 
@@ -17,14 +17,12 @@
         <span>Libreria&nbsp;Diffusa</span>
       </a>
       <button class="nav-toggle" aria-label="Apri menu" aria-expanded="false">☰</button>
-      <nav class="site-nav" role="navigation">
-        <a href="index.html">Home</a>
-        <a href="explore.html">Esplora</a>
-        <a href="add-book.html">Pubblica</a>
-        <a href="profile.html">Profilo</a>
-        <a href="profile-setup.html">Personalizza</a>
-        <a href="stats.html">Statistiche</a>
-        <a href="admin.html">Admin</a>
+            <nav class="site-nav" id="main-nav" role="navigation" aria-label="Navigazione principale">
+        <a href="explore.html" class="nav-icon" aria-label="Esplora la mappa" title="Esplora la mappa"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 L9 4 L15 6.5 L21 4 V17.5 L15 20 L9 17.5 L3 20 Z"/><path d="M9 4 V17.5 M15 6.5 V20"/><circle cx="17" cy="14" r="2.4"/><path d="M18.8 15.8 L21 18"/></svg></a>
+        <a href="stats.html" class="nav-icon" aria-label="Statistiche" title="Statistiche"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 V10"/><path d="M10 20 V4"/><path d="M16 20 V13"/><path d="M22 20 V7"/><path d="M3 20 H23"/></svg></a>
+        <a href="loans.html" class="auth-only nav-icon" aria-label="Prestiti e chat" title="Prestiti e chat"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5 H17 A2 2 0 0 1 19 7 V13 A2 2 0 0 1 17 15 H10 L6 19 V15 H5 A2 2 0 0 1 3 13 Z"/><path d="M7 9 H15"/><path d="M7 12 H12"/></svg></a>
+        <a href="add-book.html" class="auth-only nav-publish nav-icon" aria-label="Pubblica un volume" title="Pubblica un volume"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4 H14 L19 9 V20 A1 1 0 0 1 18 21 H5 A1 1 0 0 1 4 20 V5 A1 1 0 0 1 5 4 Z"/><path d="M14 4 V9 H19"/><path d="M11.5 12 V17.5 M8.75 14.75 H14.25"/></svg></a>
+        <a href="register.html" class="nav-auth-cta guest-only">Registrati / Accedi</a>
       </nav>
     </div>
   </header>
@@ -193,18 +191,22 @@
               <label class="theme-swatch" style="background: linear-gradient(135deg, #7a1e2b, #b08840);">
                 <input type="radio" name="theme" value="classic" checked />
                 <span class="theme-swatch__name">Classico</span>
+                <span class="theme-swatch__desc">bordeaux e oro</span>
               </label>
               <label class="theme-swatch" style="background: linear-gradient(135deg, #5a141f, #3d342e);">
                 <input type="radio" name="theme" value="bordeaux" />
                 <span class="theme-swatch__name">Bordeaux</span>
+                <span class="theme-swatch__desc">rosso profondo</span>
               </label>
               <label class="theme-swatch" style="background: linear-gradient(135deg, #6e7a5a, #b08840);">
                 <input type="radio" name="theme" value="sage" />
                 <span class="theme-swatch__name">Salvia</span>
+                <span class="theme-swatch__desc">verde e oro</span>
               </label>
               <label class="theme-swatch" style="background: linear-gradient(135deg, #1a1512, #6e7a5a);">
                 <input type="radio" name="theme" value="midnight" />
                 <span class="theme-swatch__name">Notturno</span>
+                <span class="theme-swatch__desc">scuro</span>
               </label>
             </div>
           </section>
@@ -242,6 +244,19 @@
                 <span class="choice-card__title">Cronologia</span>
                 <span class="choice-card__desc">per anno di pubblicazione</span>
               </label>
+            </div>
+
+            <!-- =========== Decorazione della copertina (v1.1) ===========
+                 15 grafiche minimali (5 pattern + 5 icone + 5 glifi
+                 tipografici) selezionabili come copertina della propria
+                 libreria. La selezione viene salvata in prefs.cover_design
+                 e si applica a tutte le anteprime e card nearby. -->
+            <div class="form__group" style="margin-top: var(--sp-6);">
+              <label class="form__label">Decorazione della libreria</label>
+              <p style="font-size: var(--fs-xs); color: var(--color-ink-soft); margin: 0 0 var(--sp-3);">
+                Scegli la grafica della copertina della tua libreria. Patterns, icone o glifi tipografici — 15 alternative tra cui scegliere.
+              </p>
+              <div id="cover-picker" class="cover-picker" role="radiogroup" aria-label="Decorazione della copertina"></div>
             </div>
 
             <div class="form__group" style="margin-top: var(--sp-5);">
@@ -321,11 +336,11 @@
       <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
       <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
       <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.9.0</span></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v3.0.0-alpha.0</span></div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.9.0"></script>
+  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -357,6 +372,37 @@
       setRadio('view_mode',    prefs.view_mode);
       setRadio('privacy_level', String(prefs.privacy_level));
       document.getElementById('sort-by').value = prefs.sort_by;
+
+      /* ----- Picker delle 15 grafiche cover (v1.1) -----
+         Renderizza una griglia di anteprime: ciascuna mostra il design
+         in miniatura con i colori del tema scelto. Click → seleziona. */
+      const picker = document.getElementById('cover-picker');
+      const defaultCover = API.isOrganization(currentUser) ? 'i-shelf' : 'g-section';
+      let selectedCover = prefs.cover_design || defaultCover;
+      const initialLetter = (currentUser.display_name || currentUser.username || 'A').trim()[0].toUpperCase();
+      function paintCoverPicker() {
+        const themeClass = `cover--${prefs.theme || 'classic'}`;
+        picker.innerHTML = LIBRARY_COVER_DESIGNS.map(d => `
+          <button type="button" role="radio"
+                  class="cover-picker__item ${themeClass} ${d.key === selectedCover ? 'is-selected' : ''}"
+                  data-key="${d.key}" title="${d.name}" aria-checked="${d.key === selectedCover}">
+            <svg viewBox="0 0 200 140" preserveAspectRatio="xMidYMid slice"
+                 xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              ${d.render({ letter: initialLetter })}
+            </svg>
+            <span class="cover-picker__caption">${d.name}</span>
+          </button>`).join('');
+        picker.querySelectorAll('.cover-picker__item').forEach(btn => {
+          btn.addEventListener('click', () => {
+            selectedCover = btn.dataset.key;
+            paintCoverPicker();
+          });
+        });
+      }
+      paintCoverPicker();
+      // re-disegna se cambia il tema cromatico (per coerenza visiva)
+      document.querySelectorAll('input[name="theme"]').forEach(r =>
+        r.addEventListener('change', () => { prefs.theme = r.value; paintCoverPicker(); }));
 
       /* ----- Validazione live sul form identità ----- */
       UI.attachLiveValidation(document.getElementById('identity-form'), {
@@ -543,6 +589,7 @@
           theme:     document.querySelector('input[name="theme"]:checked').value,
           avatar_style: document.querySelector('input[name="avatar_style"]:checked').value,
           avatar_symbol: document.querySelector('input[name="avatar_symbol"]:checked')?.value || '§',
+          cover_design: selectedCover,
           motto:     document.getElementById('motto').value.trim(),
           sort_by:   document.getElementById('sort-by').value,
           privacy_level: parseInt(document.querySelector('input[name="privacy_level"]:checked').value, 10),

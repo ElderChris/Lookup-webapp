@@ -247,7 +247,14 @@ a:hover { color: var(--color-burgundy-dk); }
 
 /* ---- 8. Hero ------------------------------------------- */
 .hero {
-  padding: var(--sp-16) 0 var(--sp-12);
+  /* ┌──────────────────────────────────────────────────────────────┐
+     │ POSIZIONE PAGINA AL CARICAMENTO (v1.0):                      │
+     │ Il valore di padding-top qui sotto è il principale "spazio   │
+     │ bianco" che separa l'header dal contenuto dell'hero. Più è   │
+     │ piccolo, più la home parte alta e si vede subito il CTA.     │
+     │ Regola a piacere: --sp-8 (compatto) ↔ --sp-16 (arioso).      │
+     └──────────────────────────────────────────────────────────────┘ */
+  padding: var(--sp-10) 0 var(--sp-12);
   border-bottom: 1px solid var(--color-line);
   position: relative;
   overflow: hidden;
@@ -1294,35 +1301,83 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* Swatches di colore-tema */
+/* Theme swatches — bottoni-card con preview del gradiente.
+   v1.8: trasformati da semplici cerchi a card cliccabili che mostrano
+   il colore + nome + breve descrizione. Sempre visibile l'anteprima. */
 .theme-swatches {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: var(--sp-3);
-  flex-wrap: wrap;
 }
 .theme-swatch {
-  width: 56px; height: 56px;
-  border-radius: 50%;
+  position: relative;
+  min-height: 110px;
+  padding: 0;
+  border-radius: var(--radius);
   border: 2px solid var(--color-line);
   cursor: pointer;
-  position: relative;
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.theme-swatch:hover { transform: scale(1.08); }
-.theme-swatch input { position: absolute; opacity: 0; pointer-events: none; }
+.theme-swatch::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: inherit;       /* eredita il gradient dell'inline-style */
+  z-index: 1;
+}
+.theme-swatch:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-ink-soft);
+}
+.theme-swatch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
 .theme-swatch:has(input:checked) {
   border-color: var(--color-ink);
-  box-shadow: 0 0 0 2px var(--color-paper), 0 0 0 4px var(--color-ink);
+  box-shadow: 0 0 0 3px var(--color-paper), 0 0 0 5px var(--color-ink);
+}
+/* Tick di selezione */
+.theme-swatch:has(input:checked)::after {
+  content: '✓';
+  position: absolute;
+  top: 8px; right: 10px;
+  width: 22px; height: 22px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 0.9rem;
+  font-weight: bold;
+  z-index: 3;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 .theme-swatch__name {
-  position: absolute;
-  bottom: -22px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-ink-soft);
-  white-space: nowrap;
+  position: relative;
+  z-index: 2;
+  padding: 8px 12px 2px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--color-paper);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  text-align: left;
+}
+.theme-swatch__desc {
+  position: relative;
+  z-index: 2;
+  padding: 0 12px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: rgba(244, 239, 230, 0.85);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  text-align: left;
+  text-transform: lowercase;
 }
 
 /* Slider di privacy con etichette discrete */
@@ -3017,16 +3072,39 @@ a:hover { color: var(--color-burgundy-dk); }
 /* =====================================================================
    31. v0.9 — bottone nav "Registrati / Accedi" e link di accesso
    ===================================================================== */
-/* CTA di autenticazione nella navbar: un solo ingresso che porta alla
-   registrazione (da lì si passa all'accesso). Compatto per stare in
-   linea con gli altri elementi della nav. */
+/* CTA di autenticazione nella navbar: ingresso unico ma discreto,
+   nessun riempimento colorato (urtava visivamente). Bordo sottile
+   bordeaux, testo leggermente scurito, attira l'attenzione "in
+   sordina" — al passaggio si scurisce un filo, al focus mostra
+   un alone morbido. */
 .nav-auth-cta {
-  padding: 0.45rem 1rem;
-  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.95rem;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  letter-spacing: 0.01em;
+  color: var(--color-burgundy);
+  background: transparent;
+  border: 1px solid var(--color-burgundy);   /* sempre ben visibile (era 0.45 opacità) */
+  border-radius: 999px;
+  text-decoration: none;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+  white-space: nowrap;
+}
+.nav-auth-cta:hover {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+}
+.nav-auth-cta:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(122, 30, 43, 0.20);
+  border-color: var(--color-burgundy);
 }
 @media (max-width: 880px) {
-  /* su mobile la nav è a colonna: il bottone occupa tutta la larghezza */
-  .nav-auth-cta { width: 100%; justify-content: center; margin-top: var(--sp-2); }
+  /* su mobile la nav è a colonna: occupa la riga, restando sobrio */
+  .nav-auth-cta { width: 100%; margin-top: var(--sp-2); }
 }
 
 /* Riga "Hai già un account? Accedi" sotto al wizard di registrazione */
@@ -3045,3 +3123,3940 @@ a:hover { color: var(--color-burgundy-dk); }
   font-weight: 600;
 }
 .auth-switch a:hover { text-decoration-thickness: 2px; }
+
+/* =====================================================================
+   32. v1.0 — slider distanza, tag-input BISAC, redesign Librerie vicine
+   ===================================================================== */
+
+/* ---- 32.1 Slider distanza (sostituisce il <select>) -------------- */
+.range-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 8px 0;
+}
+.range-control__head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 0.66rem; letter-spacing: 0.10em; text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+.range-control__head strong {
+  font-family: var(--font-mono); font-size: 0.95rem;
+  color: var(--color-burgundy); letter-spacing: 0;
+  text-transform: none;
+}
+.range-control input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 4px;
+  background: var(--color-line);
+  border-radius: 999px; outline: none;
+  background-image: linear-gradient(var(--color-burgundy), var(--color-burgundy));
+  background-repeat: no-repeat;
+  cursor: pointer;
+  margin: 6px 0 2px;
+}
+.range-control input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  background: var(--color-paper);
+  border: 2px solid var(--color-burgundy);
+  border-radius: 50%; cursor: pointer;
+  box-shadow: 0 1px 3px var(--color-shadow);
+  transition: transform 0.15s ease;
+}
+.range-control input[type=range]::-webkit-slider-thumb:hover  { transform: scale(1.12); }
+.range-control input[type=range]::-webkit-slider-thumb:active { transform: scale(1.20); }
+.range-control input[type=range]::-moz-range-thumb {
+  width: 18px; height: 18px; background: var(--color-paper);
+  border: 2px solid var(--color-burgundy); border-radius: 50%; cursor: pointer;
+}
+
+/* ---- 32.2 Multi-tag input (autocomplete BISAC) ------------------- */
+.tag-input {
+  position: relative;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+  min-height: 42px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.tag-input:focus-within {
+  border-color: var(--color-burgundy);
+  box-shadow: 0 0 0 3px rgba(122, 30, 43, 0.12);
+}
+.tag-input__chips { display: contents; }
+.tag-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 6px 3px 10px;
+  background: rgba(122, 30, 43, 0.10);
+  border: 1px solid rgba(122, 30, 43, 0.30);
+  color: var(--color-burgundy);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-family: var(--font-body);
+  animation: tag-in 0.18s ease;
+}
+@keyframes tag-in {
+  from { opacity: 0; transform: scale(.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.tag-chip__x {
+  background: none; border: none; cursor: pointer;
+  color: inherit; font-size: 1rem; line-height: 1;
+  padding: 0 4px; opacity: 0.6;
+}
+.tag-chip__x:hover { opacity: 1; }
+.tag-input__field {
+  flex: 1; min-width: 140px;
+  border: none; outline: none; background: transparent;
+  font-family: var(--font-body); font-size: var(--fs-sm);
+  color: var(--color-ink);
+  padding: 4px 2px;
+}
+.tag-input__dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 24px var(--color-shadow);
+  z-index: 50; max-height: 260px; overflow-y: auto;
+  animation: tag-pop 0.15s ease;
+}
+@keyframes tag-pop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.tag-opt {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px;
+  font-size: var(--fs-sm); cursor: pointer;
+  border-bottom: 1px solid var(--color-line);
+}
+.tag-opt:last-child { border-bottom: none; }
+.tag-opt:hover, .tag-opt.is-active {
+  background: rgba(176, 136, 64, 0.10);
+  color: var(--color-burgundy);
+}
+.tag-opt mark { background: rgba(176, 136, 64, 0.30); color: inherit; font-weight: 600; }
+.tag-opt__parent {
+  font-size: 0.68rem; color: var(--color-ink-soft);
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+
+/* ---- 32.3 Redesign card "Librerie vicine" — minimale + enti ----- */
+/* Copertina più sobria e personalizzabile (il tema cromatico viene
+   dalle preferenze del proprietario). Il tipo (privata vs ente) è
+   riconoscibile *immediatamente* da un nastro colorato in alto e
+   da un'icona dedicata (📖 o 🏛). Luogo e disponibili sono
+   tipograficamente più forti. */
+.nearby-card {
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.nearby-card__cover {
+  position: relative;
+  aspect-ratio: 5 / 3;
+  display: grid; place-items: center;
+  /* sfumatura più tenue del tema, per leggerezza */
+  filter: saturate(0.95);
+}
+.nearby-card__cover::before {
+  /* nastro identitario in alto: forte segnale visivo del tipo libreria */
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 6px;
+  background: var(--ribbon, var(--color-line));
+}
+.nearby-card--org   .nearby-card__cover { --ribbon: var(--color-burgundy); }
+.nearby-card--person .nearby-card__cover { --ribbon: var(--color-sage); }
+
+.nearby-card__type {
+  position: absolute; top: 14px; left: 14px;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px 3px 8px;
+  background: rgba(244, 239, 230, 0.92);
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  font-size: 0.62rem;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+.nearby-card--org   .nearby-card__type { color: var(--color-burgundy); border-color: rgba(122,30,43,0.30); }
+.nearby-card--person .nearby-card__type { color: #45524e; border-color: rgba(110, 122, 90, 0.30); }
+.nearby-card__type-ico { font-size: 0.9rem; line-height: 1; }
+
+.nearby-card__glyph {
+  /* glifo del tema più piccolo e leggero: cover minimale */
+  font-family: var(--font-display);
+  font-size: 3.6rem;
+  color: rgba(244, 239, 230, 0.85);
+  font-style: italic;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+.nearby-card__cover-name { display: none; }   /* il nome ora vive solo nel corpo */
+
+.nearby-card__body {
+  padding: var(--sp-4) var(--sp-4) var(--sp-5);
+}
+.nearby-card__name {
+  font-family: var(--font-display);
+  font-size: 1.25rem; line-height: 1.2;
+  margin: 0 0 4px;
+}
+.nearby-card__desc {
+  font-size: 0.78rem; line-height: 1.5; color: var(--color-ink-soft);
+  margin: 0 0 var(--sp-3);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* --- Bandella inferiore: luogo + disponibili in evidenza --- */
+.nearby-card__hilite {
+  display: flex; align-items: stretch; gap: var(--sp-3);
+  padding: var(--sp-3) 0 0;
+  border-top: 1px solid var(--color-line);
+}
+.nearby-card__place-block, .nearby-card__avail-block {
+  flex: 1; min-width: 0;
+}
+.nearby-card__place-block {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.nearby-card__place-line {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--font-display);
+  font-size: 1.0rem; line-height: 1.1;
+  color: var(--color-ink);
+}
+.nearby-card__place-line svg { color: var(--color-burgundy); flex-shrink: 0; }
+.nearby-card__place-dist {
+  font-size: 0.68rem; color: var(--color-ink-soft);
+  margin-left: 19px;        /* allinea sotto al testo, dopo l'icona */
+}
+.nearby-card__avail-block {
+  text-align: right;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.nearby-card__avail-num {
+  font-family: var(--font-display);
+  font-size: 2rem; line-height: 1;
+  color: var(--color-burgundy);
+  font-weight: 400;
+}
+.nearby-card--org .nearby-card__avail-num { color: var(--color-burgundy); }
+.nearby-card__avail-num--zero { color: var(--color-ink-soft); }
+.nearby-card__avail-lbl {
+  font-size: 0.62rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--color-ink-soft);
+  margin-top: 2px;
+}
+
+/* =====================================================================
+   33. v1.1 — stats inline accanto al CTA, fix UX index
+   ===================================================================== */
+
+/* Contatori "live" minimali sulla stessa riga dei CTA primari.
+   Si comportano come un blocco accessorio: tipografia mono, dimensione
+   piccola, colore tenue. Allineati col bottone "Esplora la mappa",
+   vanno a capo automaticamente su mobile. */
+.hero__stats-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-left: var(--sp-3);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(110, 122, 90, 0.07);
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+.hero__stats-inline strong {
+  color: var(--color-burgundy);
+  font-weight: 700;
+  font-feature-settings: 'tnum';   /* numeri a larghezza fissa */
+}
+.hero__stats-inline__live {
+  font-family: var(--font-body);
+  font-size: 0.62rem;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--color-sage);
+  padding-right: 4px;
+  border-right: 1px solid var(--color-line);
+  margin-right: 2px;
+}
+.hero__stats-inline__pip {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--color-sage);
+  display: inline-block;
+  animation: stats-pip 2.2s ease-in-out infinite;
+}
+@keyframes stats-pip {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.35); opacity: 0.55; }
+}
+.hero__stats-inline__sep { color: var(--color-line); }
+.hero__stats-inline__group { white-space: nowrap; }
+
+@media (max-width: 720px) {
+  .hero__stats-inline {
+    margin-left: 0; margin-top: var(--sp-3);
+    width: 100%; justify-content: flex-start;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero__stats-inline__pip { animation: none; }
+}
+
+/* =====================================================================
+   34. v1.1 — cover SVG, low-stock warning, Open Library covers
+   ===================================================================== */
+
+/* Grafica decorativa SVG dentro la copertina (sostituisce il glifo
+   testuale). Riempie tutto lo spazio, colora bianco-crema (carta) sul
+   gradiente del tema. */
+.nearby-card__art {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  color: rgba(244, 239, 230, 0.85);   /* "carta" semi-trasparente */
+  pointer-events: none;
+}
+.nearby-card__cover { position: relative; }     /* assicura il contenimento */
+
+/* Stato "pochi volumi disponibili" (1-2 libri):
+   il numero diventa arancione e il blocco pulsa con un bordo morbido
+   che attira l'attenzione senza essere allarmante. Stato 0 (esaurita)
+   resta grigio: non è un'opportunità mancata, è già finita. */
+.nearby-card__avail-num--low {
+  color: #d97706 !important;            /* arancione caldo */
+}
+.nearby-card__avail-block--low {
+  position: relative;
+  padding: 6px 10px;
+  margin: -6px -10px 0 auto;
+  border-radius: var(--radius);
+  border: 1.5px solid rgba(217, 119, 6, 0);     /* invisibile a riposo */
+  animation: avail-pulse 2.4s ease-in-out infinite;
+}
+@keyframes avail-pulse {
+  0%, 100% { border-color: rgba(217, 119, 6, 0.0);  box-shadow: 0 0 0 rgba(217, 119, 6, 0); }
+  50%      { border-color: rgba(217, 119, 6, 0.6);  box-shadow: 0 0 12px rgba(217, 119, 6, 0.20); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nearby-card__avail-block--low { animation: none; border-color: rgba(217, 119, 6, 0.5); }
+}
+
+/* Spacing migliorato del corpo della card (più aria, più gerarchia) */
+.nearby-card__body { padding: var(--sp-4) var(--sp-5) var(--sp-5); }
+.nearby-card__name { margin-bottom: 6px; font-size: 1.3rem; }
+.nearby-card__desc { margin-bottom: var(--sp-4); line-height: 1.55; }
+.nearby-card__hilite { padding-top: var(--sp-4); gap: var(--sp-4); }
+
+/* Copertine libri con immagine reale da Open Library (con fallback) */
+.book-card__cover { position: relative; }
+.book-card__cover-img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: 0;                                /* mostra solo quando caricata */
+  transition: opacity 0.3s ease;
+}
+.book-card__cover-img.is-loaded { opacity: 1; }
+.book-card__cover-img.is-loaded ~ .book-card__cover-title {
+  /* quando l'immagine reale c'è, nascondi il titolo placeholder */
+  opacity: 0;
+}
+
+/* ---- Stato "non disponibile" per le card libro (v1.1) -----------
+   Quando un volume è attualmente in prestito (book.available = false)
+   la card è visivamente smorzata e non risponde al click — l'utente
+   capisce subito che non può chiederlo. La pagina di dettaglio resta
+   raggiungibile dal pulsante "mi piace" (per ricevere l'avviso quando
+   torna disponibile), ma il link contenitore è disattivato. */
+.book-card--unavailable {
+  filter: grayscale(0.7) opacity(0.55);
+  pointer-events: none;
+  cursor: not-allowed;
+}
+.book-card--unavailable .like-chip { pointer-events: auto; }     /* cuore ancora attivabile */
+
+/* Titolo di fallback sulla copertina (quando l'immagine OL non arriva) */
+.book-card__cover-title {
+  position: relative; z-index: 1;
+  display: inline-block;
+  padding: 6px 10px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 0.9rem; line-height: 1.2;
+  color: rgba(244, 239, 230, 0.95);
+  transition: opacity 0.3s ease;
+}
+
+/* =====================================================================
+   35. v1.1 — library.html: mini-mappa, statistiche, filtro volumi
+   ===================================================================== */
+
+/* ---- Statistiche "hero" della libreria: disponibili + totali al
+        centro, sopra le consultazioni ----- */
+.library-stats--hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--sp-4);
+  margin: var(--sp-5) 0 var(--sp-6);
+  text-align: center;
+}
+.library-stat--lg .library-stat__value {
+  font-size: clamp(2.6rem, 6vw, 3.6rem);
+  font-family: var(--font-display);
+  line-height: 1;
+}
+.library-stat--available .library-stat__value {
+  color: var(--color-burgundy);
+  font-weight: 500;
+}
+.library-stat--available .library-stat__label {
+  font-weight: 600;
+  color: var(--color-burgundy);
+}
+@media (max-width: 720px) {
+  .library-stats--hero { grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+  .library-stats--hero .library-stat:nth-child(3) { grid-column: span 2; }
+}
+
+/* ---- Mini-mappa ---- */
+.library-map-wrap {
+  margin: 0 0 var(--sp-6);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--color-paper);
+}
+.library-map {
+  height: 240px; width: 100%;
+}
+.library-map__caption {
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--color-line);
+  font-size: var(--fs-sm); color: var(--color-ink-soft);
+}
+.library-map__caption strong { color: var(--color-ink); }
+/* Pin marker personalizzato (Leaflet divIcon) */
+.lib-map-pin {
+  display: grid; place-items: center;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--color-paper);
+  border: 2px solid var(--color-burgundy);
+  box-shadow: 0 2px 6px var(--color-shadow);
+  font-size: 16px;
+  line-height: 1;
+}
+.lib-map-pin--person { border-color: var(--color-sage); }
+
+/* ---- Filtro volumi ---- */
+.library-filter {
+  display: grid;
+  grid-template-columns: 1.4fr 1.6fr auto;
+  gap: var(--sp-3);
+  align-items: center;
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-3);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+}
+.library-filter__avail {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-sm); color: var(--color-ink-soft);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.library-filter__avail input { accent-color: var(--color-burgundy); }
+@media (max-width: 720px) {
+  .library-filter { grid-template-columns: 1fr; gap: var(--sp-2); }
+}
+
+/* ---- Picker delle 15 grafiche cover (profile-setup) ---- */
+.cover-picker {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--sp-2);
+}
+.cover-picker__item {
+  position: relative;
+  appearance: none;
+  background: var(--color-paper-dark);
+  border: 2px solid var(--color-line);
+  padding: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  overflow: hidden;
+  aspect-ratio: 5 / 3;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.cover-picker__item svg {
+  width: 100%; height: 100%;
+  color: rgba(244, 239, 230, 0.9);
+  display: block;
+}
+.cover-picker__item:hover { transform: translateY(-2px); border-color: var(--color-burgundy); }
+.cover-picker__item.is-selected {
+  border-color: var(--color-burgundy);
+  box-shadow: 0 0 0 3px rgba(122, 30, 43, 0.20);
+}
+.cover-picker__caption {
+  position: absolute;
+  bottom: 4px; left: 4px;
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(244, 239, 230, 0.85);
+  background: rgba(0, 0, 0, 0.18);
+  padding: 1px 5px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+@media (max-width: 600px) {
+  .cover-picker { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* =====================================================================
+   36. v1.2 — nav semplificata: bottone "Pubblica" + avatar profilo
+   ===================================================================== */
+
+/* Piccolo bottone primario nella nav per la pubblicazione: è l'azione
+   creativa centrale dell'utente loggato, vogliamo che spicchi senza
+   urtare gli altri elementi della barra. */
+.nav-publish {
+  display: inline-flex; align-items: center;
+  padding: 0.4rem 0.95rem;
+  font-size: 0.82rem;
+  font-family: var(--font-body);
+  font-weight: 500;
+  color: var(--color-paper) !important;
+  background: var(--color-burgundy);
+  border-radius: 999px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+.nav-publish:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(122, 30, 43, 0.30);
+  opacity: 0.95;
+}
+.nav-publish:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(122, 30, 43, 0.25);
+}
+
+/* Iconcina-avatar del profilo (auto-iniettata da UI.initProfileAvatar):
+   piccolo cerchio col simbolo/iniziale dell'utente, colorato col tema.
+   Si comporta come un link, posizionata fra la campanella e il toggle. */
+.nav-avatar {
+  display: inline-grid; place-items: center;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--color-paper-dark);
+  border: 1.5px solid var(--color-line);
+  color: var(--color-paper);
+  text-decoration: none;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+.nav-avatar:hover {
+  transform: scale(1.06);
+  border-color: var(--color-burgundy);
+}
+.nav-avatar__glyph {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  line-height: 1;
+}
+/* I temi cromatici applicati come classi sul link colorano lo sfondo */
+.nav-avatar.cover--classic   { background: linear-gradient(135deg, #7a1e2b, #5a141f); }
+.nav-avatar.cover--bordeaux  { background: linear-gradient(135deg, #7a1e2b, #3d342e); }
+.nav-avatar.cover--sage      { background: linear-gradient(135deg, #6e7a5a, #3d342e); }
+.nav-avatar.cover--nocturne,
+.nav-avatar.cover--notturno  { background: linear-gradient(135deg, #1a1512, #3d342e); }
+
+/* =====================================================================
+   37. v1.2 — Librerie vicine: numero centrato, layout più equilibrato
+   ===================================================================== */
+
+/* Il "numero libri disponibili" ora è centrato a destra con maggiore
+   spazio attorno: la lettura "luogo | conteggio" diventa simmetrica. */
+.nearby-card__hilite {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-3);
+  align-items: center;
+}
+.nearby-card__avail-block {
+  text-align: center;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 4px;
+  min-width: 92px;
+  padding: 4px 8px;
+}
+.nearby-card__avail-num {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  line-height: 1;
+  color: var(--color-burgundy);
+}
+.nearby-card__avail-lbl {
+  font-size: 0.6rem;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* Griglia "Novità da chi segui" sulla home logged-in: card di taglia
+   normale (non giganti come prima) usando lo stesso layout di book-card */
+#follow-feed.books-grid,
+#liked-books.books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--sp-4);
+}
+
+/* =====================================================================
+   38. v1.3 — dropdown profilo, empty-state primo libro, password reset
+   ===================================================================== */
+
+/* ---- Auth-switch in cima alla pagina di registrazione ---------- */
+.auth-switch--top {
+  margin: 0 0 var(--sp-5);
+  padding: 0 0 var(--sp-3);
+  border-top: none;
+  border-bottom: 1px solid var(--color-line);
+  text-align: right;          /* sempre piccolo, a destra, non invasivo */
+}
+
+/* ---- Dropdown del profilo (nav-avatar diventa un menu) --------- */
+.nav-avatar-wrap { position: relative; display: inline-flex; }
+.nav-avatar {
+  /* trasforma il pallino in <button>: rimuove gli stili di default */
+  appearance: none;
+  border: 1.5px solid var(--color-line);
+  cursor: pointer;
+  padding: 0;
+}
+.nav-avatar[aria-expanded="true"] { border-color: var(--color-burgundy); }
+
+.nav-avatar__menu {
+  position: absolute; top: calc(100% + 10px); right: 0;
+  min-width: 220px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 40px var(--color-shadow);
+  z-index: 200;
+  overflow: hidden;
+  animation: avatar-menu-pop 0.18s ease;
+}
+@keyframes avatar-menu-pop {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.nav-avatar__menu-head {
+  padding: var(--sp-3) var(--sp-4) var(--sp-3);
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-paper-dark);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.nav-avatar__menu-name {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--color-ink);
+}
+.nav-avatar__menu-user {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-ink-soft);
+}
+.nav-avatar__menu-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px var(--sp-4);
+  font-size: 0.88rem;
+  color: var(--color-ink);
+  text-decoration: none;
+  background: none; border: none; width: 100%; text-align: left; cursor: pointer;
+  font-family: var(--font-body);
+  transition: background 0.15s ease;
+}
+.nav-avatar__menu-item:hover { background: var(--color-paper-dark); color: var(--color-burgundy); }
+.nav-avatar__menu-item--danger { color: var(--color-burgundy); border-top: 1px solid var(--color-line); }
+.nav-avatar__menu-item--danger:hover { background: rgba(122, 30, 43, 0.08); }
+
+/* ---- Empty-state "pubblica il primo volume" (profilo) ----------
+   v2.1: usa flex column su container per centrare in modo affidabile
+   ogni elemento figlio, eliminando dipendenza da margin auto. */
+.empty-state--first-book {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--sp-8) var(--sp-6) var(--sp-7);
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-paper);
+  margin-top: var(--sp-4);
+}
+.empty-state__art {
+  display: inline-block;
+  margin-bottom: var(--sp-4);
+  width: 80px; height: 80px;
+  color: var(--color-burgundy);
+  opacity: 0.85;
+}
+.empty-state--first-book h3 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  margin: 0 auto var(--sp-3);
+  max-width: 48ch;            /* v2.1: uniformato a p, hint */
+  color: var(--color-ink);
+  text-align: center;
+}
+.empty-state--first-book > p {
+  color: var(--color-ink-soft);
+  margin: 0 auto var(--sp-5);
+  max-width: 48ch;
+  line-height: 1.55;
+  text-align: center;          /* v2.1: forza centratura del testo */
+}
+.empty-state__hint {
+  margin: var(--sp-5) auto 0 !important;     /* v2.1: margin auto per centrare */
+  max-width: 48ch;
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+  text-align: center;
+}
+.empty-state__hint a { color: var(--color-burgundy); text-decoration: underline; }
+
+/* ---- "Email simulata" sulla pagina di reset password ----------- */
+.simulated-email {
+  margin-top: var(--sp-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-paper-dark);
+  overflow: hidden;
+}
+.simulated-email__header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px var(--sp-4);
+  background: rgba(176, 136, 64, 0.12);    /* oro pallido = "demo" */
+  border-bottom: 1px dashed var(--color-line);
+  font-size: 0.82rem;
+}
+.simulated-email__body {
+  padding: var(--sp-4);
+  background: var(--color-paper);
+}
+
+/* ---- Campo password con toggle "occhio" ------------------------ */
+.password-field { position: relative; }
+.password-field__toggle {
+  position: absolute; top: 50%; right: 8px;
+  transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  font-size: 1rem; opacity: 0.55;
+  padding: 4px 6px;
+}
+.password-field__toggle:hover { opacity: 1; }
+
+/* ---- Strength meter per la nuova password ---------------------- */
+.pw-strength {
+  margin-top: 6px;
+  display: flex; align-items: center; gap: 10px;
+}
+.pw-strength__bar {
+  flex: 1;
+  height: 5px; background: var(--color-line);
+  border-radius: 999px; overflow: hidden;
+}
+.pw-strength__fill {
+  height: 100%; width: 0;
+  background: #ccc;
+  border-radius: 999px;
+  transition: width 0.25s ease, background 0.25s ease;
+}
+.pw-strength__label {
+  font-size: 0.72rem; color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  min-width: 90px; text-align: right;
+}
+
+/* =====================================================================
+   39. v1.4 — Recensioni e valutazioni a stelle
+   ===================================================================== */
+
+/* ---- Stelle (display): SVG inline, colore --color-gold ----------
+   Coerenti con la palette editoriale: oro caldo, contorno fine,
+   tre stati (empty / half / full). Usate in hero libreria, header
+   profilo, nelle card recensione e nei riepiloghi. */
+.stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+  text-decoration: none;
+  color: var(--color-gold);
+}
+.stars--link {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+.stars--link:hover { opacity: 0.75; }
+.star {
+  width: 16px; height: 16px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.stars--sm .star { width: 13px; height: 13px; }
+.stars--md .star { width: 17px; height: 17px; }
+.stars--lg .star { width: 24px; height: 24px; }
+
+.star--full path        { fill: var(--color-gold); stroke: var(--color-gold);
+                           stroke-width: 1; stroke-linejoin: round; }
+.star--empty path       { fill: transparent;       stroke: var(--color-gold);
+                           stroke-width: 1.2; stroke-linejoin: round; opacity: 0.55; }
+.star--half .star__outline { fill: transparent; stroke: var(--color-gold);
+                              stroke-width: 1.2; stroke-linejoin: round; opacity: 0.55; }
+.star--half .star__fill    { fill: var(--color-gold); stroke: var(--color-gold);
+                              stroke-width: 1; stroke-linejoin: round; }
+
+.stars__avg {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  font-weight: 500;
+  color: var(--color-ink);
+  margin-left: 6px;
+}
+.stars--sm .stars__avg { font-size: 0.72rem; }
+.stars--lg .stars__avg { font-size: 1.1rem; }
+.stars__count {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-soft);
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.stars--link .stars__count { text-decoration: underline; text-decoration-color: rgba(122,30,43,0.2); }
+
+/* Stelle nell'hero della libreria — un piccolo offset sotto al titolo */
+.library-hero__stars {
+  margin: 4px 0 8px;
+}
+
+/* Stelle nell'header del profilo */
+.profile-stars {
+  margin: 4px 0 8px;
+}
+
+/* ---- Sezione recensioni della libreria --------------------------- */
+.reviews-section {
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-6);
+  border-top: 1px solid var(--color-line);
+}
+.reviews-section__header {
+  display: flex; flex-direction: column; gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
+.reviews-section__header h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  margin: 0;
+  color: var(--color-ink);
+}
+
+/* ---- Riepilogo recensioni (media grande + breakdown) --------------- */
+.reviews-summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-6);
+  align-items: center;
+  padding: var(--sp-5) var(--sp-5);
+  background: var(--color-paper-dark);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+}
+.reviews-summary__big {
+  text-align: center;
+  min-width: 140px;
+}
+.reviews-summary__avg {
+  font-family: var(--font-display);
+  font-size: 3.4rem;
+  line-height: 1;
+  color: var(--color-ink);
+  margin-bottom: 6px;
+}
+.reviews-summary__stars { margin-bottom: 6px; }
+.reviews-summary__count {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--color-ink-soft);
+}
+.reviews-summary__breakdown {
+  display: flex; flex-direction: column;
+  gap: 6px;
+}
+.reviews-summary__row {
+  display: grid;
+  grid-template-columns: 36px 1fr 32px;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+}
+.reviews-summary__row-num {
+  font-family: var(--font-mono);
+  color: var(--color-ink-soft);
+  text-align: right;
+}
+.reviews-summary__row-bar {
+  height: 7px;
+  background: rgba(176, 136, 64, 0.10);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.reviews-summary__row-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-gold);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+.reviews-summary__row-count {
+  font-family: var(--font-mono);
+  color: var(--color-ink-soft);
+  font-size: 0.78rem;
+}
+@media (max-width: 600px) {
+  .reviews-summary { grid-template-columns: 1fr; }
+  .reviews-summary__big { padding-bottom: var(--sp-3); border-bottom: 1px solid var(--color-line); }
+}
+
+/* ---- Form per scrivere una recensione ---------------------------- */
+.review-form {
+  margin: var(--sp-6) 0;
+  padding: var(--sp-5);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+}
+.review-form__title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  margin: 0 0 var(--sp-2);
+  color: var(--color-ink);
+}
+.review-form__intro {
+  font-size: var(--fs-sm);
+  color: var(--color-ink-soft);
+  margin: 0 0 var(--sp-4);
+}
+.review-form__stars {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 var(--sp-4);
+}
+.review-form__star {
+  width: 32px; height: 32px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: grid; place-items: center;
+  color: var(--color-gold);
+  transition: transform 0.12s ease;
+}
+.review-form__star svg {
+  width: 100%; height: 100%;
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  opacity: 0.5;
+  transition: fill 0.15s ease, opacity 0.15s ease;
+}
+.review-form__star.is-filled svg {
+  fill: currentColor;
+  opacity: 1;
+}
+.review-form__star:hover { transform: scale(1.12); }
+.review-form__star:focus-visible {
+  outline: 2px solid var(--color-burgundy);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.review-form__rating-label {
+  margin-left: var(--sp-3);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-ink-soft);
+  letter-spacing: 0.04em;
+}
+.review-form__error { margin-top: var(--sp-3); }
+
+/* ---- Lista delle recensioni (review-card) ------------------------ */
+.reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+}
+.review-card {
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  transition: border-color 0.2s ease;
+}
+.review-card:hover {
+  border-color: rgba(122, 30, 43, 0.3);
+}
+.review-card__head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  flex-wrap: wrap;
+}
+.review-card__author {
+  display: flex; gap: 12px; align-items: center;
+  text-decoration: none;
+  color: inherit;
+}
+.review-card__author:hover .review-card__name {
+  color: var(--color-burgundy);
+}
+.review-card__avatar {
+  display: inline-grid; place-items: center;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--color-paper);
+  flex-shrink: 0;
+}
+/* Riusa le palette dei temi (definite altrove come .cover--*) */
+.review-card__avatar.cover--classic   { background: linear-gradient(135deg, #7a1e2b, #5a141f); }
+.review-card__avatar.cover--bordeaux  { background: linear-gradient(135deg, #7a1e2b, #3d342e); }
+.review-card__avatar.cover--sage      { background: linear-gradient(135deg, #6e7a5a, #3d342e); }
+.review-card__avatar.cover--nocturne,
+.review-card__avatar.cover--notturno  { background: linear-gradient(135deg, #1a1512, #3d342e); }
+.review-card__author-info {
+  display: flex; flex-direction: column; gap: 1px;
+}
+.review-card__name {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--color-ink);
+  transition: color 0.2s ease;
+}
+.review-card__user {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--color-ink-soft);
+  letter-spacing: 0.02em;
+}
+.review-card__meta {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+}
+.review-card__date {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+.review-card__text {
+  margin: 0;
+  color: var(--color-ink);
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+@media (max-width: 600px) {
+  .review-card__meta { align-items: flex-start; }
+}
+
+/* Mini-stelle sotto al nome nelle nearby card */
+.nearby-card__stars {
+  margin: 4px 0 8px;
+  display: flex;
+}
+.nearby-card__stars .stars { gap: 2px; }
+
+/* =====================================================================
+   40. v1.5 — Prestiti: timeline orizzontale, loan card, wizard restituzione
+   ===================================================================== */
+
+/* ---- "X tempo fa" sopra alla data assoluta nelle recensioni ---------- */
+.review-card__date {
+  display: flex; flex-direction: column; align-items: flex-end;
+  gap: 1px;
+  font-family: var(--font-mono);
+  line-height: 1.2;
+}
+.review-card__date-rel {
+  font-size: 0.7rem;
+  color: var(--color-burgundy);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.review-card__date-abs {
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+@media (max-width: 600px) {
+  .review-card__date { align-items: flex-start; }
+}
+
+/* ---- Statistiche in cima a loans.html ----- */
+.loans-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4);
+  margin: 0 0 var(--sp-6);
+}
+.loans-stat {
+  padding: var(--sp-4);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  text-align: center;
+}
+.loans-stat__num {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  line-height: 1;
+  color: var(--color-ink);
+  margin-bottom: 6px;
+}
+.loans-stat__lbl {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--color-ink-soft);
+  line-height: 1.3;
+}
+.loans-stat--accent .loans-stat__num { color: var(--color-burgundy); }
+.loans-stat--accent { border-color: var(--color-burgundy); }
+@media (max-width: 700px) {
+  .loans-stats { grid-template-columns: 1fr; gap: var(--sp-2); }
+}
+
+/* ---- Card prestito ------------------------------------------------- */
+.loan-card {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--sp-5);
+  margin: 0 0 var(--sp-4);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.loan-card--highlighted {
+  border-color: var(--color-burgundy);
+  box-shadow: 0 0 0 3px rgba(122, 30, 43, 0.12);
+}
+.loan-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+.loan-card__book {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  flex: 1 1 300px;
+}
+.loan-card__cover {
+  width: 70px; height: 96px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+.loan-card__cover .book-card__cover-title {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  padding: 6px;
+  text-align: center;
+}
+.loan-card__title {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+.loan-card__title a { color: var(--color-ink); text-decoration: none; }
+.loan-card__title a:hover { color: var(--color-burgundy); }
+.loan-card__author {
+  margin: 0 0 12px;
+  color: var(--color-ink-soft);
+  font-size: 0.88rem;
+  font-style: italic;
+}
+.loan-card__lender {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-ink-soft);
+}
+.loan-card__lender-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  text-decoration: none;
+  color: var(--color-ink);
+}
+.loan-card__lender-link:hover strong { color: var(--color-burgundy); }
+.loan-card__lender-avatar {
+  display: inline-grid; place-items: center;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  color: var(--color-paper);
+}
+.loan-card__actions {
+  display: flex; gap: 8px; align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ---- TIMELINE PRESTITO (centrale) --------------------------------- */
+.loan-timeline {
+  margin: var(--sp-3) 0 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--color-line);
+}
+.loan-timeline__list {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  position: relative;
+}
+.loan-timeline__node {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px;
+  text-align: center;
+  position: relative;
+  padding: 0 4px;
+}
+.loan-timeline__dot {
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  border: 2px solid var(--color-line);
+  border-radius: 50%;
+  background: var(--color-paper);
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+  position: relative;
+  z-index: 2;
+  transition: all 0.3s ease;
+}
+.loan-timeline__node.is-reached .loan-timeline__dot {
+  background: var(--color-burgundy);
+  border-color: var(--color-burgundy);
+  color: var(--color-paper);
+}
+.loan-timeline__node.is-current .loan-timeline__dot {
+  /* Lo stato corrente è ingrossato, con un alone luminoso che lo
+     fa "sporgere" rispetto agli altri: è il punto su cui converge
+     l'attenzione dell'utente. */
+  width: 44px; height: 44px;
+  box-shadow: 0 0 0 5px rgba(122, 30, 43, 0.15);
+  animation: loan-timeline-pulse 2.4s ease-in-out infinite;
+}
+@keyframes loan-timeline-pulse {
+  0%, 100% { box-shadow: 0 0 0 5px rgba(122, 30, 43, 0.15); }
+  50%      { box-shadow: 0 0 0 8px rgba(122, 30, 43, 0.05); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loan-timeline__node.is-current .loan-timeline__dot { animation: none; }
+}
+
+/* Quando l'utente preferisce ridotto movimento o stato corrente è
+   "prestato" (3° su 5), il dot grandi finisce visualmente al centro
+   della timeline. Aggiungiamo un piccolo helper per "valorizzarlo". */
+.loan-timeline__label {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  line-height: 1.3;
+  color: var(--color-ink-soft);
+  margin-top: 2px;
+}
+.loan-timeline__node.is-current .loan-timeline__label {
+  color: var(--color-ink);
+  font-weight: 500;
+}
+.loan-timeline__date {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-soft);
+  text-transform: lowercase;
+}
+
+/* Linee connettrici fra i dot, posizionate assolute dentro l'<li>. */
+.loan-timeline__connector {
+  position: absolute;
+  top: 16px;          /* metà altezza del dot piccolo */
+  left: calc(50% + 18px);
+  right: calc(-50% + 18px);
+  height: 2px;
+  background: var(--color-line);
+  z-index: 1;
+}
+.loan-timeline__connector.is-reached {
+  background: var(--color-burgundy);
+}
+.loan-timeline__node.is-current .loan-timeline__connector {
+  /* Quando il nodo è "current" (più grande) la connector deve spostarsi
+     leggermente più in basso e iniziare più lontano per non sovrapporsi
+     al dot ingrossato. */
+  top: 22px;
+  left: calc(50% + 24px);
+}
+
+/* Versione compatta (per la tab "Richieste ricevute") */
+.loan-timeline--compact .loan-timeline__dot { width: 24px; height: 24px; font-size: 0.7rem; }
+.loan-timeline--compact .loan-timeline__node.is-current .loan-timeline__dot { width: 32px; height: 32px; }
+.loan-timeline--compact .loan-timeline__label { font-size: 0.72rem; }
+.loan-timeline--compact .loan-timeline__date { display: none; }
+.loan-timeline--compact .loan-timeline__connector { top: 12px; left: calc(50% + 14px); }
+
+.loan-timeline__hint {
+  margin: var(--sp-3) 0 0;
+  padding: var(--sp-3);
+  background: rgba(122, 30, 43, 0.06);
+  border-left: 3px solid var(--color-burgundy);
+  border-radius: 0 4px 4px 0;
+  font-size: 0.88rem;
+  color: var(--color-ink);
+  line-height: 1.5;
+}
+
+/* Su mobile: timeline verticale (più leggibile delle 5 colonne strette) */
+@media (max-width: 700px) {
+  .loan-timeline__list { grid-template-columns: 1fr; gap: var(--sp-2); }
+  .loan-timeline__node { flex-direction: row; gap: var(--sp-3); align-items: center; text-align: left; }
+  .loan-timeline__connector { display: none; }
+  .loan-timeline__label { font-size: 0.85rem; }
+  .loan-timeline__date { font-size: 0.7rem; }
+}
+
+/* ---- Wizard restituzione (modal) ----------------------------------- */
+.return-wizard {
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
+  z-index: 1000;
+  padding: var(--sp-4);
+}
+.return-wizard__backdrop {
+  position: absolute; inset: 0;
+  background: rgba(26, 21, 18, 0.5);
+  backdrop-filter: blur(2px);
+}
+.return-wizard__panel {
+  position: relative;
+  background: var(--color-paper);
+  border-radius: var(--radius);
+  box-shadow: 0 30px 90px var(--color-shadow);
+  max-width: 540px;
+  width: 100%;
+  padding: var(--sp-6) var(--sp-6) var(--sp-5);
+  z-index: 1;
+  animation: wizard-pop 0.25s ease;
+}
+@keyframes wizard-pop {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.return-wizard__close {
+  position: absolute; top: 12px; right: 12px;
+  background: none; border: none;
+  width: 32px; height: 32px;
+  font-size: 1.5rem;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  border-radius: 50%;
+}
+.return-wizard__close:hover { color: var(--color-burgundy); background: var(--color-paper-dark); }
+.return-wizard__panel h2 {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+}
+.return-wizard__loan-summary {
+  display: flex; gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-paper-dark);
+}
+.return-wizard__cover {
+  width: 64px; height: 88px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+.return-wizard__cover .book-card__cover-title {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.68rem; padding: 4px;
+}
+.return-wizard__actions {
+  display: flex; justify-content: flex-end; gap: 12px;
+  margin-top: var(--sp-5);
+}
+
+/* =====================================================================
+   41. v1.6 — Slider giorni, overdue, sub-tabs Recensioni, rifiuto/annullo
+   ===================================================================== */
+
+/* ---- Slider "giorni" nella richiesta prestito --------------------- */
+.loan-days__pill {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 10px;
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  min-width: 70px;
+  text-align: center;
+}
+.loan-days__slider {
+  width: 100%;
+  margin: 8px 0 0;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: linear-gradient(to right,
+    var(--color-burgundy) 0%, var(--color-burgundy) 35%,
+    var(--color-line) 35%, var(--color-line) 100%);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+.loan-days__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--color-burgundy);
+  border: 3px solid var(--color-paper);
+  box-shadow: 0 0 0 1px var(--color-burgundy), 0 2px 6px rgba(122,30,43,0.3);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.loan-days__slider::-webkit-slider-thumb:hover { transform: scale(1.1); }
+.loan-days__slider::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--color-burgundy);
+  border: 3px solid var(--color-paper);
+  box-shadow: 0 0 0 1px var(--color-burgundy), 0 2px 6px rgba(122,30,43,0.3);
+  cursor: pointer;
+}
+.loan-days__scale {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--color-ink-soft);
+  margin-top: 4px;
+  padding: 0 4px;
+}
+
+/* ---- Badge overdue / in scadenza sulla card prestito ------------- */
+.loan-card__overdue {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+}
+.loan-card__overdue--late {
+  background: rgba(122, 30, 43, 0.12);
+  color: var(--color-burgundy);
+  border: 1px solid rgba(122, 30, 43, 0.4);
+  animation: overdue-pulse 2.5s ease-in-out infinite;
+}
+@keyframes overdue-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(122, 30, 43, 0.15); }
+  50%      { box-shadow: 0 0 0 4px rgba(122, 30, 43, 0.05); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loan-card__overdue--late { animation: none; }
+}
+.loan-card__overdue--soon {
+  background: rgba(176, 136, 64, 0.15);
+  color: var(--color-gold);
+  border: 1px solid rgba(176, 136, 64, 0.4);
+}
+.loan-card__days {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--color-ink-soft);
+}
+.loan-card__done-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--color-sage);
+  background: rgba(110, 122, 90, 0.12);
+  border-radius: 999px;
+}
+
+/* ---- Banner rifiuto/annullo (in luogo della timeline) ------------ */
+.loan-card__rejection,
+.loan-card__cancelled {
+  margin: var(--sp-3) 0 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.loan-card__rejection {
+  background: rgba(122, 30, 43, 0.08);
+  border-left: 3px solid var(--color-burgundy);
+  color: var(--color-ink);
+}
+.loan-card__cancelled {
+  background: var(--color-paper-dark);
+  border-left: 3px solid var(--color-ink-soft);
+  color: var(--color-ink-soft);
+  font-style: italic;
+}
+
+/* ---- Sub-tabs Recensioni Ricevute/Scritte ------------------------ */
+.sub-tabs {
+  display: inline-flex;
+  gap: 0;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 3px;
+  background: var(--color-paper-dark);
+}
+.sub-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 6px 16px;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  color: var(--color-ink-soft);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sub-tab:hover { color: var(--color-ink); }
+.sub-tab.is-active {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+}
+.sub-tab__count {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 8px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+}
+.sub-tab.is-active .sub-tab__count {
+  background: rgba(244, 239, 230, 0.25);
+}
+
+/* ---- Card recensione "scritta" (variante) ------------------------ */
+.review-card__lead {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  display: block;
+  margin-bottom: 2px;
+}
+.review-card__footer {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--color-line);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* =====================================================================
+   42. v1.7 — Chat di prestito, filtri notifiche, doc legali, GDPR export
+   ===================================================================== */
+
+/* ---- Chat: toggle + pannello espandibile -------------------------- */
+.loan-chat {
+  margin-top: var(--sp-3);
+  border-top: 1px solid var(--color-line);
+  padding-top: var(--sp-3);
+}
+.loan-chat__toggle {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.loan-chat__toggle:hover { background: var(--color-paper-dark); border-color: var(--color-burgundy); }
+.loan-chat.is-open .loan-chat__toggle {
+  background: var(--color-paper-dark);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: transparent;
+}
+.loan-chat__toggle-label {
+  flex: 1;
+  text-align: left;
+}
+.loan-chat__unread-badge {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 2px 9px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.loan-chat__caret {
+  font-size: 0.85rem;
+  color: var(--color-ink-soft);
+  transition: transform 0.2s ease;
+}
+.loan-chat.is-open .loan-chat__caret { transform: rotate(180deg); }
+
+.loan-chat__panel {
+  border: 1px solid var(--color-line);
+  border-top: none;
+  border-bottom-left-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+  background: var(--color-paper);
+}
+.loan-chat__messages {
+  padding: var(--sp-4);
+  max-height: 380px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  background: var(--color-paper-dark);
+}
+.loan-chat__messages::-webkit-scrollbar {
+  width: 6px;
+}
+.loan-chat__messages::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 3px;
+}
+
+/* ---- Bolle messaggio --------------------------------------------- */
+.chat-msg {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.chat-msg--user.chat-msg--mine {
+  flex-direction: row-reverse;
+}
+.chat-msg__avatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  color: var(--color-paper);
+  flex-shrink: 0;
+}
+/* Riusa le palette tema-aware (già definite per altre card) */
+.chat-msg__avatar.cover--classic   { background: linear-gradient(135deg, #7a1e2b, #5a141f); }
+.chat-msg__avatar.cover--bordeaux  { background: linear-gradient(135deg, #7a1e2b, #3d342e); }
+.chat-msg__avatar.cover--sage      { background: linear-gradient(135deg, #6e7a5a, #3d342e); }
+.chat-msg__avatar.cover--nocturne,
+.chat-msg__avatar.cover--notturno  { background: linear-gradient(135deg, #1a1512, #3d342e); }
+
+.chat-msg__bubble {
+  max-width: 70%;
+  background: var(--color-paper);
+  padding: 8px 14px;
+  border-radius: 14px;
+  border-bottom-left-radius: 4px;
+  border: 1px solid var(--color-line);
+  position: relative;
+}
+.chat-msg--mine .chat-msg__bubble {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  border-color: var(--color-burgundy);
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 4px;
+}
+.chat-msg__text {
+  font-size: 0.92rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.chat-msg__time {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  margin-top: 4px;
+  letter-spacing: 0.03em;
+  color: var(--color-ink-soft);
+}
+.chat-msg--mine .chat-msg__time {
+  color: rgba(244, 239, 230, 0.7);
+}
+
+/* Bolle di sistema: piccole, centrate */
+.chat-msg--system {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--color-ink-soft);
+  background: rgba(176, 136, 64, 0.10);
+  border: 1px solid rgba(176, 136, 64, 0.25);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-style: italic;
+  max-width: 85%;
+  text-align: center;
+}
+.chat-msg__sys-icon {
+  font-size: 0.85rem;
+  font-style: normal;
+}
+.chat-msg__sys-time {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-style: normal;
+  color: var(--color-ink-soft);
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+/* ---- Form input chat --------------------------------------------- */
+.loan-chat__form {
+  display: flex;
+  gap: 8px;
+  padding: var(--sp-3);
+  border-top: 1px solid var(--color-line);
+  background: var(--color-paper);
+  align-items: flex-end;
+}
+.loan-chat__input {
+  flex: 1;
+  resize: none;
+  padding: 8px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  background: var(--color-paper-dark);
+  color: var(--color-ink);
+  line-height: 1.4;
+}
+.loan-chat__input:focus {
+  outline: none;
+  border-color: var(--color-burgundy);
+  background: var(--color-paper);
+}
+.loan-chat__send {
+  flex-shrink: 0;
+}
+
+/* ---- Notification filters ---------------------------------------- */
+.notif__filters {
+  display: flex;
+  gap: 4px;
+  padding: 8px var(--sp-3);
+  border-bottom: 1px solid var(--color-line);
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+.notif__filter {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.notif__filter:hover { color: var(--color-ink); border-color: var(--color-burgundy); }
+.notif__filter.is-active {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  border-color: var(--color-burgundy);
+}
+
+/* ---- Documenti legali (privacy / terms) -------------------------- */
+.legal-doc {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--color-ink);
+}
+.legal-doc h2 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  margin: 2.2rem 0 0.8rem;
+  color: var(--color-ink);
+  border-bottom: 1px solid var(--color-line);
+  padding-bottom: 0.4rem;
+}
+.legal-doc h2:first-child { margin-top: 0; }
+.legal-doc p, .legal-doc ul {
+  margin: 0 0 1rem;
+}
+.legal-doc ul {
+  padding-left: 1.5rem;
+}
+.legal-doc li {
+  margin-bottom: 0.4rem;
+}
+.legal-doc code {
+  background: var(--color-paper-dark);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+}
+.legal-doc a {
+  color: var(--color-burgundy);
+}
+
+/* ---- GDPR export panel ------------------------------------------- */
+.gdpr-export {
+  margin-top: var(--sp-5);
+  padding: var(--sp-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-paper-dark);
+}
+.gdpr-export h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  margin: 0 0 0.5rem;
+  color: var(--color-ink);
+}
+.gdpr-export p {
+  color: var(--color-ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0 0 1rem;
+}
+
+/* =====================================================================
+   43. v1.8 — Banner "Apri la tua libreria" sull'hub
+   ===================================================================== */
+.open-library-cta {
+  position: relative;
+  display: flex;
+  gap: var(--sp-4);
+  align-items: center;
+  padding: var(--sp-5);
+  margin: 0 0 var(--sp-5);
+  background: linear-gradient(135deg, rgba(122,30,43,0.08), rgba(176,136,64,0.08));
+  border: 1px solid rgba(122,30,43,0.25);
+  border-radius: var(--radius);
+}
+.open-library-cta__icon {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  color: var(--color-burgundy);
+}
+.open-library-cta__icon svg { width: 100%; height: 100%; }
+.open-library-cta__body { flex: 1; }
+.open-library-cta__body h3 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--color-ink);
+}
+.open-library-cta__body p {
+  margin: 0 0 var(--sp-3);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--color-ink-soft);
+  max-width: 60ch;
+}
+.open-library-cta__close {
+  position: absolute;
+  top: 8px; right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  transition: background 0.15s ease;
+}
+.open-library-cta__close:hover {
+  background: rgba(0,0,0,0.06);
+  color: var(--color-ink);
+}
+@media (max-width: 600px) {
+  .open-library-cta { flex-direction: column; text-align: center; }
+  .open-library-cta__body { width: 100%; }
+}
+
+/* =====================================================================
+   44. v1.9 — Simulatore stato + wizard inline apertura libreria
+   ===================================================================== */
+
+/* ---- Simulatore demo sotto a ogni card di prestito attivo ---------- */
+.loan-sim {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px dashed var(--color-line);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.loan-sim__btn {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  background: rgba(176, 136, 64, 0.08);
+  border-color: rgba(176, 136, 64, 0.4);
+  color: var(--color-gold);
+}
+.loan-sim__btn:hover:not(:disabled) {
+  background: rgba(176, 136, 64, 0.15);
+  border-color: var(--color-gold);
+}
+.loan-sim__btn:disabled { opacity: 0.5; cursor: wait; }
+.loan-sim__hint {
+  font-size: 0.78rem;
+  color: var(--color-ink-soft);
+  font-style: italic;
+  flex: 1;
+  min-width: 200px;
+}
+
+/* Animazione transizione di stato sulla card */
+.loan-card.is-simulating .loan-timeline,
+.loan-card.is-simulating .loan-card__actions {
+  animation: state-fade 0.5s ease;
+}
+@keyframes state-fade {
+  0%   { opacity: 1; transform: scale(1); }
+  40%  { opacity: 0.3; transform: scale(0.97); filter: blur(2px); }
+  60%  { opacity: 0.3; transform: scale(0.97); filter: blur(2px); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loan-card.is-simulating .loan-timeline,
+  .loan-card.is-simulating .loan-card__actions { animation: none; }
+}
+
+/* ---- Wizard inline per aprire la libreria ------------------------- */
+#my-books.is-transitioning {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+#my-books.is-wizard-active {
+  opacity: 1;
+  transform: translateY(0);
+  animation: wizard-fade-in 0.32s ease;
+}
+@keyframes wizard-fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #my-books.is-transitioning, #my-books.is-wizard-active { animation: none; transition: none; }
+}
+
+.library-wizard {
+  padding: var(--sp-6);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  max-width: 760px;
+  margin: 0 auto;
+}
+.library-wizard__progress {
+  display: flex;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-5);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--color-line);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  flex-wrap: wrap;
+}
+.library-wizard__step {
+  color: var(--color-ink-soft);
+  position: relative;
+  padding-bottom: 8px;
+}
+.library-wizard__step.is-active {
+  color: var(--color-burgundy);
+  border-bottom: 2px solid var(--color-burgundy);
+  margin-bottom: -1px;
+}
+.library-wizard__step.is-done {
+  color: var(--color-sage);
+}
+.library-wizard__step.is-done::before { content: '✓ '; }
+
+.library-wizard__panel {
+  display: none;
+  animation: wizard-slide-in 0.3s ease;
+}
+.library-wizard__panel.is-active { display: block; }
+@keyframes wizard-slide-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .library-wizard__panel { animation: none; }
+}
+.library-wizard__panel h3 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  margin: 0 0 var(--sp-4);
+  color: var(--color-ink);
+}
+.library-wizard__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-5);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--color-line);
+}
+.library-wizard__summary-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-4);
+  background: var(--color-paper-dark);
+  border-radius: var(--radius-sm);
+}
+.library-wizard__summary-list dt {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+.library-wizard__summary-list dd {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: 0.95rem;
+}
+
+/* =====================================================================
+   45. v2.0 — Master-detail loans, list items, badge esperienza
+   ===================================================================== */
+
+/* ---- Badge "X prestiti completati" sul profilo ------------------- */
+.loan-experience {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: var(--sp-3);
+  padding: 3px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: var(--color-sage);
+  background: rgba(110, 122, 90, 0.10);
+  border: 1px solid rgba(110, 122, 90, 0.25);
+  border-radius: 999px;
+}
+.loan-experience__icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.loan-experience strong {
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* ---- Master-detail layout principale ----------------------------- */
+.loans-mdview {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: var(--sp-5);
+  align-items: start;
+  margin-top: var(--sp-4);
+}
+.loans-mdview__list {
+  position: sticky;
+  top: var(--sp-4);
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.loans-mdview__detail {
+  min-width: 0;       /* permette al contenuto di accorciarsi */
+}
+.loans-mdview__back {
+  display: none;       /* visibile solo su mobile quando is-detail-open */
+  background: none;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--color-burgundy);
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: var(--sp-3);
+}
+.loans-mdview__back:hover { text-decoration: underline; }
+
+/* Mobile: stack view (lista OR dettaglio) */
+@media (max-width: 900px) {
+  .loans-mdview {
+    grid-template-columns: 1fr;
+  }
+  .loans-mdview__list { position: static; max-height: none; }
+  .loans-mdview.is-detail-open .loans-mdview__list { display: none; }
+  .loans-mdview:not(.is-detail-open) .loans-mdview__detail { display: none; }
+  .loans-mdview.is-detail-open .loans-mdview__back { display: inline-flex; align-items: center; gap: 6px; }
+}
+
+/* ---- Filter pills al top della lista ----------------------------- */
+.loans-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: var(--sp-3);
+}
+.loans-filter {
+  appearance: none;
+  background: var(--color-paper-dark);
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.loans-filter:hover { color: var(--color-ink); border-color: var(--color-ink-soft); }
+.loans-filter.is-active {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  border-color: var(--color-burgundy);
+}
+.loans-filter__count {
+  display: inline-block;
+  padding: 0 7px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  background: rgba(0,0,0,0.10);
+  border-radius: 999px;
+  min-width: 18px;
+  text-align: center;
+}
+.loans-filter.is-active .loans-filter__count {
+  background: rgba(244, 239, 230, 0.25);
+}
+
+/* ---- Singolo item nella lista ------------------------------------ */
+.loan-listitem {
+  appearance: none;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--sp-3);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  margin-bottom: 8px;
+  position: relative;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.loan-listitem:hover {
+  border-color: var(--color-ink-soft);
+  background: var(--color-paper-dark);
+}
+.loan-listitem.is-selected {
+  border-color: var(--color-burgundy);
+  background: rgba(122, 30, 43, 0.04);
+  box-shadow: inset 3px 0 0 var(--color-burgundy);
+}
+.loan-listitem__cover {
+  flex-shrink: 0;
+  width: 50px;
+  height: 70px;
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 4px;
+  color: var(--color-paper);
+}
+.loan-listitem__cover-text {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  line-height: 1.1;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+.loan-listitem__body {
+  flex: 1;
+  min-width: 0;       /* permette text-overflow:ellipsis */
+}
+.loan-listitem__title {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+.loan-listitem__sub {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--color-ink-soft);
+  margin-bottom: 6px;
+}
+.loan-listitem__sub strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.loan-listitem__role {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 4px;
+}
+.loan-listitem__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.loan-listitem__status {
+  display: inline-block;
+  padding: 2px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+.loan-listitem__status--requested  { background: rgba(176,136,64,.15); color: var(--color-gold); }
+.loan-listitem__status--confirmed  { background: rgba(176,136,64,.25); color: var(--color-gold); }
+.loan-listitem__status--borrowed   { background: rgba(122,30,43,.12); color: var(--color-burgundy); }
+.loan-listitem__status--returning  { background: rgba(110,122,90,.15); color: var(--color-sage); }
+.loan-listitem__status--returned   { background: rgba(110,122,90,.25); color: var(--color-sage); }
+.loan-listitem__status--rejected,
+.loan-listitem__status--cancelled  { background: var(--color-paper-dark); color: var(--color-ink-soft); }
+
+.loan-listitem__time {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--color-ink-soft);
+}
+.loan-listitem__unread {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: 1px 7px;
+  border-radius: 999px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* ---- Empty state del dettaglio ----------------------------------- */
+.loans-detail__empty {
+  padding: var(--sp-6);
+  text-align: center;
+  color: var(--color-ink-soft);
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius);
+}
+.loans-detail__empty-art {
+  width: 80px;
+  margin: 0 auto var(--sp-3);
+  color: var(--color-ink-soft);
+  opacity: 0.5;
+}
+.loans-detail__empty-art svg { width: 100%; }
+
+.loans-list__empty {
+  padding: var(--sp-4);
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+/* =====================================================================
+   46. v2.1 — Visibility pill/banner, error-unique input states
+   ===================================================================== */
+
+/* ---- Pill di stato visibilità libreria --------------------------- */
+.visibility-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  font-weight: normal;
+  white-space: nowrap;
+}
+.visibility-pill--locked {
+  background: rgba(122, 30, 43, 0.12);
+  color: var(--color-burgundy);
+  border: 1px solid rgba(122, 30, 43, 0.3);
+}
+.visibility-pill--empty {
+  background: rgba(176, 136, 64, 0.15);
+  color: var(--color-gold);
+  border: 1px solid rgba(176, 136, 64, 0.35);
+}
+
+/* ---- Banner enfasi visibilità ----------------------------------- */
+.visibility-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-radius: var(--radius);
+  margin: 0 0 var(--sp-4);
+  font-size: 0.93rem;
+  line-height: 1.5;
+}
+.visibility-banner__icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 50%;
+}
+.visibility-banner--strong {
+  background: rgba(122, 30, 43, 0.08);
+  border-left: 3px solid var(--color-burgundy);
+  color: var(--color-ink);
+}
+.visibility-banner--strong .visibility-banner__icon {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+}
+.visibility-banner--soft {
+  background: rgba(176, 136, 64, 0.10);
+  border-left: 3px solid var(--color-gold);
+  color: var(--color-ink);
+}
+.visibility-banner--soft .visibility-banner__icon {
+  background: var(--color-gold);
+  color: var(--color-paper);
+}
+
+/* ---- Input "username/email già preso" ---------------------------- */
+.form__input.is-invalid-unique {
+  border-color: var(--color-burgundy);
+  background: rgba(122, 30, 43, 0.04);
+}
+.form__error-unique {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-burgundy);
+  font-style: italic;
+}
+
+/* =====================================================================
+   47. v2.2 — Stats redesign, admin nav link, login error banner
+   ===================================================================== */
+
+/* ---- Pagina statistiche, layout generale ------------------------ */
+.stats-page__title { font-size: 2.4rem; margin: 0.4rem 0 0.5rem; }
+.stats-page__lede {
+  color: var(--color-ink-soft);
+  margin: 0 0 var(--sp-6);
+  max-width: 80ch;
+  line-height: 1.55;
+}
+
+.stats-section-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin: var(--sp-7) 0 var(--sp-3);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--color-line);
+}
+.stats-section-head h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  margin: 0;
+  flex: 1 1 auto;
+}
+.stats-section-lede {
+  color: var(--color-ink-soft);
+  margin: 0 0 var(--sp-4);
+  max-width: 75ch;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+/* ---- Tag "reale" vs "simulato" ---------------------------------- */
+.stats-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.stats-tag--real {
+  background: rgba(110, 122, 90, 0.15);
+  color: var(--color-sage);
+  border: 1px solid rgba(110, 122, 90, 0.35);
+}
+.stats-tag--mock {
+  background: rgba(176, 136, 64, 0.15);
+  color: var(--color-gold);
+  border: 1px solid rgba(176, 136, 64, 0.40);
+}
+
+/* ---- KPI grid + card ------------------------------------------- */
+.stats-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.kpi-card {
+  padding: var(--sp-4);
+  border-radius: var(--radius);
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+}
+.kpi-card--real {
+  border-left: 3px solid var(--color-sage);
+}
+.kpi-card--mock {
+  border-left: 3px solid var(--color-gold);
+  background: rgba(176, 136, 64, 0.04);
+}
+.kpi-card__num {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  line-height: 1;
+}
+.kpi-card__lbl {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-soft);
+  margin-top: var(--sp-2);
+}
+.kpi-card__sub {
+  font-size: 0.78rem;
+  color: var(--color-ink-soft);
+  margin-top: var(--sp-2);
+  font-style: italic;
+}
+
+/* ---- Chart wrappers --------------------------------------------- */
+.chart-wrap {
+  position: relative;
+  height: 360px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+.chart-wrap--square {
+  height: 380px;
+  aspect-ratio: 1;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ---- Genere grid (sunburst + matrice) --------------------------- */
+.stats-genre-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+@media (max-width: 900px) {
+  .stats-genre-grid { grid-template-columns: 1fr; }
+}
+
+/* ---- Matrice co-occorrenza ------------------------------------- */
+.cooccurrence-matrix-wrap {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--sp-4);
+  overflow-x: auto;
+}
+.cooccurrence-matrix__table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+}
+.cooccurrence-matrix__table th,
+.cooccurrence-matrix__table td {
+  padding: 5px 7px;
+  text-align: center;
+  border: 1px solid rgba(0,0,0,0.05);
+  min-width: 32px;
+}
+.cooccurrence-matrix__table thead th {
+  font-size: 0.68rem;
+  font-weight: normal;
+  color: var(--color-ink-soft);
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+.cooccurrence-matrix__table tbody th {
+  text-align: left;
+  font-weight: normal;
+  color: var(--color-ink-soft);
+  white-space: nowrap;
+  position: sticky; left: 0;
+  background: var(--color-paper);
+}
+.cooccurrence-matrix__table td {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.cooccurrence-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: var(--sp-3);
+  font-size: 0.75rem;
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+}
+.cooccurrence-swatch {
+  display: inline-block;
+  width: 16px; height: 16px;
+  vertical-align: middle;
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 2px;
+  margin: 0 4px 0 12px;
+}
+.cooccurrence-swatch--0   { background: var(--color-paper); margin-left: 0; }
+.cooccurrence-swatch--low { background: rgba(176,136,64,0.25); }
+.cooccurrence-swatch--mid { background: rgba(176,136,64,0.55); }
+.cooccurrence-swatch--high{ background: rgba(176,136,64,0.80); }
+
+/* ---- Top libri lista ------------------------------------------- */
+.top-books-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+.top-book-item {
+  display: grid;
+  grid-template-columns: auto 50px 1fr auto auto;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-3);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+}
+.top-book-item__rank {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--color-burgundy);
+  width: 32px;
+  text-align: center;
+}
+.top-book-item__cover {
+  width: 50px; height: 70px;
+  background: linear-gradient(135deg, var(--color-burgundy), var(--color-gold));
+  color: var(--color-paper);
+  border-radius: 3px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 4px;
+}
+.top-book-item__cover-text {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  line-height: 1.1;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+.top-book-item__info { min-width: 0; }
+.top-book-item__title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.top-book-item__meta {
+  font-size: 0.82rem;
+  color: var(--color-ink-soft);
+  font-style: italic;
+}
+.top-book-item__count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: var(--font-mono);
+}
+.top-book-item__count strong {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--color-burgundy);
+}
+.top-book-item__count span {
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-soft);
+  text-transform: uppercase;
+}
+
+/* Sparkline mini bars */
+.sparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 36px;
+  width: 96px;
+}
+.sparkline__bar {
+  flex: 1;
+  background: var(--color-burgundy);
+  min-height: 2px;
+  border-radius: 1px;
+  opacity: 0.7;
+}
+
+@media (max-width: 700px) {
+  .top-book-item {
+    grid-template-columns: auto 50px 1fr;
+    grid-template-areas:
+      "rank cover info"
+      "spark spark count";
+  }
+  .top-book-item__rank   { grid-area: rank; }
+  .top-book-item__cover  { grid-area: cover; }
+  .top-book-item__info   { grid-area: info; }
+  .sparkline             { grid-area: spark; width: 100%; }
+  .top-book-item__count  { grid-area: count; flex-direction: row; align-items: baseline; gap: 6px; }
+  .top-book-item__count strong { font-size: 1.1rem; }
+}
+
+/* ---- Top users tabs + list -------------------------------------- */
+.top-users-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: var(--sp-3);
+}
+.top-users-tab {
+  appearance: none;
+  background: var(--color-paper-dark);
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.top-users-tab:hover { color: var(--color-ink); border-color: var(--color-ink-soft); }
+.top-users-tab.is-active {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  border-color: var(--color-burgundy);
+}
+
+.top-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.top-user-item {
+  display: grid;
+  grid-template-columns: auto 44px 1fr auto;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-3);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.15s ease;
+}
+.top-user-item:hover {
+  border-color: var(--color-ink-soft);
+  background: var(--color-paper-dark);
+  transform: translateX(2px);
+}
+.top-user-item__rank {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--color-burgundy);
+  width: 32px;
+  text-align: center;
+}
+.top-user-item__avatar {
+  width: 44px; height: 44px;
+  background: var(--color-paper-dark);
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--color-burgundy);
+}
+.top-user-item__info { min-width: 0; }
+.top-user-item__name {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--color-ink);
+}
+.top-user-item__meta {
+  font-size: 0.78rem;
+  color: var(--color-ink-soft);
+}
+.top-user-item__metric strong {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--color-burgundy);
+  white-space: nowrap;
+}
+
+/* ---- Nav admin link --------------------------------------------- */
+.site-nav .nav-admin {
+  color: var(--color-gold);
+  font-weight: 500;
+}
+.site-nav .nav-admin:hover { color: var(--color-burgundy); }
+
+/* ---- Login error banner ---------------------------------------- */
+.form__error-banner {
+  padding: var(--sp-3) var(--sp-4);
+  background: rgba(122, 30, 43, 0.08);
+  border-left: 3px solid var(--color-burgundy);
+  border-radius: var(--radius-sm);
+  color: var(--color-burgundy);
+  margin-bottom: var(--sp-4);
+  font-size: 0.92rem;
+}
+
+/* =====================================================================
+   48. v2.3 — Book detail expand, admin CRUD, modals, danger button
+   ===================================================================== */
+
+/* ---- Bottone danger per delete ----------------------------------- */
+.btn--danger {
+  border-color: rgba(122, 30, 43, 0.4);
+  color: var(--color-burgundy);
+}
+.btn--danger:hover {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  border-color: var(--color-burgundy);
+}
+
+/* ---- Top-book item espandibile ---------------------------------- */
+.top-book-item {
+  display: block;
+  padding: 0;
+}
+.top-book-item__head {
+  display: grid;
+  grid-template-columns: auto 50px 1fr auto auto auto;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-3);
+}
+.top-book-item__toggle {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: var(--color-ink-soft);
+  transition: all 0.2s ease;
+}
+.top-book-item__toggle:hover {
+  border-color: var(--color-burgundy);
+  color: var(--color-burgundy);
+}
+.top-book-item__toggle.is-open {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  border-color: var(--color-burgundy);
+  transform: rotate(180deg);
+}
+.top-book-item__detail {
+  padding: var(--sp-4);
+  border-top: 1px dashed var(--color-line);
+  background: rgba(122, 30, 43, 0.02);
+}
+.book-detail-stats__kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+.mini-kpi {
+  text-align: center;
+  padding: var(--sp-2);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+}
+.mini-kpi__num {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--color-burgundy);
+  line-height: 1;
+}
+.mini-kpi__lbl {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--color-ink-soft);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.book-detail-stats__since {
+  text-align: center;
+  font-style: italic;
+  color: var(--color-ink-soft);
+  font-size: 0.9rem;
+  margin: 0 0 var(--sp-3);
+}
+.book-detail-stats__chart-wrap {
+  position: relative;
+  height: 280px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-3);
+}
+
+@media (max-width: 700px) {
+  .top-book-item__head {
+    grid-template-columns: auto 50px 1fr auto;
+    grid-template-areas:
+      "rank cover info toggle"
+      "spark spark spark spark"
+      "count count count count";
+  }
+  .top-book-item__rank   { grid-area: rank; }
+  .top-book-item__cover  { grid-area: cover; }
+  .top-book-item__info   { grid-area: info; }
+  .top-book-item__toggle { grid-area: toggle; }
+  .sparkline             { grid-area: spark; width: 100%; }
+  .top-book-item__count  { grid-area: count; flex-direction: row; align-items: baseline; gap: 6px; justify-content: flex-end; }
+}
+
+/* ====================================================================
+   PANNELLO ADMIN
+   ==================================================================== */
+
+.admin-page__title { font-size: 2.4rem; margin: 0.4rem 0 0.5rem; }
+.admin-page__lede {
+  color: var(--color-ink-soft);
+  max-width: 70ch;
+  line-height: 1.55;
+  margin: 0 0 var(--sp-5);
+}
+
+.admin-kpi-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  margin-bottom: var(--sp-5);
+}
+.admin-kpi {
+  flex: 1 1 110px;
+  text-align: center;
+  padding: var(--sp-2);
+  border-right: 1px solid var(--color-line);
+}
+.admin-kpi:last-child { border-right: none; }
+.admin-kpi strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  color: var(--color-burgundy);
+  line-height: 1;
+}
+.admin-kpi span {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 4px;
+}
+
+/* Tab switch */
+.admin-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--color-line);
+}
+.admin-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: var(--sp-3) var(--sp-4);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s ease;
+}
+.admin-tab:hover { color: var(--color-ink); }
+.admin-tab.is-active {
+  color: var(--color-burgundy);
+  border-bottom-color: var(--color-burgundy);
+  font-weight: 500;
+}
+
+/* Pane interno */
+.admin-pane__head {
+  display: flex;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  flex-wrap: wrap;
+}
+.admin-search {
+  flex: 1;
+  min-width: 240px;
+}
+
+/* Tabella */
+.admin-table-wrap {
+  overflow-x: auto;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+}
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.admin-table thead th {
+  background: var(--color-paper-dark);
+  padding: var(--sp-3);
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-soft);
+  border-bottom: 1px solid var(--color-line);
+  white-space: nowrap;
+}
+.admin-table tbody td {
+  padding: var(--sp-3);
+  border-bottom: 1px solid var(--color-line);
+  vertical-align: middle;
+}
+.admin-table tbody tr:last-child td { border-bottom: none; }
+.admin-table tbody tr:hover { background: rgba(122, 30, 43, 0.03); }
+.admin-table .is-admin-row { background: rgba(176, 136, 64, 0.04); }
+.admin-table code {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--color-ink-soft);
+}
+
+.admin-role-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--color-gold);
+  color: var(--color-paper);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+.admin-icon-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--color-line);
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: var(--color-ink-soft);
+  transition: all 0.15s ease;
+}
+.admin-icon-btn:hover {
+  border-color: var(--color-ink-soft);
+  color: var(--color-ink);
+}
+.admin-icon-btn--danger:hover {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  border-color: var(--color-burgundy);
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+.status-pill--ok  { background: rgba(110,122,90,.18); color: var(--color-sage); }
+.status-pill--off { background: var(--color-paper-dark); color: var(--color-ink-soft); }
+
+/* System pane */
+.admin-system-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+/* ---- Modal ----------------------------------------------------- */
+.admin-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-4);
+}
+.admin-modal[hidden] { display: none; }
+.admin-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(26, 21, 18, 0.6);
+  backdrop-filter: blur(2px);
+  cursor: pointer;
+}
+.admin-modal__card {
+  position: relative;
+  background: var(--color-paper);
+  border-radius: var(--radius);
+  padding: var(--sp-5);
+  max-width: 480px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+}
+.admin-modal__card--wide { max-width: 720px; }
+.admin-modal__title {
+  margin: 0 0 var(--sp-3);
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--color-ink);
+}
+.admin-modal__actions {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--color-line);
+}
+
+/* Form check helper in admin */
+.form__group label input[type="checkbox"] {
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* =====================================================================
+   49. v2.4 — Posts, recent updates, reports
+   ===================================================================== */
+
+/* ---- Composer ---------------------------------------------------- */
+.post-composer {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+}
+.post-composer--locked {
+  display: block;
+  background: rgba(176, 136, 64, 0.08);
+  border-left: 3px solid var(--color-gold);
+  color: var(--color-ink);
+}
+.post-composer--locked p { margin: 0; }
+.post-composer--locked a { color: var(--color-burgundy); text-decoration: underline; }
+.post-composer__avatar {
+  flex-shrink: 0;
+  width: 44px; height: 44px;
+  background: var(--color-paper-dark);
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--color-burgundy);
+}
+.post-composer__body {
+  flex: 1;
+  min-width: 0;
+}
+.post-composer__textarea {
+  width: 100%;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-3);
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  resize: vertical;
+  min-height: 80px;
+  background: var(--color-paper);
+}
+.post-composer__textarea:focus {
+  outline: 2px solid var(--color-burgundy);
+  outline-offset: 1px;
+}
+.post-composer__bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--sp-2);
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.post-composer__count {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-ink-soft);
+}
+.post-composer__count.is-near-limit {
+  color: var(--color-burgundy);
+  font-weight: 600;
+}
+
+/* ---- Post card --------------------------------------------------- */
+.post-card {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-3);
+}
+.post-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.post-card__head--anon {
+  justify-content: space-between;
+}
+.post-card__avatar {
+  flex-shrink: 0;
+  width: 40px; height: 40px;
+  background: var(--color-paper-dark);
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--color-burgundy);
+  text-decoration: none;
+}
+.post-card__avatar:hover { background: var(--color-burgundy); color: var(--color-paper); }
+.post-card__author { flex: 1; min-width: 0; }
+.post-card__name {
+  display: block;
+  font-family: var(--font-display);
+  color: var(--color-ink);
+  text-decoration: none;
+  font-size: 1rem;
+}
+.post-card__name:hover { color: var(--color-burgundy); }
+.post-card__time {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-ink-soft);
+}
+.post-card__delete {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--color-line);
+  width: 30px; height: 30px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--color-ink-soft);
+  font-size: 0.95rem;
+}
+.post-card__delete:hover {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  border-color: var(--color-burgundy);
+}
+.post-card__content {
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--color-ink);
+  margin: 0 0 var(--sp-3);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.post-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  padding-top: var(--sp-2);
+  border-top: 1px dashed var(--color-line);
+}
+.post-card__reactions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.post-reaction {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+.post-reaction:hover {
+  border-color: var(--color-ink-soft);
+  transform: scale(1.05);
+}
+.post-reaction.is-mine {
+  background: rgba(122, 30, 43, 0.10);
+  border-color: var(--color-burgundy);
+}
+.post-reaction.has-count {
+  padding-right: 8px;
+}
+.post-reaction__count {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-ink-soft);
+  margin-left: 2px;
+}
+.post-reaction.is-mine .post-reaction__count {
+  color: var(--color-burgundy);
+  font-weight: 600;
+}
+.post-card__report {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+.post-card__report:hover {
+  color: var(--color-burgundy);
+  background: rgba(122,30,43,0.05);
+}
+.post-card__report.is-reported {
+  color: var(--color-gold);
+  cursor: default;
+}
+
+.posts-empty {
+  padding: var(--sp-4);
+  text-align: center;
+  color: var(--color-ink-soft);
+  font-style: italic;
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius);
+}
+
+/* ---- Posts section on library --------------------------------- */
+.posts-section {
+  margin: var(--sp-7) 0;
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--color-line);
+}
+.posts-section h2 {
+  font-family: var(--font-display);
+  margin: 0 0 var(--sp-4);
+  font-size: 1.5rem;
+}
+
+/* ---- Recent updates on home ----------------------------------- */
+.recent-updates {
+  padding-top: var(--sp-6);
+  padding-bottom: var(--sp-2);
+}
+.recent-updates__head {
+  margin-bottom: var(--sp-4);
+}
+.recent-updates__title {
+  font-size: 1.8rem;
+  margin: 0.4rem 0 0;
+}
+.recent-updates__empty {
+  padding: var(--sp-4);
+  text-align: center;
+  color: var(--color-ink-soft);
+  background: var(--color-paper);
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius);
+}
+.recent-updates__empty a {
+  color: var(--color-burgundy);
+  text-decoration: underline;
+}
+
+/* ---- Admin tab badge ------------------------------------------ */
+.admin-tab__badge {
+  display: inline-block;
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* ---- Report card in admin ------------------------------------- */
+.report-card {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-left: 3px solid var(--color-burgundy);
+  border-radius: var(--radius);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-3);
+}
+.report-card__head {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-2);
+}
+.report-card__meta {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-ink-soft);
+}
+.report-card__counter {
+  margin-left: auto;
+  background: rgba(122,30,43,.12);
+  color: var(--color-burgundy);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+.report-card__content {
+  margin: var(--sp-2) 0;
+  padding: var(--sp-3);
+  background: var(--color-paper-dark);
+  border-left: 3px solid var(--color-line);
+  font-style: italic;
+  color: var(--color-ink);
+}
+.report-card__reasons {
+  font-size: 0.9rem;
+  color: var(--color-ink);
+}
+.report-card__list {
+  list-style: none;
+  padding: 0;
+  margin: var(--sp-2) 0 0;
+  font-size: 0.85rem;
+}
+.report-card__list li {
+  padding: var(--sp-2);
+  background: var(--color-paper-dark);
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+}
+.report-meta {
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  margin-left: var(--sp-2);
+}
+.report-note {
+  margin-top: 4px;
+  font-style: italic;
+  color: var(--color-ink-soft);
+}
+.report-card__actions {
+  margin-top: var(--sp-3);
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+/* =====================================================================
+   50. v2.5 — Nav icone SVG, avatar profilo modificabile
+   ===================================================================== */
+
+/* ---- Nav icons (desktop: icona + label, mobile: solo icona) ------- */
+.site-nav .nav-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+.site-nav .nav-icon:hover {
+  background: rgba(122, 30, 43, 0.06);
+}
+.site-nav .nav-icon.active {
+  background: rgba(122, 30, 43, 0.10);
+  color: var(--color-burgundy);
+}
+.site-nav .nav-icon__svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.site-nav .nav-icon__label {
+  /* Su desktop ≥1100px: mostro la label accanto all'icona.
+     Sotto, solo l'icona; la label resta accessibile come title/aria. */
+  font-size: 0.95rem;
+}
+@media (max-width: 1100px) {
+  .site-nav .nav-icon__label {
+    /* Visually hide but keep for screen readers via aria-label */
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .site-nav .nav-icon {
+    padding: 8px;
+  }
+}
+
+/* Pubblica resta il pulsante "primario" (bordeaux fondo) */
+.site-nav .nav-publish.nav-icon {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+}
+.site-nav .nav-publish.nav-icon:hover {
+  background: #5e1722;
+}
+.site-nav .nav-publish.nav-icon.active {
+  background: #5e1722;
+}
+
+/* Admin in oro */
+.site-nav .nav-admin {
+  color: var(--color-gold);
+}
+.site-nav .nav-admin:hover {
+  background: rgba(176, 136, 64, 0.10);
+  color: var(--color-gold);
+}
+
+/* ---- Avatar profilo modificabile (profile.html) ------------------ */
+.profile-avatar--editable {
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.2s ease;
+}
+.profile-avatar--editable:hover,
+.profile-avatar--editable:focus-visible {
+  outline-color: var(--color-burgundy);
+}
+.profile-avatar__img {
+  position: absolute;
+  inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+.profile-avatar__initials {
+  /* nasce per gestire bene il caso con foto: quando c'è foto, le
+     iniziali non sono renderizzate; quando non c'è, occupano centro */
+  position: relative;
+  z-index: 1;
+}
+.profile-avatar__edit-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(26, 21, 18, 0.55);
+  color: var(--color-paper);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border-radius: inherit;
+  z-index: 2;
+}
+.profile-avatar__edit-overlay svg {
+  width: 22px;
+  height: 22px;
+}
+.profile-avatar--editable:hover .profile-avatar__edit-overlay,
+.profile-avatar--editable:focus-visible .profile-avatar__edit-overlay {
+  opacity: 1;
+}
+
+/* ---- Avatar menu (dropdown after click on profile avatar) -------- */
+.avatar-menu {
+  z-index: 100;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  padding: 4px;
+  min-width: 200px;
+  animation: avatar-menu-in 0.15s ease;
+}
+@keyframes avatar-menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.avatar-menu__item {
+  appearance: none;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  color: var(--color-ink);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.avatar-menu__item:hover {
+  background: var(--color-paper-dark);
+}
+.avatar-menu__item--danger {
+  color: var(--color-burgundy);
+}
+.avatar-menu__item--danger:hover {
+  background: rgba(122, 30, 43, 0.08);
+}
+
+/* ---- Nav avatar with photo ------------------------------------- */
+.nav-avatar--photo .nav-avatar__glyph {
+  /* In modalità foto, lo span glyph contiene <img> a tutto cerchio */
+  background: transparent !important;
+  overflow: hidden;
+  padding: 0;
+}
+.nav-avatar__img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+/* ---- Post card avatar with photo ------------------------------- */
+.post-card__avatar-img,
+.post-composer__avatar-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+.post-card__avatar,
+.post-composer__avatar {
+  overflow: hidden;
+}
+
+/* =====================================================================
+   51. v2.5 quick fix — Nav icon-only, CTA Registrati/Accedi rifinito
+   ===================================================================== */
+
+/* Niente più label di testo accanto alle icone, mai */
+.site-nav .nav-icon__label {
+  display: none !important;
+}
+
+/* Le icone sono ora pure: padding uniforme, niente gap interno */
+.site-nav .nav-icon {
+  gap: 0;
+  padding: 8px;
+  width: 38px;
+  height: 38px;
+  justify-content: center;
+}
+
+/* Pubblica resta visivamente "pieno" ma in formato icona */
+.site-nav .nav-publish.nav-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+}
+
+/* Admin in oro: stessa size delle altre */
+.site-nav .nav-admin.nav-icon {
+  width: 38px;
+  height: 38px;
+}
+
+/* CTA "Registrati / Accedi" — coerente con la nuova grammatica:
+   pill, peso medium, leggermente più "presente" (per stare alla pari
+   visivamente con le icone tonde). */
+.site-nav .nav-auth-cta {
+  padding: 0.55rem 1.1rem;
+  font-weight: 500;
+  font-size: 0.85rem;
+  letter-spacing: 0.01em;
+  height: 38px;          /* match altezza icone */
+  border-width: 1.5px;
+}
+.site-nav .nav-auth-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(122, 30, 43, 0.20);
+}
+
+/* =====================================================================
+   52. v2.6 — Featured algoritmico, welcome messages, novità con aura,
+       libreria "appena aperta", ridgeline top utenti, popover conferma
+   ===================================================================== */
+
+/* ---- Book card "novità" con aura animata ------------------------- */
+.book-card--recent {
+  position: relative;
+  isolation: isolate;
+}
+.book-card--recent::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: calc(var(--radius) + 3px);
+  background: linear-gradient(135deg,
+    rgba(176, 136, 64, 0.55),
+    rgba(122, 30, 43, 0.40),
+    rgba(176, 136, 64, 0.55));
+  background-size: 200% 200%;
+  z-index: -1;
+  animation: aura-shimmer 4s ease-in-out infinite;
+  filter: blur(6px);
+  opacity: 0.85;
+}
+@keyframes aura-shimmer {
+  0%, 100% { background-position: 0% 50%; transform: scale(1); }
+  50%      { background-position: 100% 50%; transform: scale(1.02); }
+}
+.book-card__recent-badge {
+  position: absolute;
+  top: 8px; left: 8px;
+  z-index: 2;
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.20);
+}
+
+/* ---- Libreria "appena aperta" badge sulla cover ----------------- */
+.nearby-card__fresh {
+  position: absolute;
+  top: 10px; right: 10px;
+  background: rgba(244, 239, 230, 0.95);
+  color: var(--color-burgundy);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--color-burgundy);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.10);
+  z-index: 2;
+}
+
+/* ---- Fix spacing card senza recensioni -------------------------- */
+.nearby-card__stars {
+  min-height: 22px;     /* placeholder altezza fissa per allineare cards */
+  display: flex;
+  align-items: center;
+}
+.nearby-card__stars--empty .nearby-card__no-reviews {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--color-ink-soft);
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+/* ---- Popover conferma su top-user-item (stats page) ------------- */
+.top-user-item {
+  /* da link → button: reset stile pulsante */
+  position: relative;
+  appearance: none;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  color: inherit;
+}
+.top-user-item.is-confirming {
+  border-color: var(--color-burgundy);
+  background: var(--color-paper-dark);
+}
+.user-confirm-popover {
+  position: absolute;
+  z-index: 50;
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%, 8px);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--sp-3);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+  min-width: 280px;
+  animation: popover-in 0.18s ease;
+}
+.user-confirm-popover::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 12px; height: 12px;
+  background: var(--color-paper);
+  border-top: 1px solid var(--color-line);
+  border-left: 1px solid var(--color-line);
+}
+@keyframes popover-in {
+  from { opacity: 0; transform: translate(-50%, 0); }
+  to   { opacity: 1; transform: translate(-50%, 8px); }
+}
+.user-confirm-popover p {
+  margin: 0 0 var(--sp-3);
+  font-size: 0.95rem;
+  color: var(--color-ink);
+  text-align: center;
+}
+.user-confirm-popover__actions {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: center;
+}
+
+/* ---- Ridgeline (top users activity chart) ----------------------- */
+.ridgeline-section {
+  margin-top: var(--sp-7);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--color-line);
+}
+.ridgeline-section__title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  margin: 0 0 var(--sp-2);
+  color: var(--color-ink);
+}
+.ridgeline-section__sub {
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--color-ink-soft);
+  font-family: var(--font-body);
+}
+.ridgeline-section__lede {
+  color: var(--color-ink-soft);
+  max-width: 75ch;
+  margin: 0 0 var(--sp-4);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+.ridgeline-svg-wrap {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: var(--sp-4);
+  overflow-x: auto;
+}
+.ridgeline-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  min-width: 700px;
+}
+.ridgeline-baseline {
+  stroke: var(--color-line);
+  stroke-width: 0.6;
+  stroke-dasharray: 2 4;
+}
+.ridgeline-row {
+  transition: opacity 0.2s ease;
+}
+.ridgeline-svg:hover .ridgeline-row { opacity: 0.35; }
+.ridgeline-svg .ridgeline-row:hover { opacity: 1; }
+.ridgeline-name {
+  font-family: var(--font-display);
+  font-size: 11px;
+  fill: var(--color-ink);
+}
+.ridgeline-total {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--color-burgundy);
+  font-weight: 600;
+}
+.ridgeline-axis-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  fill: var(--color-ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ridgeline-line {
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
+}
+
+/* ---- User greeting variants ------------------------------------- */
+.home-welcome__title em {
+  font-style: italic;
+  color: var(--color-burgundy);
+}

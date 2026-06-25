@@ -168,24 +168,55 @@ CREATE TABLE book_images (
 -- Traccia le interazioni di prestito tra utenti.
 -- -----------------------------------------------------------------------------
 
+-- ---- LOAN_REQUESTS (v1.5: ciclo a 5 stati con timestamp per ogni transizione)
+-- Stati: 'requested' → 'confirmed' → 'borrowed' → 'returning' → 'returned'
+-- (Per la v1.0 esistevano solo 'pending', 'accepted', 'rejected', 'completed',
+--  'cancelled'; in v1.5 il modello è stato esteso per supportare la timeline
+--  visuale lato richiedente. Le transizioni sono unidirezionali, ogni stato
+--  porta il proprio timestamp.)
 CREATE TABLE loan_requests (
   id              BIGSERIAL PRIMARY KEY,
   book_id         BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
   requester_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  owner_id        BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  lender_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
   message         TEXT,                  -- messaggio iniziale del richiedente
-  status          VARCHAR(20) NOT NULL DEFAULT 'pending'
-                  CHECK (status IN ('pending','accepted','rejected','completed','cancelled')),
-  response_note   TEXT,                  -- nota del proprietario
+  status          VARCHAR(20) NOT NULL DEFAULT 'requested'
+                  CHECK (status IN ('requested','confirmed','borrowed','returning','returned','rejected','cancelled')),
 
+  -- Timestamp per ciascuna transizione (NULL se non ancora raggiunta)
   requested_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  responded_at    TIMESTAMPTZ,
-  completed_at    TIMESTAMPTZ,
+  confirmed_at    TIMESTAMPTZ,
+  borrowed_at     TIMESTAMPTZ,
+  returning_at    TIMESTAMPTZ,
+  returned_at     TIMESTAMPTZ,
+  rejected_at     TIMESTAMPTZ,
+  cancelled_at    TIMESTAMPTZ,
 
   -- Vincolo: no auto-prestito
-  CONSTRAINT no_self_loan CHECK (requester_id <> owner_id)
+  CONSTRAINT no_self_loan CHECK (requester_id <> lender_id)
 );
+COMMENT ON TABLE loan_requests IS 'Richieste di prestito con ciclo a 5 stati; v1.5';
+CREATE INDEX idx_loans_requester ON loan_requests (requester_id, requested_at DESC);
+CREATE INDEX idx_loans_lender    ON loan_requests (lender_id,    requested_at DESC);
+CREATE INDEX idx_loans_book      ON loan_requests (book_id);
+
+
+-- ---- EMAIL SIMULATE (v1.5)
+-- In produzione le email sono inviate tramite SMTP/SES/SendGrid e questa
+-- tabella non esiste; nel prototipo registriamo qui le email "inviate"
+-- (es. notifica al prestatore quando il richiedente avvia la restituzione)
+-- per poterle mostrare in un box "Demo del prototipo" sulla pagina prestiti.
+CREATE TABLE simulated_emails (
+  id              BIGSERIAL PRIMARY KEY,
+  recipient_email VARCHAR(255) NOT NULL,
+  recipient_name  VARCHAR(120),
+  subject         TEXT NOT NULL,
+  body_html       TEXT NOT NULL,
+  loan_id         BIGINT REFERENCES loan_requests(id) ON DELETE CASCADE,
+  sent_at         TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+COMMENT ON TABLE simulated_emails IS 'Email simulate dal prototipo (no SMTP); v1.5';
 
 
 -- ---- Tabella EVENTI DI VISUALIZZAZIONE --------------------------------------
@@ -510,6 +541,59 @@ COMMENT ON TABLE notifications IS 'Notifiche per la campanella (follow + like) (
 CREATE INDEX idx_notifications_unread ON notifications (user_id, created_at DESC)
   WHERE read_at IS NULL;
 CREATE INDEX idx_notifications_user ON notifications (user_id, created_at DESC);
+
+
+-- =============================================================================
+-- TASSONOMIA BISAC (v1.0): gerarchia + relazione molti-a-molti coi libri
+-- =============================================================================
+
+-- ---- Gerarchia: ogni categoria può avere un genitore (macro-area BISAC).
+-- Esempio: 'Gialli e noir' (figlia) → 'Narrativa' (macro-area).
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id INT REFERENCES categories(id);
+ALTER TABLE categories ADD COLUMN IF NOT EXISTS bisac_code VARCHAR(20);
+COMMENT ON COLUMN categories.parent_id  IS 'Macro-area BISAC (NULL per le macro-aree stesse)';
+COMMENT ON COLUMN categories.bisac_code IS 'Codice BISAC (es. FIC019000) opzionale per integrazione con cataloghi commerciali';
+CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories (parent_id);
+
+-- ---- Relazione molti-a-molti: un libro può portare più tag BISAC.
+-- is_primary marca il tag principale (mostrato come "categoria" nelle card
+-- compatte). Combinata con i tag aggiuntivi, copre la classificazione BISAC.
+CREATE TABLE book_categories (
+  book_id     BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+  category_id INT    NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+  is_primary  BOOLEAN NOT NULL DEFAULT FALSE,
+  PRIMARY KEY (book_id, category_id)
+);
+COMMENT ON TABLE book_categories IS 'Multi-tag BISAC dei libri (un libro → N categorie); v1.0';
+CREATE INDEX idx_book_cat_cat ON book_categories (category_id);
+-- Vincolo "al massimo un tag primario per libro": indice unico parziale
+CREATE UNIQUE INDEX idx_book_cat_primary ON book_categories (book_id) WHERE is_primary;
+
+
+-- =============================================================================
+-- RECENSIONI E VALUTAZIONI (v1.4)
+-- =============================================================================
+--
+-- Recensioni che gli utenti lasciano alle altre librerie della comunità,
+-- corredate da una valutazione a stelle (1..5). Una sola recensione per
+-- coppia (recensore, destinatario): vincolo UNIQUE. Un autore può
+-- modificare la propria recensione (UPDATE) oppure cancellarla (DELETE).
+CREATE TABLE reviews (
+  id              BIGSERIAL PRIMARY KEY,
+  target_user_id  BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reviewer_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  rating          SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  text            TEXT NOT NULL CHECK (char_length(text) >= 20),
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP,
+  -- Un utente non può recensire se stesso
+  CONSTRAINT chk_no_self_review CHECK (target_user_id <> reviewer_id),
+  -- Una sola recensione per coppia (recensore, destinatario)
+  CONSTRAINT uq_review_pair UNIQUE (target_user_id, reviewer_id)
+);
+COMMENT ON TABLE reviews IS 'Recensioni con stelle 1..5 fra utenti; v1.4';
+CREATE INDEX idx_reviews_target ON reviews (target_user_id, created_at DESC);
+CREATE INDEX idx_reviews_reviewer ON reviews (reviewer_id, created_at DESC);
 
 
 -- =============================================================================

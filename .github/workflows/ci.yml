@@ -1,0 +1,84 @@
+# =============================================================================
+# CI — Libreria Diffusa
+# =============================================================================
+# Esegue lint + format check + smoke test su ogni push e PR verso main.
+# Niente deploy automatico (vincolo self-host: il cliente deploya in autonomia).
+#
+# Triggers:
+#   - push su main
+#   - pull request verso main
+#   - manual dispatch (workflow_dispatch) per re-run on-demand
+#
+# Job:
+#   1. lint:  ESLint su js/ + Prettier check
+#   2. test:  Playwright (smoke + nav + api spec)
+#
+# Artifacts: playwright-report su failure, conservato 14 giorni.
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint & format check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier check
+        run: npm run format:check
+
+  test:
+    name: Playwright tests
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Python (per no-cache-server.py)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run tests
+        run: npm test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

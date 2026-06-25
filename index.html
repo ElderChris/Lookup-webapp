@@ -8,7 +8,7 @@
   <!-- Il parametro ?v= serve come "cache-busting": cambiando versione,
        il browser è costretto a riscaricare il file invece di servire
        una copia obsoleta dalla cache. -->
-  <link rel="stylesheet" href="css/styles.css?v=0.9.0" />
+  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -25,29 +25,29 @@
 
       <button class="nav-toggle" aria-label="Apri menu di navigazione" aria-expanded="false" aria-controls="main-nav">☰</button>
 
-      <nav class="site-nav" id="main-nav" role="navigation" aria-label="Navigazione principale">
-        <a href="index.html">Home</a>
-        <a href="explore.html">Esplora</a>
-        <a href="add-book.html" class="auth-only">Pubblica</a>
-        <a href="profile.html" class="auth-only">Profilo</a>
-        <a href="profile-setup.html" class="auth-only">Personalizza</a>
-        <a href="stats.html">Statistiche</a>
-        <!-- Un solo ingresso: porta alla registrazione; da lì si può
-             passare all'accesso ("Hai già un account? Accedi"). -->
-        <a href="register.html" class="btn btn--primary nav-auth-cta guest-only">Registrati / Accedi</a>
-
-        <!-- Toggle stato autenticazione (didattico): simula la prima
-             visita di un anonimo o la sessione di un utente loggato. -->
-        <button class="auth-toggle" type="button" data-state="user"
-                aria-label="Cambia modalità di visualizzazione">
-          <span class="auth-toggle__dot" aria-hidden="true"></span>
-          <span class="auth-toggle__text">visita autenticata</span>
-        </button>
+            <nav class="site-nav" id="main-nav" role="navigation" aria-label="Navigazione principale">
+        <a href="explore.html" class="nav-icon" aria-label="Esplora la mappa" title="Esplora la mappa"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 L9 4 L15 6.5 L21 4 V17.5 L15 20 L9 17.5 L3 20 Z"/><path d="M9 4 V17.5 M15 6.5 V20"/><circle cx="17" cy="14" r="2.4"/><path d="M18.8 15.8 L21 18"/></svg></a>
+        <a href="stats.html" class="nav-icon" aria-label="Statistiche" title="Statistiche"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 V10"/><path d="M10 20 V4"/><path d="M16 20 V13"/><path d="M22 20 V7"/><path d="M3 20 H23"/></svg></a>
+        <a href="loans.html" class="auth-only nav-icon" aria-label="Prestiti e chat" title="Prestiti e chat"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5 H17 A2 2 0 0 1 19 7 V13 A2 2 0 0 1 17 15 H10 L6 19 V15 H5 A2 2 0 0 1 3 13 Z"/><path d="M7 9 H15"/><path d="M7 12 H12"/></svg></a>
+        <a href="add-book.html" class="auth-only nav-publish nav-icon" aria-label="Pubblica un volume" title="Pubblica un volume"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4 H14 L19 9 V20 A1 1 0 0 1 18 21 H5 A1 1 0 0 1 4 20 V5 A1 1 0 0 1 5 4 Z"/><path d="M14 4 V9 H19"/><path d="M11.5 12 V17.5 M8.75 14.75 H14.25"/></svg></a>
+        <a href="register.html" class="nav-auth-cta guest-only">Registrati / Accedi</a>
       </nav>
     </div>
   </header>
 
   <main id="main">
+
+    <!-- v2.4: Aggiornamenti recenti — visibili solo agli utenti loggati,
+         mostrano i post degli utenti seguiti in ordine cronologico. -->
+    <section class="container recent-updates auth-only" id="recent-updates-section" hidden>
+      <div class="recent-updates__head">
+        <span class="eyebrow">aggiornamenti recenti</span>
+        <h2 class="recent-updates__title">
+          Dai profili che <em style="color: var(--color-burgundy);">segui</em>
+        </h2>
+      </div>
+      <div id="recent-updates-feed"></div>
+    </section>
 
     <!-- ============ HERO con CONTATORI LIVE ============ -->
     <section class="hero container guest-presentation" aria-labelledby="hero-title">
@@ -58,12 +58,10 @@
       <div class="hero__top">
 
         <div class="hero__intro">
-          <span class="eyebrow">piattaforma di condivisione culturale</span>
-
           <!-- Saluto personalizzato (utente autenticato) -->
           <div class="user-greeting auth-only" id="user-greeting" hidden>
             <span aria-hidden="true">✦</span>
-            <span>Bentornata, <strong id="greeting-name">…</strong></span>
+            <span id="user-greeting-text">…</span>
           </div>
 
           <h1 class="hero__title" id="hero-title">
@@ -85,7 +83,7 @@
              Per sostituirla basta cambiare il file in assets/ o l'src
              qui sotto (anche con un .json Lottie + <lottie-player>). -->
         <div class="hero__illustration" id="hero-illustration">
-          <img src="assets/library-animate.svg?v=0.9.0"
+          <img src="assets/library-animate.svg?v=3.0.0-alpha.0"
                alt="Illustrazione: due lettori che condividono un libro in una biblioteca" />
         </div>
 
@@ -94,6 +92,10 @@
       <!-- CTA primarie: subito sotto l'introduzione, above the fold
            anche su mobile. Per i visitatori guidano alla registrazione,
            per gli utenti loggati alla pubblicazione di un volume. -->
+      <!-- Azioni + contatori "live" sulla stessa riga: i numeri stanno
+           accanto al CTA secondario, in caratteri piccoli e tipografia
+           monospazio, in modo da restare minimali e non sopraffare i
+           bottoni principali. Su mobile vanno a capo. -->
       <div class="hero__actions">
         <a href="register.html" class="btn btn--primary btn--lg btn--pulse guest-only">
           <span class="btn__icon" aria-hidden="true">→</span>
@@ -107,27 +109,21 @@
           <span class="btn__icon" aria-hidden="true">◐</span>
           Esplora la mappa
         </a>
-      </div>
 
-      <!-- Contatori "live": minimali, integrati nell'hero. -->
-      <div class="hero__stats" id="hero-stats" aria-label="Numeri della piattaforma in tempo reale">
-        <span class="hero__stats-live">in tempo reale</span>
-
-        <div class="hero__stat">
-          <span class="hero__stat-value" id="stat-books" data-stat="books">0</span>
-          <span class="hero__stat-label">volumi pubblicati</span>
-        </div>
-        <div class="hero__stat">
-          <span class="hero__stat-value" id="stat-users" data-stat="users">0</span>
-          <span class="hero__stat-label">lettori iscritti</span>
-        </div>
-        <div class="hero__stat">
-          <span class="hero__stat-value" id="stat-categories" data-stat="categories">0</span>
-          <span class="hero__stat-label">categorie</span>
-        </div>
-        <div class="hero__stat">
-          <span class="hero__stat-value" id="stat-views" data-stat="views">0</span>
-          <span class="hero__stat-label">consultazioni totali</span>
+        <div class="hero__stats-inline" id="hero-stats" aria-label="Numeri della piattaforma in tempo reale">
+          <span class="hero__stats-inline__pip" aria-hidden="true"></span>
+          <span class="hero__stats-inline__live">in tempo reale</span>
+          <span class="hero__stats-inline__group">
+            <strong id="stat-books" data-stat="books">0</strong> volumi
+          </span>
+          <span class="hero__stats-inline__sep" aria-hidden="true">·</span>
+          <span class="hero__stats-inline__group">
+            <strong id="stat-users" data-stat="users">0</strong> lettori
+          </span>
+          <span class="hero__stats-inline__sep" aria-hidden="true">·</span>
+          <span class="hero__stats-inline__group">
+            <strong id="stat-categories" data-stat="categories">0</strong> categorie
+          </span>
         </div>
       </div>
     </section>
@@ -140,7 +136,7 @@
       <div class="home-welcome">
         <div>
           <span class="eyebrow">la tua home</span>
-          <h1 id="welcome-title" class="home-welcome__title">Bentornata, <em id="welcome-name">…</em></h1>
+          <h1 id="welcome-title" class="home-welcome__title" data-name=""></h1>
           <p class="home-welcome__sub">Ecco cosa è successo nelle librerie che segui e fra i tuoi volumi preferiti.</p>
         </div>
         <a href="add-book.html" class="btn btn--primary btn--lg btn--pulse">
@@ -155,7 +151,7 @@
         <h2 id="feed-title">Novità da chi segui</h2>
         <span class="section-meta">N° 01 — aggiornamenti recenti</span>
       </div>
-      <div id="follow-feed" aria-live="polite"></div>
+      <div id="follow-feed" class="books-grid" aria-live="polite"></div>
     </section>
 
     <!-- Volumi preferiti -->
@@ -164,7 +160,7 @@
         <h2 id="likes-title">I tuoi preferiti</h2>
         <span class="section-meta">N° 02 — volumi con «mi piace»</span>
       </div>
-      <div id="liked-books" aria-live="polite"></div>
+      <div id="liked-books" class="books-grid" aria-live="polite"></div>
     </section>
 
     <!-- ============ LIBRERIE VICINO A TE ============ -->
@@ -302,32 +298,57 @@
         <a href="explore.html">Mappa dei libri</a>
         <a href="explore.html?sort=recent">Ultime pubblicazioni</a>
         <a href="stats.html">Statistiche</a>
+        <a href="loans.html" class="auth-only">Prestiti</a>
       </div>
       <div>
         <h4>Partecipa</h4>
         <a href="add-book.html">Pubblica un libro</a>
         <a href="profile.html">Profilo personale</a>
-        <a href="profile-setup.html">Personalizza profilo</a>
       </div>
       <div>
         <h4>Informazioni</h4>
-        <a href="#">Privacy policy</a>
-        <a href="#">Termini</a>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="terms.html">Termini</a>
         <a href="#">Contatti</a>
       </div>
 
       <div class="site-footer__colophon">
         <span>© 2026 Libreria Diffusa — Prototipo didattico</span>
-        <span>v0.9.0 — GPL-3.0</span>
+        <span>v3.0.0-alpha.0 — GPL-3.0</span>
       </div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.9.0"></script>
+  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
     /* Popolamento dei contenuti dinamici della homepage */
 
     document.addEventListener('DOMContentLoaded', () => {
+
+      /* v2.4: Aggiornamenti recenti dai profili seguiti
+         ========================================================= */
+      (function renderRecentUpdates() {
+        const me = API.getCurrentUser();
+        const isAuth = API.getAuthState() === 'user';
+        const section = document.getElementById('recent-updates-section');
+        if (!section || !isAuth || !me) return;
+        const feed = document.getElementById('recent-updates-feed');
+        function paint() {
+          const posts = API.getPostsFromFollowed(me.id, 10);
+          if (posts.length === 0) {
+            feed.innerHTML = `
+              <p class="recent-updates__empty">
+                Quando un utente che segui pubblicherà un post, lo vedrai qui.
+                Esplora i profili nella <a href="explore.html">mappa</a> per iniziare
+                a seguirne qualcuno.
+              </p>`;
+          } else {
+            UI.renderPostsFeed(feed, posts, { showAuthor: true, onChange: paint });
+          }
+          section.hidden = false;
+        }
+        paint();
+      })();
 
       /* =========================================================
          CONTATORI "LIVE"
@@ -397,22 +418,46 @@
           ? 'Le distanze sono calcolate da una posizione simulata sul centro di Napoli. Accedi per usare la tua posizione reale.'
           : 'Le distanze sono calcolate dalla tua posizione registrata.';
 
-        const libs = API.getNearbyLibraries();
+        const allLibs = API.getNearbyLibraries();
+
+        /* Selezione di 6 librerie con varietà di profilo: ordinate per
+           rank_score (vicinanza + attività), ma forziamo almeno 2 enti
+           e 3 librerie personali fra le 6 prescelte, così la vetrina
+           non si appiattisce su un solo tipo di profilo. */
+        const orgs = allLibs.filter(l => API.isOrganization(l));
+        const persons = allLibs.filter(l => !API.isOrganization(l));
+        const picked = [];
+        const TARGET = 6, MIN_ORGS = 2, MIN_PERSONS = 3;
+        // garantisce i minimi
+        orgs.slice(0, MIN_ORGS).forEach(l => picked.push(l));
+        persons.slice(0, MIN_PERSONS).forEach(l => picked.push(l));
+        // riempi i posti rimanenti col rank globale, evitando duplicati
+        const seen = new Set(picked.map(l => l.id));
+        allLibs.filter(l => !seen.has(l.id)).slice(0, TARGET - picked.length)
+               .forEach(l => picked.push(l));
+        const libs = picked.slice(0, TARGET).sort((a, b) => a.rank_score - b.rank_score);
         container.innerHTML = libs.map(l => UI.renderNearbyLibraryCard(l)).join('');
       }
       renderNearby();
 
-      /* ----- Libri in evidenza (top 4 per visualizzazioni) ----- */
-      const featured = baseStats.top_books.slice(0, 4);
+      /* v2.6: Libri in evidenza "selezione della settimana"
+         ========================================================
+         Algoritmo realistico (vedi API.getFeaturedBooks):
+         engagement recente (views 7d ×1 + prestiti 7d ×3 + like ×2)
+         × quality multiplier (rating del proprietario)
+         ÷ decay sqrt(giorni dall'aggiunta), con diversity penalty
+         per evitare la dominanza di un singolo genere. */
+      const featured = API.getFeaturedBooks(4).map(c => c.book);
       UI.renderBooksGrid(document.getElementById('featured-books'), featured);
 
-      /* ----- Saluto personalizzato (utente autenticato) ----- */
+      /* ----- Saluto personalizzato (utente autenticato)
+         v2.6: gender neutral, rotazione fra 17 frasi diverse a ogni login */
       function updateGreeting() {
         const greeting = document.getElementById('user-greeting');
         const user = API.getCurrentUser();
         if (user) {
-          document.getElementById('greeting-name').textContent =
-            user.display_name.split(' ')[0];
+          const msg = API.getWelcomeMessage(user);
+          document.getElementById('user-greeting-text').textContent = msg;
           greeting.hidden = false;
         } else {
           greeting.hidden = true;
@@ -427,9 +472,15 @@
         const me = API.getCurrentUser();
         if (!me) return;
 
-        // Nome di benvenuto
-        const wname = document.getElementById('welcome-name');
-        if (wname) wname.textContent = me.display_name.split(' ')[0];
+        // v2.6: titolo di benvenuto gender neutral con rotazione
+        const wTitle = document.getElementById('welcome-title');
+        if (wTitle) {
+          const msg = API.getWelcomeMessage(me);
+          // Spezza in due: prima parte normale, nome come <em>
+          const first = (me.display_name || me.username).split(' ')[0];
+          const html = msg.replace(first, `<em>${first}</em>`);
+          wTitle.innerHTML = html;
+        }
 
         // --- Novità da chi segui: volumi recenti delle librerie seguite ---
         const feed = document.getElementById('follow-feed');
@@ -448,7 +499,7 @@
               .sort((a, b) => (b.added || '').localeCompare(a.added || ''))
               .slice(0, 4);
             if (books.length) {
-              UI.renderBooksGrid(feed, books);
+              UI.renderBooksGrid(feed, books, { highlightRecent: true });
             } else {
               feed.innerHTML = `<p style="color:var(--color-ink-soft);font-style:italic;">Le librerie che segui non hanno ancora pubblicato volumi.</p>`;
             }
