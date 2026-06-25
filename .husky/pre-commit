@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Pre-commit hook: esegue lint + prettier sui file staged.
+# Attivato automaticamente da `npm install` (script `prepare` in package.json).
+# Bypassabile con `git commit --no-verify` in casi eccezionali.
+npx lint-staged

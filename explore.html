@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Esplora la mappa — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.9.0" />
+  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
   <!-- Leaflet: libreria per mappe interattive (OpenStreetMap tiles) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
@@ -20,14 +20,12 @@
         <span>Libreria&nbsp;Diffusa</span>
       </a>
       <button class="nav-toggle" aria-label="Apri menu" aria-expanded="false">☰</button>
-      <nav class="site-nav" role="navigation" aria-label="Navigazione principale">
-        <a href="index.html">Home</a>
-        <a href="explore.html">Esplora</a>
-        <a href="add-book.html">Pubblica</a>
-        <a href="profile.html">Profilo</a>
-        <a href="profile-setup.html">Personalizza</a>
-        <a href="stats.html">Statistiche</a>
-        <a href="admin.html">Admin</a>
+            <nav class="site-nav" id="main-nav" role="navigation" aria-label="Navigazione principale">
+        <a href="explore.html" class="nav-icon" aria-label="Esplora la mappa" title="Esplora la mappa"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 L9 4 L15 6.5 L21 4 V17.5 L15 20 L9 17.5 L3 20 Z"/><path d="M9 4 V17.5 M15 6.5 V20"/><circle cx="17" cy="14" r="2.4"/><path d="M18.8 15.8 L21 18"/></svg></a>
+        <a href="stats.html" class="nav-icon" aria-label="Statistiche" title="Statistiche"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 V10"/><path d="M10 20 V4"/><path d="M16 20 V13"/><path d="M22 20 V7"/><path d="M3 20 H23"/></svg></a>
+        <a href="loans.html" class="auth-only nav-icon" aria-label="Prestiti e chat" title="Prestiti e chat"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5 H17 A2 2 0 0 1 19 7 V13 A2 2 0 0 1 17 15 H10 L6 19 V15 H5 A2 2 0 0 1 3 13 Z"/><path d="M7 9 H15"/><path d="M7 12 H12"/></svg></a>
+        <a href="add-book.html" class="auth-only nav-publish nav-icon" aria-label="Pubblica un volume" title="Pubblica un volume"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4 H14 L19 9 V20 A1 1 0 0 1 18 21 H5 A1 1 0 0 1 4 20 V5 A1 1 0 0 1 5 4 Z"/><path d="M14 4 V9 H19"/><path d="M11.5 12 V17.5 M8.75 14.75 H14.25"/></svg></a>
+        <a href="register.html" class="nav-auth-cta guest-only">Registrati / Accedi</a>
       </nav>
     </div>
   </header>
@@ -53,28 +51,28 @@
                  placeholder="Cerca: titolo, autore, città, CAP, indirizzo…" autocomplete="off"
                  aria-describedby="search-hint" />
         </div>
-        <div>
-          <label class="sr-only" for="search-category">Categoria</label>
-          <select id="search-category" name="cat" class="form__select">
-            <option value="">Tutte le categorie</option>
-          </select>
+        <div class="tag-input-wrap">
+          <label class="sr-only" for="search-tags">Generi (tag BISAC)</label>
+          <div id="search-tags"></div>
         </div>
         <div>
           <label class="sr-only" for="search-radius">Raggio in km</label>
-          <select id="search-radius" name="r" class="form__select">
-            <option value="">Qualsiasi distanza</option>
-            <option value="1">Entro 1 km</option>
-            <option value="3">Entro 3 km</option>
-            <option value="5">Entro 5 km</option>
-            <option value="10">Entro 10 km</option>
-          </select>
+          <div class="range-control">
+            <div class="range-control__head">
+              <span>Raggio</span>
+              <strong id="radius-label">Qualsiasi distanza</strong>
+            </div>
+            <input type="range" id="search-radius" name="r" min="0" max="20" step="1" value="0"
+                   aria-describedby="radius-label" />
+          </div>
         </div>
         <button type="submit" class="btn btn--primary">Cerca</button>
       </form>
       <p class="search-hint" id="search-hint">
         Puoi cercare per <strong>titolo</strong> o <strong>autore</strong>, ma anche per
-        <strong>luogo</strong>: nome di una città o quartiere (es. «Vomero»),
-        <strong>CAP</strong> (es. «80136») o indirizzo di un ente.
+        <strong>luogo</strong> (città, quartiere, CAP, indirizzo) e per <strong>genere</strong>
+        — aggiungi uno o più tag BISAC dalla casella accanto, e regola il raggio con la barra:
+        i risultati si aggiornano in tempo reale.
       </p>
 
       <!-- ============ MAPPA ============ -->
@@ -119,12 +117,12 @@
       <div><h4>Informazioni</h4><a href="#">Privacy</a></div>
       <div class="site-footer__colophon">
         <span>© 2026 Libreria Diffusa</span>
-        <span>v0.9.0</span>
+        <span>v3.0.0-alpha.0</span>
       </div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.9.0"></script>
+  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
     /* =============================================================
        LOGICA DELLA PAGINA ESPLORA
@@ -138,17 +136,47 @@
 
     document.addEventListener('DOMContentLoaded', () => {
 
-      // Popolamento select categorie
-      const catSelect = document.getElementById('search-category');
-      API.getCategories().forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c; opt.textContent = c;
-        catSelect.appendChild(opt);
+      /* ----- Tag-input per i generi BISAC (multi-tag autocomplete) -----
+         Sostituisce la vecchia <select> di categoria. L'utente digita
+         e seleziona uno o più tag; ogni variazione fa scattare la
+         ricerca in tempo reale (con piccolo debounce). */
+      const tagsBox = document.getElementById('search-tags');
+      UI.initTagInput(tagsBox, {
+        placeholder: 'Aggiungi un genere (es. Poesia, Storia, Gialli…)',
+        onChange: () => scheduleSearch()
       });
+
+      /* ----- Slider del raggio: aggiornamento in tempo reale -----
+         0 km = "Qualsiasi distanza". Movimenti continui sono debouncati
+         così non rendiamo migliaia di ricerche durante il drag. */
+      const radiusEl = document.getElementById('search-radius');
+      const radiusLabel = document.getElementById('radius-label');
+      function paintRadius() {
+        const v = +radiusEl.value;
+        radiusLabel.textContent = v === 0 ? 'Qualsiasi distanza' : `entro ${v} km`;
+        // riempimento visivo della barra
+        const pct = (v / +radiusEl.max) * 100;
+        radiusEl.style.backgroundSize = `${pct}% 100%`;
+      }
+      paintRadius();
+      radiusEl.addEventListener('input', () => { paintRadius(); scheduleSearch(); });
+
+      /* Debounce comune per gli aggiornamenti in tempo reale (slider e
+         tag): aspettiamo che l'utente si fermi prima di ricalcolare. */
+      let searchDebounce;
+      function scheduleSearch() {
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(() => {
+          // Aggiornamenti automatici solo se c'è già una ricerca in corso
+          // (cioè la sezione risultati è visibile): non vogliamo aprire
+          // la ricerca senza che l'utente l'abbia mai avviata.
+          if (!document.getElementById('results-section').hidden) runSearch();
+        }, 240);
+      }
 
       // Lettura parametri URL (es. ?cat=Poesia, ?q=...)
       const params = new URLSearchParams(location.search);
-      if (params.get('cat')) catSelect.value = params.get('cat');
+      if (params.get('cat')) tagsBox.setTags([params.get('cat')]);
       if (params.get('q')) document.getElementById('search-query').value = params.get('q');
 
       // La mappa dipende da Leaflet (CDN). Se non è disponibile la
@@ -176,10 +204,11 @@
       form.addEventListener('submit', e => {
         e.preventDefault();
 
-        // Validazione: serve un testo da cercare. Se il campo è vuoto,
-        // evidenziamo il bordo in rosso con una micro-animazione di
-        // "shake" e non eseguiamo la ricerca.
-        if (!queryInput.value.trim()) {
+        // Validazione: serve almeno un criterio — testo OPPURE almeno
+        // un tag BISAC selezionato. Se l'utente preme "Cerca" con tutto
+        // vuoto, evidenziamo il campo testuale con bordo rosso + shake.
+        const hasTags = tagsBox.getTags && tagsBox.getTags().length > 0;
+        if (!queryInput.value.trim() && !hasTags) {
           queryInput.classList.remove('input-error');
           void queryInput.offsetWidth;          // reflow → riavvia l'animazione
           queryInput.classList.add('input-error');
@@ -221,18 +250,16 @@
     /** Esegue la ricerca e aggiorna risultati + mappa */
     function runSearch() {
       const query = document.getElementById('search-query').value.trim();
-      const category = document.getElementById('search-category').value;
-      const radius = document.getElementById('search-radius').value;
+      const tags  = (document.getElementById('search-tags').getTags
+                       ? document.getElementById('search-tags').getTags()
+                       : []);
+      const radius = +document.getElementById('search-radius').value;     // 0 = qualsiasi
 
-      // 1. Ricerca testuale
-      let results = API.searchBooks(query, { category: category || undefined });
-
-      // 2. Filtro spaziale (se raggio specificato, centrato su Napoli)
-      if (radius) {
-        const nearby = API.searchBooksNearby(DEFAULT_CENTER[0], DEFAULT_CENTER[1], +radius);
-        const nearbyIds = new Set(nearby.map(b => b.id));
-        results = results.filter(b => nearbyIds.has(b.id));
-      }
+      // 1. Ricerca testuale + filtro tag BISAC (semantica OR fra i tag)
+      let results = API.searchBooks(query, {
+        categories: tags,
+        max_km:     radius > 0 ? radius : undefined
+      });
 
       // 3. Aggiornamento UI — elenco leggibile con enfasi sulla posizione.
       //    Rivela la sezione risultati (nascosta finché non si cerca) e
@@ -305,14 +332,20 @@
           `<li><a href="book-detail.html?id=${b.id}">${b.title}</a> <em>${b.author}</em></li>`
         ).join('');
 
+        const reviewSummary = API.getReviewSummary(user.id);
+        const starsLine = reviewSummary.count > 0
+          ? `<div style="margin: .3rem 0 .2rem;">${UI.renderStars(reviewSummary.average, { count: reviewSummary.count, size: 'sm' })}</div>`
+          : '';
+
         m.bindPopup(`
           <h4>${user.display_name}</h4>
+          ${starsLine}
           <p class="popup-author">${user.city}</p>
           <p style="margin-top:.5rem; font-size:.85rem;">
             <strong>${books.length}</strong> volum${books.length === 1 ? 'e' : 'i'} disponibil${books.length === 1 ? 'e' : 'i'}
           </p>
           <ul style="margin-top:.5rem; padding-left: 1.2rem; font-size:.85rem;">${booksList}</ul>
-          <a href="profile.html?id=${user.id}" style="font-size:.85rem;">→ Vedi profilo completo</a>
+          <a href="library.html?id=${user.id}" style="font-size:.85rem;">→ Vai alla libreria</a>
         `);
         markersLayer.addLayer(m);
       });

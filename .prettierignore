@@ -1,0 +1,16 @@
+# Generated / dependency dirs
+node_modules/
+dist/
+test-results/
+playwright-report/
+*.zip
+
+# Per Fase 0c esclude HTML/CSS (verranno formattati in fase dedicata).
+# Per ora Prettier processa solo js/ e tests/.
+*.html
+css/
+
+# Dati locali
+*.log
+.env
+.env.local

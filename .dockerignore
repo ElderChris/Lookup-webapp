@@ -1,0 +1,19 @@
+# Docker ignore — riduce dimensione del build context.
+# Per Fase 0d non c'è ancora un Dockerfile (usiamo solo image nginx ufficiale),
+# ma teniamo questo file in anticipo per Fase 1 quando builderemo il backend.
+
+node_modules/
+test-results/
+playwright-report/
+.husky/
+.git/
+.github/
+.vscode/
+.idea/
+*.zip
+*.tar.gz
+*.log
+.env
+.env.local
+.DS_Store
+Thumbs.db

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Crea la tua libreria — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.9.0" />
+  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -19,15 +19,23 @@
       </a>
       <button class="nav-toggle" aria-label="Apri menu" aria-expanded="false">☰</button>
       <nav class="site-nav" role="navigation">
-        <a href="index.html">Home</a>
-        <a href="explore.html">Esplora</a>
-        <a href="login.html">Accedi</a>
+        <a href="explore.html" class="nav-icon" aria-label="Esplora la mappa" title="Esplora la mappa"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 L9 4 L15 6.5 L21 4 V17.5 L15 20 L9 17.5 L3 20 Z"/><path d="M9 4 V17.5 M15 6.5 V20"/><circle cx="17" cy="14" r="2.4"/><path d="M18.8 15.8 L21 18"/></svg></a>
+        <a href="stats.html" class="nav-icon" aria-label="Statistiche" title="Statistiche"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 V10"/><path d="M10 20 V4"/><path d="M16 20 V13"/><path d="M22 20 V7"/><path d="M3 20 H23"/></svg></a>
+        <a href="loans.html" class="auth-only nav-icon" aria-label="Prestiti e chat" title="Prestiti e chat"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5 H17 A2 2 0 0 1 19 7 V13 A2 2 0 0 1 17 15 H10 L6 19 V15 H5 A2 2 0 0 1 3 13 Z"/><path d="M7 9 H15"/><path d="M7 12 H12"/></svg></a>
+        <a href="add-book.html" class="auth-only nav-publish nav-icon" aria-label="Pubblica un volume" title="Pubblica un volume"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4 H14 L19 9 V20 A1 1 0 0 1 18 21 H5 A1 1 0 0 1 4 20 V5 A1 1 0 0 1 5 4 Z"/><path d="M14 4 V9 H19"/><path d="M11.5 12 V17.5 M8.75 14.75 H14.25"/></svg></a>
+        <a href="register.html" class="nav-auth-cta guest-only">Registrati / Accedi</a>
       </nav>
     </div>
   </header>
 
   <main id="main">
     <section class="section container container--narrow">
+
+      <!-- Switch in cima (v1.3): chi ha già un account lo trova subito,
+           senza dover scorrere a fine pagina dopo tutta la registrazione. -->
+      <p class="auth-switch auth-switch--top">
+        Hai già un account? <a href="login.html">Accedi</a>
+      </p>
 
       <span class="eyebrow">unisciti alla rete diffusa</span>
       <h1 style="font-size: 2.5rem; margin-bottom: .5rem;">
@@ -43,11 +51,11 @@
       <div class="intent-banner" id="intent-banner" role="status" hidden>
         <span class="intent-banner__icon" aria-hidden="true">📖</span>
         <div>
-          <strong>Un ultimo passo prima del prestito.</strong>
-          Per richiedere un libro in prestito è necessaria una rapida iscrizione.
-          Abbiamo già selezionato per te l'opzione <em>Lettore</em>: ti bastano due
-          minuti, e nessun obbligo di pubblicare volumi. Al termine tornerai al libro
-          per inviare la richiesta.
+          <strong>Un solo passo prima del prestito.</strong>
+          Da <em>lettore</em> puoi richiedere prestiti subito dopo l'iscrizione,
+          senza pubblicare alcun volume. Quando vorrai condividere i tuoi libri,
+          potrai aprire la tua libreria in qualsiasi momento dalla tua area
+          personale — diventando a tutti gli effetti un curatore.
         </div>
       </div>
 
@@ -91,12 +99,12 @@
               </svg>
             </div>
             <div class="wizard-panel-header__text">
-              <h2>Che tipo di libreria stai creando?</h2>
-              <p>La scelta determina quali informazioni potrai pubblicare sul tuo profilo.</p>
+              <h2 data-account-type-label>Che tipo di libreria stai creando?</h2>
+              <p data-account-type-label>La scelta determina quali informazioni potrai pubblicare sul tuo profilo.</p>
             </div>
           </div>
 
-          <div class="account-type-choice account-type-choice--three" role="radiogroup" aria-label="Tipo di account">
+          <div class="account-type-choice account-type-choice--three account-type-grid" role="radiogroup" aria-label="Tipo di account">
             <label class="account-type-card">
               <input type="radio" name="account_type" value="person" checked />
               <div class="account-type-card__icon" aria-hidden="true">☺</div>
@@ -123,17 +131,6 @@
                 o un centro culturale.
               </div>
             </label>
-          </div>
-
-          <!-- Suggerimento contestuale per chi sceglie "Lettore" -->
-          <div class="hint-box" id="borrower-hint" hidden>
-            <span class="hint-box__icon" aria-hidden="true">💡</span>
-            <span>
-              Da lettore puoi richiedere prestiti subito dopo l'iscrizione, senza
-              pubblicare alcun volume. Quando vorrai condividere i tuoi libri,
-              potrai aprire la tua libreria in qualsiasi momento dalla tua area
-              personale — diventando a tutti gli effetti un curatore.
-            </span>
           </div>
 
           <h3 style="font-family: var(--font-display); font-size: 1.3rem; margin: 1.5rem 0 .5rem;">Credenziali di accesso</h3>
@@ -274,17 +271,33 @@
             </div>
 
             <div class="form__group">
-              <label class="form__label" for="theme">Tema cromatico della libreria</label>
-              <select id="theme" name="theme" class="form__select">
-                <option value="classic">Classico — bordeaux e oro</option>
-                <option value="bordeaux">Bordeaux — rosso profondo</option>
-                <option value="sage">Salvia — verde e oro</option>
-                <option value="midnight">Notturno — scuro</option>
-              </select>
+              <span class="form__label">Tema cromatico della libreria</span>
+              <div class="theme-swatches" role="radiogroup" aria-label="Tema cromatico">
+                <label class="theme-swatch" style="background: linear-gradient(135deg, #7a1e2b, #b08840);">
+                  <input type="radio" name="theme" value="classic" checked />
+                  <span class="theme-swatch__name">Classico</span>
+                  <span class="theme-swatch__desc">bordeaux e oro</span>
+                </label>
+                <label class="theme-swatch" style="background: linear-gradient(135deg, #5a141f, #3d342e);">
+                  <input type="radio" name="theme" value="bordeaux" />
+                  <span class="theme-swatch__name">Bordeaux</span>
+                  <span class="theme-swatch__desc">rosso profondo</span>
+                </label>
+                <label class="theme-swatch" style="background: linear-gradient(135deg, #6e7a5a, #b08840);">
+                  <input type="radio" name="theme" value="sage" />
+                  <span class="theme-swatch__name">Salvia</span>
+                  <span class="theme-swatch__desc">verde e oro</span>
+                </label>
+                <label class="theme-swatch" style="background: linear-gradient(135deg, #1a1512, #6e7a5a);">
+                  <input type="radio" name="theme" value="midnight" />
+                  <span class="theme-swatch__name">Notturno</span>
+                  <span class="theme-swatch__desc">scuro</span>
+                </label>
+              </div>
               <span class="form__help">Determina la copertina generata della tua libreria. Modificabile in seguito.</span>
             </div>
 
-            <fieldset style="border: 1px solid var(--color-line); border-radius: var(--radius); padding: 1rem 1.25rem;">
+            <fieldset id="consent-block" style="border: 1px solid var(--color-line); border-radius: var(--radius); padding: 1rem 1.25rem;">
               <legend style="font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .1em; color: var(--color-ink-soft); padding: 0 .5rem;">Consensi</legend>
               <div class="form__check">
                 <input type="checkbox" id="consent_tos" required aria-required="true" />
@@ -324,8 +337,8 @@
               </svg>
             </div>
             <div class="wizard-panel-header__text">
-              <h2>Aggiungi i tuoi primi volumi</h2>
-              <p>Inserisci almeno un libro per dare vita alla tua libreria. Potrai aggiungerne altri in qualunque momento — questo è solo l'inizio.</p>
+              <h2>I tuoi primi volumi <span style="color: var(--color-ink-soft); font-weight: 400; font-size: 0.7em;">(opzionale)</span></h2>
+              <p>Se vuoi puoi aggiungere subito uno o più libri — oppure saltare questo passo e completare l'iscrizione: la tua libreria nascerà comunque, e potrai pubblicare i tuoi volumi più tardi dalla tua area personale.</p>
             </div>
           </div>
 
@@ -377,10 +390,6 @@
 
       </form>
 
-      <p class="auth-switch">
-        Hai già un account? <a href="login.html">Accedi</a>
-      </p>
-
     </section>
   </main>
 
@@ -390,11 +399,11 @@
       <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
       <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
       <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.9.0</span></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v3.0.0-alpha.0</span></div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.9.0"></script>
+  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -419,14 +428,20 @@
 
       /* ----- Mostra/nascondi i campi in base al tipo account ----- */
       const orgFields = document.getElementById('org-fields');
-      const borrowerHint = document.getElementById('borrower-hint');
+      const borrowerHint = document.getElementById('borrower-hint'); // v1.9: element removed; null-safe below
       const step3Indicator = document.querySelector('.wizard-step[data-step="3"]');
 
       // Il "lettore" è una persona che per ora vuole solo prendere in
       // prestito: salta lo step dei primi volumi e parte con library_role
       // 'borrower'. Resta una persona a livello di account_type.
+      // v1.8: con `?intent=borrow` salta ANCHE lo step della libreria
+      // (bio/motto/theme), passando direttamente al login + creazione
+      // automatica del prestito → singolo step di registrazione.
       function isBorrower() { return form.account_type.value === 'borrower'; }
-      function lastStep()   { return isBorrower() ? 2 : 3; }
+      function lastStep()   {
+        if (window.__isBorrowIntent) return 1;     // fast-track
+        return isBorrower() ? 2 : 3;
+      }
 
       function syncAccountType() {
         const type = form.account_type.value;
@@ -444,8 +459,8 @@
         document.querySelectorAll('[data-label-person]').forEach(el => el.hidden = isOrg);
         document.querySelectorAll('[data-label-org]').forEach(el => el.hidden = !isOrg);
 
-        // Suggerimento del lettore
-        borrowerHint.hidden = !borrower;
+        // Suggerimento del lettore (rimosso in v1.9 perché ridondante col banner)
+        if (borrowerHint) borrowerHint.hidden = !borrower;
 
         // Per il lettore lo step "Primi volumi" è facoltativo/saltato:
         // lo segnaliamo nell'indicatore di avanzamento e rendiamo la
@@ -467,13 +482,44 @@
       /* ----- Intento "prestito": se l'utente arriva qui dopo aver
          tentato di richiedere un prestito da non iscritto
          (register.html?intent=borrow), pre-selezioniamo la card
-         "Lettore" e mostriamo un banner che spiega perché si trova qui. */
+         "Lettore" e mostriamo un banner che spiega perché si trova qui.
+         v1.8: in questo flusso saltiamo ANCHE lo step 2 (libreria) per
+         portare l'utente al massimo in un solo passaggio. I consensi
+         GDPR vengono spostati nello step 1, e l'utente viene loggato
+         e portato direttamente alla pagina dei prestiti. */
       const intent = new URLSearchParams(location.search).get('intent');
-      if (intent === 'borrow') {
+      const isBorrowIntent = (intent === 'borrow');
+      window.__isBorrowIntent = isBorrowIntent;   // letto da lastStep()
+      if (isBorrowIntent) {
         const borrowerRadio = form.querySelector('input[value="borrower"]');
         if (borrowerRadio) borrowerRadio.checked = true;
         const banner = document.getElementById('intent-banner');
         if (banner) banner.hidden = false;
+
+        // Nascondi del tutto la scelta del tipo account: è pre-selezionata
+        const accountTypeBlock = form.querySelector('.account-type-grid');
+        if (accountTypeBlock) accountTypeBlock.style.display = 'none';
+        const accountTypeLabel = form.querySelector('[data-account-type-label]');
+        if (accountTypeLabel) accountTypeLabel.hidden = true;
+
+        // Sposta i consensi (TOS, età, newsletter) dallo step 2 allo step 1
+        // così il Lettore può completare tutto in un unico passaggio.
+        const consentsBlock = document.getElementById('consent-block');
+        const step1Panel = document.querySelector('[data-panel="1"]');
+        const step1Footer = step1Panel.querySelector('.wizard-panel__footer');
+        if (consentsBlock && step1Panel) {
+          if (step1Footer) step1Panel.insertBefore(consentsBlock, step1Footer);
+          else step1Panel.appendChild(consentsBlock);
+        }
+
+        // Marca gli step 2 e 3 come saltati nell'indicatore di avanzamento
+        document.querySelector('.wizard-step[data-step="2"]').classList.add('is-skipped');
+        document.querySelector('.wizard-step[data-step="3"]').classList.add('is-skipped');
+
+        // CRITICO: showStep(1) DOPO il setup del fast-track, così
+        // lastStep() ricalcola e finishBtn diventa visibile (nextBtn nascosto).
+        // Senza questa chiamata, il pulsante "Continua →" resta su perché
+        // lastStep era stato risolto a 2 al primo render.
       }
       syncAccountType();
 
@@ -513,6 +559,43 @@
         errorBox.hidden = true;
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
+
+      // v1.8: per il fast-track Lettore, forza un re-render dello step 1
+      // così la nav mostri "Completa l'iscrizione" invece di "Continua →"
+      // (lastStep() ora restituisce 1 perché __isBorrowIntent è true).
+      if (isBorrowIntent) showStep(1);
+
+      // v2.1: check live di univocità su blur — dà feedback immediato
+      // prima del submit finale. La validazione "vera" resta in createUser.
+      function attachLiveUniqueCheck(fieldId, errorReason) {
+        const input = document.getElementById(fieldId);
+        if (!input) return;
+        input.addEventListener('blur', () => {
+          const value = input.value.trim().toLowerCase();
+          if (!value) return;
+          const users = API.getUsers();
+          const taken = users.some(u => {
+            const stored = (u[fieldId] || '').trim().toLowerCase();
+            return stored === value;
+          });
+          // Annulla eventuale precedente errore visuale
+          input.setCustomValidity('');
+          input.classList.remove('is-invalid-unique');
+          // Cerca/rimuove un eventuale messaggio già presente
+          const existingMsg = input.parentElement.querySelector('.form__error-unique');
+          if (existingMsg) existingMsg.remove();
+          if (taken) {
+            input.setCustomValidity(errorReason);
+            input.classList.add('is-invalid-unique');
+            const msg = document.createElement('span');
+            msg.className = 'form__error-unique';
+            msg.textContent = errorReason;
+            input.parentElement.appendChild(msg);
+          }
+        });
+      }
+      attachLiveUniqueCheck('username', 'Nome utente già in uso.');
+      attachLiveUniqueCheck('email', 'Email già registrata.');
 
       /* Valida i campi visibili dello step corrente */
       function validateStep(n) {
@@ -615,12 +698,10 @@
           const errs = validateStep(n);
           if (errs.length) { showStep(n); showErrors(errs); return; }
         }
-        // I volumi sono obbligatori solo per chi apre una libreria,
-        // non per i lettori (che vogliono solo prendere in prestito).
-        if (!borrower && addedBooks.length === 0) {
-          showErrors(['Aggiungi almeno un volume per completare la creazione della libreria.']);
-          return;
-        }
+        // v1.3: i volumi non sono più obbligatori al momento dell'iscrizione.
+        // L'utente può completare ora e aggiungere libri in seguito; gliene
+        // diamo memoria con due notifiche di onboarding e con un banner
+        // evidente sul profilo (vedi API.createUser → seedOnboardingNotifications).
 
         const choice = form.account_type.value;   // person | borrower | organization
         // Il lettore è una persona con ruolo 'borrower'; tutti gli altri
@@ -655,7 +736,23 @@
         }
 
         // Crea l'utente
-        const newUser = API.createUser(payload);
+        const createResult = API.createUser(payload);
+        if (!createResult.ok) {
+          // v2.1: errori bloccanti — username o email già in uso
+          const messages = {
+            'username-taken': 'Questo nome utente è già in uso. Scegline uno diverso.',
+            'email-taken': 'Questa email è già registrata. Se sei tu, accedi invece di registrarti.',
+            'username-empty': 'Il nome utente è obbligatorio.'
+          };
+          showErrors([messages[createResult.reason] || ('Errore: ' + createResult.reason)]);
+          // Riporta l'utente al passo dei dati account (lo step 1)
+          showStep(1);
+          // Focus sul campo problematico
+          const focusField = createResult.reason === 'email-taken' ? 'email' : 'username';
+          setTimeout(() => document.getElementById(focusField)?.focus(), 300);
+          return;
+        }
+        const newUser = createResult.user;
 
         // Aggiunge gli eventuali volumi dell'onboarding alla sua libreria
         addedBooks.forEach(b => {
@@ -677,10 +774,40 @@
         API.setAuthState('user');
         API.setCurrentUser(newUser.id);
 
-        // Se l'iscrizione nasce da una richiesta di prestito interrotta
-        // (intent=borrow con un libro in sospeso), torniamo a quel libro
-        // così l'utente può finalmente inviare la richiesta.
+        // v1.8: per il Lettore fast-track con un prestito in sospeso,
+        // creiamo automaticamente la richiesta e portiamo direttamente
+        // alla pagina dei prestiti — niente passaggio intermedio.
         const pendingBook = sessionStorage.getItem('pending_loan_book');
+        const pendingDays = parseInt(sessionStorage.getItem('pending_loan_days'), 10) || 14;
+        const pendingMessage = sessionStorage.getItem('pending_loan_message') || '';
+
+        if (isBorrowIntent && pendingBook) {
+          sessionStorage.removeItem('pending_loan_book');
+          sessionStorage.removeItem('pending_loan_days');
+          sessionStorage.removeItem('pending_loan_message');
+
+          const r = API.requestLoan(+pendingBook, newUser.id, pendingMessage, pendingDays);
+
+          // Notifica onboarding: suggerisci di aprire la libreria
+          API.addNotification(newUser.id, {
+            type: 'onboarding',
+            onboarding_action: 'open-library',
+            message: '<strong>Vuoi condividere i tuoi libri?</strong> Apri la tua libreria con un click — diventerai un curatore a tutti gli effetti.',
+            created_at: new Date().toISOString()
+          });
+
+          if (r.ok) {
+            UI.toast('Iscrizione completata e richiesta di prestito inviata!', 'success');
+            setTimeout(() => location.href = `loans.html?id=${r.loan.id}`, 1400);
+          } else {
+            UI.toast('Iscrizione fatta, ma la richiesta non è andata: ' + r.reason, 'error');
+            setTimeout(() => location.href = `loans.html`, 1400);
+          }
+          return;
+        }
+
+        // Fallback: l'utente è arrivato qui senza un prestito in sospeso
+        // (cambio idea, o registrazione "tradizionale" da Lettore).
         if (pendingBook) {
           sessionStorage.removeItem('pending_loan_book');
           UI.toast('Iscrizione completata! Ora puoi richiedere il prestito.', 'info');

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dettaglio libro — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.9.0" />
+  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
 </head>
 <body>
 
@@ -17,14 +17,12 @@
         <span>Libreria&nbsp;Diffusa</span>
       </a>
       <button class="nav-toggle" aria-label="Apri menu" aria-expanded="false">☰</button>
-      <nav class="site-nav" role="navigation">
-        <a href="index.html">Home</a>
-        <a href="explore.html">Esplora</a>
-        <a href="add-book.html">Pubblica</a>
-        <a href="profile.html">Profilo</a>
-        <a href="profile-setup.html">Personalizza</a>
-        <a href="stats.html">Statistiche</a>
-        <a href="admin.html">Admin</a>
+            <nav class="site-nav" id="main-nav" role="navigation" aria-label="Navigazione principale">
+        <a href="explore.html" class="nav-icon" aria-label="Esplora la mappa" title="Esplora la mappa"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 L9 4 L15 6.5 L21 4 V17.5 L15 20 L9 17.5 L3 20 Z"/><path d="M9 4 V17.5 M15 6.5 V20"/><circle cx="17" cy="14" r="2.4"/><path d="M18.8 15.8 L21 18"/></svg></a>
+        <a href="stats.html" class="nav-icon" aria-label="Statistiche" title="Statistiche"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 V10"/><path d="M10 20 V4"/><path d="M16 20 V13"/><path d="M22 20 V7"/><path d="M3 20 H23"/></svg></a>
+        <a href="loans.html" class="auth-only nav-icon" aria-label="Prestiti e chat" title="Prestiti e chat"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5 H17 A2 2 0 0 1 19 7 V13 A2 2 0 0 1 17 15 H10 L6 19 V15 H5 A2 2 0 0 1 3 13 Z"/><path d="M7 9 H15"/><path d="M7 12 H12"/></svg></a>
+        <a href="add-book.html" class="auth-only nav-publish nav-icon" aria-label="Pubblica un volume" title="Pubblica un volume"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4 H14 L19 9 V20 A1 1 0 0 1 18 21 H5 A1 1 0 0 1 4 20 V5 A1 1 0 0 1 5 4 Z"/><path d="M14 4 V9 H19"/><path d="M11.5 12 V17.5 M8.75 14.75 H14.25"/></svg></a>
+        <a href="register.html" class="nav-auth-cta guest-only">Registrati / Accedi</a>
       </nav>
     </div>
   </header>
@@ -76,6 +74,23 @@
         </span>
       </div>
       <div class="form__group">
+        <label class="form__label" for="loan-days">
+          Per quanti giorni vorresti tenerlo?
+          <span class="loan-days__pill" id="loan-days-pill">14 giorni</span>
+        </label>
+        <input type="range" id="loan-days" min="5" max="28" step="1" value="14"
+               class="loan-days__slider"
+               aria-describedby="loan-days-help" />
+        <div class="loan-days__scale" aria-hidden="true">
+          <span>5 gg</span>
+          <span>28 gg</span>
+        </div>
+        <small class="form__help" id="loan-days-help">
+          Trascorso questo periodo riceverai un sollecito automatico per
+          avviare la restituzione. Minimo 5 giorni, massimo 28.
+        </small>
+      </div>
+      <div class="form__group">
         <label class="form__label" for="loan-message">Messaggio (facoltativo)</label>
         <textarea id="loan-message" class="form__textarea"
                   placeholder="Aggiungi un breve messaggio al proprietario…"></textarea>
@@ -99,11 +114,11 @@
       <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
       <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
       <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.9.0</span></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v3.0.0-alpha.0</span></div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.9.0"></script>
+  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
@@ -118,17 +133,28 @@
 
       const owner = API.getUser(book.owner_id);
 
-      // Incrementa visualizzazioni
-      API.incrementViews(id);
+      // v2.3: registra una visualizzazione reale (deduplicata per
+      // session). Sostituisce il vecchio incrementViews che gonfiava
+      // il counter ad ogni reload.
+      API.recordBookView(id);
 
       // Aggiorna titolo pagina e breadcrumb
       document.title = `${book.title} — Libreria Diffusa`;
       document.getElementById('breadcrumb-title').textContent = book.title;
 
+      const isbnClean = (book.isbn || '').replace(/[^\d]/g, '');
+      const olImg = isbnClean
+        ? `<img class="book-card__cover-img" alt=""
+                src="https://covers.openlibrary.org/b/isbn/${isbnClean}-L.jpg?default=false"
+                onload="this.classList.add('is-loaded')"
+                onerror="this.style.display='none'" />`
+        : '';
+
       container.innerHTML = `
         <div class="book-detail__cover book-card__cover book-card__cover--placeholder"
              style="background: ${book.cover_gradient};">
-          ${book.title}
+          ${olImg}
+          <span class="book-card__cover-title">${book.title}</span>
         </div>
 
         <div>
@@ -149,6 +175,12 @@
             ${!book.available
               ? `<span class="like-waiting">⏳ metti «mi piace» per essere avvisato quando torna disponibile</span>`
               : ''}
+            <!-- v2.3: pulsante elimina volume — visibile solo al
+                 proprietario (popolato/nascosto dal JS più sotto). -->
+            <button type="button" class="btn btn--ghost btn--small btn--danger"
+                    id="delete-book-btn" hidden>
+              <span aria-hidden="true">🗑</span> Elimina volume
+            </button>
           </div>
 
           <dl class="book-detail__metadata">
@@ -212,6 +244,14 @@
       (function wireLike() {
         const likeBtn = document.getElementById('like-btn');
         if (!likeBtn) return;
+        // v1.5: nasconde il bottone "Mi piace" se stiamo visualizzando un
+        // libro nostro — non ha senso "salvare nei preferiti" un proprio
+        // volume, e impedisce il self-like che gonfierebbe il counter.
+        const meNow = API.getCurrentUser();
+        if (meNow && +book.owner_id === +meNow.id) {
+          likeBtn.hidden = true;
+          return;
+        }
         const heart = document.getElementById('like-heart-path');
         const label = document.getElementById('like-label');
         const count = document.getElementById('like-count');
@@ -244,6 +284,35 @@
         });
       })();
 
+      // v2.3: eliminazione volume — v2.4 security fix: visibile e
+      // utilizzabile SOLO al proprietario. L'admin elimina via il
+      // pannello admin, non dal book-detail (separazione dei canali).
+      (function wireDeleteBook() {
+        const meNow = API.getCurrentUser();
+        const isOwner = meNow && +book.owner_id === +meNow.id;
+        if (!isOwner) return;
+        const btn = document.getElementById('delete-book-btn');
+        if (!btn) return;
+        btn.hidden = false;
+        btn.addEventListener('click', () => {
+          if (!confirm(
+            `Vuoi davvero eliminare definitivamente "${book.title}"?\n\n` +
+            `Verranno cancellati anche:\n` +
+            `• ${(Storage.get('loan_requests', []) || []).filter(l => +l.book_id === +book.id).length} richieste di prestito\n` +
+            `• ${(Storage.get('book_views', []) || []).filter(v => +v.book_id === +book.id).length} visualizzazioni\n` +
+            `• tutti i like ricevuti\n\n` +
+            `Questa azione non può essere annullata.`
+          )) return;
+          const r = API.deleteBook(book.id);
+          if (r.ok) {
+            UI.toast('Volume eliminato. Reindirizzamento al profilo…', 'success');
+            setTimeout(() => location.href = 'profile.html', 1000);
+          } else {
+            UI.toast('Eliminazione fallita: ' + r.reason, 'error');
+          }
+        });
+      })();
+
       document.getElementById('loan-submit')?.addEventListener('click', e => {
         if (!document.getElementById('loan-consent').checked) return;
         e.preventDefault();
@@ -254,18 +323,39 @@
         // termine tornerà qui per inviare la richiesta.
         const me = API.getCurrentUser();
         if (!me) {
+          // v1.8: salviamo anche giorni e messaggio per creare il
+          // prestito automaticamente dopo la registrazione fast-track
           sessionStorage.setItem('pending_loan_book', id);
+          sessionStorage.setItem('pending_loan_days',
+            document.getElementById('loan-days').value || '14');
+          sessionStorage.setItem('pending_loan_message',
+            document.getElementById('loan-message').value || '');
           document.getElementById('loan-dialog').close();
           UI.toast('Per richiedere un prestito serve una rapida iscrizione…', 'info');
           setTimeout(() => location.href = `register.html?intent=borrow&book=${id}`, 900);
           return;
         }
 
-        API.requestLoan(id, me.id);
+        const message = document.getElementById('loan-message').value;
+        const days = parseInt(document.getElementById('loan-days').value, 10);
+        const r = API.requestLoan(id, me.id, message, days);
         document.getElementById('loan-dialog').close();
-        UI.toast('Richiesta inviata correttamente al proprietario.', 'info');
-        setTimeout(() => location.reload(), 1500);
+        if (r.ok) {
+          UI.toast(`Richiesta inviata (per ${days} giorni). Il prestatore riceverà una notifica.`, 'success');
+          setTimeout(() => location.reload(), 1500);
+        } else {
+          UI.toast('Impossibile inviare la richiesta: ' + r.reason, 'error');
+        }
       });
+
+      // Wiring dello slider giorni: aggiorna la pill in tempo reale
+      const daysSlider = document.getElementById('loan-days');
+      const daysPill = document.getElementById('loan-days-pill');
+      if (daysSlider && daysPill) {
+        daysSlider.addEventListener('input', () => {
+          daysPill.textContent = `${daysSlider.value} giorni`;
+        });
+      }
 
       // Se si torna qui dopo l'iscrizione (register → ?loan=1), riapriamo
       // automaticamente il dialog di richiesta prestito per chiudere il

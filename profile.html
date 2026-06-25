@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Profilo — Libreria Diffusa</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.9.0" />
+  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
 </head>
 <body>
 
@@ -17,14 +17,12 @@
         <span>Libreria&nbsp;Diffusa</span>
       </a>
       <button class="nav-toggle" aria-label="Apri menu" aria-expanded="false">☰</button>
-      <nav class="site-nav" role="navigation">
-        <a href="index.html">Home</a>
-        <a href="explore.html">Esplora</a>
-        <a href="add-book.html">Pubblica</a>
-        <a href="profile.html">Profilo</a>
-        <a href="profile-setup.html">Personalizza</a>
-        <a href="stats.html">Statistiche</a>
-        <a href="admin.html">Admin</a>
+            <nav class="site-nav" id="main-nav" role="navigation" aria-label="Navigazione principale">
+        <a href="explore.html" class="nav-icon" aria-label="Esplora la mappa" title="Esplora la mappa"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 L9 4 L15 6.5 L21 4 V17.5 L15 20 L9 17.5 L3 20 Z"/><path d="M9 4 V17.5 M15 6.5 V20"/><circle cx="17" cy="14" r="2.4"/><path d="M18.8 15.8 L21 18"/></svg></a>
+        <a href="stats.html" class="nav-icon" aria-label="Statistiche" title="Statistiche"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 V10"/><path d="M10 20 V4"/><path d="M16 20 V13"/><path d="M22 20 V7"/><path d="M3 20 H23"/></svg></a>
+        <a href="loans.html" class="auth-only nav-icon" aria-label="Prestiti e chat" title="Prestiti e chat"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5 H17 A2 2 0 0 1 19 7 V13 A2 2 0 0 1 17 15 H10 L6 19 V15 H5 A2 2 0 0 1 3 13 Z"/><path d="M7 9 H15"/><path d="M7 12 H12"/></svg></a>
+        <a href="add-book.html" class="auth-only nav-publish nav-icon" aria-label="Pubblica un volume" title="Pubblica un volume"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4 H14 L19 9 V20 A1 1 0 0 1 18 21 H5 A1 1 0 0 1 4 20 V5 A1 1 0 0 1 5 4 Z"/><path d="M14 4 V9 H19"/><path d="M11.5 12 V17.5 M8.75 14.75 H14.25"/></svg></a>
+        <a href="register.html" class="nav-auth-cta guest-only">Registrati / Accedi</a>
       </nav>
     </div>
   </header>
@@ -36,11 +34,19 @@
       <div class="profile-header" id="profile-header"></div>
 
       <!-- Tab navigation -->
-      <div role="tablist" aria-label="Sezioni profilo" style="display: flex; gap: 0; border-bottom: 1px solid var(--color-line); margin-bottom: 2rem;">
+      <!-- v1.9: il banner "Vuoi condividere i tuoi libri?" è stato rimosso
+           e sostituito da una CTA dedicata nell'empty-state della tab libri,
+           che apre un wizard inline per l'apertura ufficiale della libreria. -->
+
+      <div role="tablist" aria-label="Sezioni profilo" style="display: flex; gap: 0; border-bottom: 1px solid var(--color-line); margin-bottom: 2rem; flex-wrap: wrap;">
         <button role="tab" aria-selected="true" aria-controls="panel-books" id="tab-books"
                 class="tab-btn active" data-tab="books">La mia libreria</button>
+        <button role="tab" aria-selected="false" aria-controls="panel-posts" id="tab-posts"
+                class="tab-btn" data-tab="posts">Post</button>
         <button role="tab" aria-selected="false" aria-controls="panel-requests" id="tab-requests"
                 class="tab-btn" data-tab="requests">Richieste ricevute</button>
+        <button role="tab" aria-selected="false" aria-controls="panel-reviews" id="tab-reviews"
+                class="tab-btn" data-tab="reviews">Recensioni</button>
         <button role="tab" aria-selected="false" aria-controls="panel-settings" id="tab-settings"
                 class="tab-btn" data-tab="settings">Impostazioni</button>
       </div>
@@ -49,55 +55,79 @@
       <div role="tabpanel" id="panel-books" aria-labelledby="tab-books">
         <div class="section-header" style="border-bottom: 1px solid var(--color-line); padding-bottom: 1rem; margin-bottom: 1.5rem;">
           <div>
-            <h2 style="font-size: 1.5rem;">La mia libreria</h2>
-            <span id="books-count" style="color: var(--color-ink-soft); font-size: .85rem;">—</span>
+            <h2 style="font-size: 1.5rem; display: inline-flex; align-items: center; gap: 12px;">
+              La mia libreria
+              <!-- v2.1: pill di stato visibilità, popolata da JS -->
+              <span id="library-visibility-pill" hidden></span>
+            </h2>
+            <span id="books-count" style="color: var(--color-ink-soft); font-size: .85rem; display: block; margin-top: 4px;">—</span>
           </div>
-          <a href="add-book.html" class="btn btn--primary btn--small">+ Aggiungi volume</a>
+          <div id="library-header-actions" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <!-- Unica via per raggiungere profile-setup dopo aver rimosso "Personalizza" dalla nav. -->
+            <a href="profile-setup.html" class="btn btn--ghost btn--small">⚙ Personalizza profilo</a>
+            <a href="add-book.html" class="btn btn--primary btn--small">+ Aggiungi volume</a>
+          </div>
         </div>
+        <!-- v2.1: banner enfasi sopra all'area libri, popolato da JS solo
+             quando la libreria non è ancora visibile pubblicamente. -->
+        <div id="library-visibility-banner" hidden></div>
         <div class="books-grid" id="my-books"></div>
       </div>
 
-      <!-- Pannello: richieste -->
+      <!-- v2.4: Pannello Post — cronologia dei propri post + composer -->
+      <div role="tabpanel" id="panel-posts" aria-labelledby="tab-posts" hidden>
+        <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">I tuoi post</h2>
+        <p style="color: var(--color-ink-soft); margin-bottom: 1.5rem;">
+          Condividi aggiornamenti con la comunità: novità della tua libreria,
+          consigli di lettura, eventi. I tuoi follower riceveranno una notifica
+          a ogni nuovo post.
+        </p>
+        <div id="post-composer"></div>
+        <div id="my-posts-list" style="margin-top: 1.5rem;" aria-live="polite"></div>
+      </div>
+
+      <!-- Pannello: richieste ricevute (dinamico v1.5) -->
       <div role="tabpanel" id="panel-requests" aria-labelledby="tab-requests" hidden>
-        <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem;">Richieste di prestito ricevute</h2>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Volume</th>
-              <th>Richiedente</th>
-              <th>Data</th>
-              <th>Stato</th>
-              <th>Azioni</th>
-            </tr>
-          </thead>
-          <tbody id="requests-body">
-            <!-- esempi statici di richieste ricevute -->
-            <tr>
-              <td><em>Se questo è un uomo</em></td>
-              <td>Marco De Vito</td>
-              <td>18 apr 2026</td>
-              <td><span class="badge badge--pending">In attesa</span></td>
-              <td style="display: flex; gap: .5rem;">
-                <button class="btn btn--small">Accetta</button>
-                <button class="btn btn--small btn--ghost">Rifiuta</button>
-              </td>
-            </tr>
-            <tr>
-              <td><em>Le città invisibili</em></td>
-              <td>Giulia Ferrari</td>
-              <td>15 apr 2026</td>
-              <td><span class="badge badge--active">Accettata</span></td>
-              <td><button class="btn btn--small btn--ghost">Segna restituito</button></td>
-            </tr>
-            <tr>
-              <td><em>Il sistema periodico</em></td>
-              <td>Anna Russo</td>
-              <td>12 apr 2026</td>
-              <td><span class="badge badge--removed">Conclusa</span></td>
-              <td>—</td>
-            </tr>
-          </tbody>
-        </table>
+        <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Richieste di prestito ricevute</h2>
+        <p style="color: var(--color-ink-soft); margin-bottom: 2rem;">
+          Le richieste di prestito che gli altri membri della comunità hanno inviato
+          per i tuoi volumi. Conferma le richieste in attesa e chiudi i prestiti
+          quando ti viene restituito un volume.
+        </p>
+        <div id="lender-loans-list" aria-live="polite"></div>
+      </div>
+
+      <!-- Pannello: recensioni (v1.4 + v1.6 sub-tabs) -->
+      <div role="tabpanel" id="panel-reviews" aria-labelledby="tab-reviews" hidden>
+        <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Le tue recensioni</h2>
+
+        <!-- Sub-tabs v1.6: Ricevute / Scritte -->
+        <div class="sub-tabs" role="tablist" aria-label="Tipo recensioni">
+          <button role="tab" aria-selected="true" id="sub-tab-received"
+                  class="sub-tab is-active" data-sub-tab="received">
+            Ricevute <span id="received-count" class="sub-tab__count">—</span>
+          </button>
+          <button role="tab" aria-selected="false" id="sub-tab-written"
+                  class="sub-tab" data-sub-tab="written">
+            Scritte <span id="written-count" class="sub-tab__count">—</span>
+          </button>
+        </div>
+
+        <div id="sub-panel-received" role="tabpanel">
+          <p style="color: var(--color-ink-soft); margin: 1rem 0 1.5rem;">
+            Quello che gli altri lettori della comunità hanno scritto della tua libreria.
+          </p>
+          <div id="my-reviews-summary"></div>
+          <div id="my-reviews-list" class="reviews-list" style="margin-top: 2rem;"></div>
+        </div>
+
+        <div id="sub-panel-written" role="tabpanel" hidden>
+          <p style="color: var(--color-ink-soft); margin: 1rem 0 1.5rem;">
+            Le recensioni che hai scritto agli altri membri della comunità.
+            Cliccando su una libreria puoi modificarla o cancellarla.
+          </p>
+          <div id="my-written-reviews-list" class="reviews-list"></div>
+        </div>
       </div>
 
       <!-- Pannello: impostazioni -->
@@ -155,6 +185,18 @@
             <button type="button" class="btn btn--ghost btn--small" style="color: var(--color-burgundy); border-color: var(--color-burgundy);">Elimina account</button>
           </div>
 
+          <!-- v1.7: GDPR data export -->
+          <div class="gdpr-export">
+            <h3>Esporta i tuoi dati</h3>
+            <p>In conformità al GDPR (art. 20 — diritto di portabilità), puoi
+            scaricare in qualsiasi momento un archivio JSON con tutto quanto la
+            piattaforma sa di te: profilo, preferenze, libri pubblicati, prestiti,
+            messaggi della chat, recensioni ricevute e scritte, notifiche.</p>
+            <button type="button" id="gdpr-export-btn" class="btn btn--ghost">
+              <span aria-hidden="true">↓</span> Scarica i miei dati (JSON)
+            </button>
+          </div>
+
           <div style="margin-top: 2rem;">
             <button type="submit" class="btn btn--primary">Salva impostazioni</button>
           </div>
@@ -170,11 +212,11 @@
       <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
       <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
       <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v0.9.0</span></div>
+      <div class="site-footer__colophon"><span>© 2026 Libreria Diffusa</span><span>v3.0.0-alpha.0</span></div>
     </div>
   </footer>
 
-  <script src="js/app.js?v=0.9.0"></script>
+  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
 
     // CSS inline per il tab-btn (potrebbe andare nello stylesheet)
@@ -212,24 +254,354 @@
 
       // Render header profilo
       const initials = user.display_name.split(' ').map(w => w[0]).join('').slice(0, 2);
+      const reviewSummary = API.getReviewSummary(user.id);
+      const completedLoans = API.getCompletedLoansCount(user.id);
+      // v2.5: avatar cliccabile con menu per cambiare/rimuovere foto
+      const avatarInner = user.avatar_data_url
+        ? `<img class="profile-avatar__img" src="${user.avatar_data_url}" alt="">`
+        : `<span class="profile-avatar__initials">${initials}</span>`;
       document.getElementById('profile-header').innerHTML = `
-        <div class="profile-avatar" aria-hidden="true">${initials}</div>
+        <div class="profile-avatar profile-avatar--editable" id="profile-avatar"
+             role="button" tabindex="0" aria-haspopup="menu"
+             aria-label="Modifica foto profilo">
+          ${avatarInner}
+          <span class="profile-avatar__edit-overlay" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5 L19 5 L19 12"/><path d="M19 5 L4 20"/><path d="M4 13 V20 H11"/>
+            </svg>
+          </span>
+        </div>
         <div>
           <h1 class="profile-name">${user.display_name}</h1>
+          <div class="profile-stars">
+            ${UI.renderStars(reviewSummary.average, {
+              count: reviewSummary.count,
+              asLink: '#panel-reviews',
+              size: 'md'
+            })}
+            ${completedLoans > 0
+              ? `<span class="loan-experience">
+                   <span class="loan-experience__icon" aria-hidden="true">↺</span>
+                   <strong>${completedLoans}</strong>
+                   ${completedLoans === 1 ? 'prestito completato' : 'prestiti completati'}
+                 </span>`
+              : ''}
+          </div>
           <p class="profile-meta">@${user.username} · ${user.city}</p>
           <p style="color: var(--color-ink-soft); margin-top: 1rem; max-width: 60ch;">
-            ${user.bio}
+            ${user.bio || ''}
           </p>
           <p style="color: var(--color-ink-soft); font-size: .8rem; margin-top: .75rem; font-family: var(--font-mono); letter-spacing: .1em; text-transform: uppercase;">
             Iscritto dal ${new Date(user.joined).toLocaleDateString('it-IT')}
           </p>
         </div>`;
 
+      // v2.5: wiring del menu avatar (cambio foto profilo)
+      UI.wireAvatarMenu(document.getElementById('profile-avatar'), () => {
+        // Callback dopo update: ricarica per rinfrescare avatar e nav
+        location.reload();
+      });
+
       // Render libri dell'utente
       const books = API.getBooksByOwner(user.id);
       document.getElementById('books-count').textContent =
         `${books.length} volum${books.length === 1 ? 'e' : 'i'} pubblicat${books.length === 1 ? 'o' : 'i'}`;
-      UI.renderBooksGrid(document.getElementById('my-books'), books);
+
+      // v2.1: stato di visibilità della libreria + enfasi per Lettori
+      // ────────────────────────────────────────────────────────────────
+      // Tre scenari distinti:
+      //   (a) library_role==='borrower'  → libreria NON aperta, invisibile.
+      //       Pill rossa "non ancora visibile", banner forte, bottoni
+      //       "+ Aggiungi" e "Personalizza" NASCOSTI.
+      //   (b) curator con 0 libri        → libreria aperta ma senza
+      //       contenuti. Pill ambra "vuota — non ancora visibile",
+      //       banner soft, bottoni VISIBILI (servono per aggiungere).
+      //   (c) curator con ≥1 libro       → libreria visibile, nessun
+      //       indicatore visivo aggiuntivo.
+      const pill = document.getElementById('library-visibility-pill');
+      const banner = document.getElementById('library-visibility-banner');
+      const headerActions = document.getElementById('library-header-actions');
+      const isBorrowerRole = user.library_role === 'borrower';
+
+      if (isBorrowerRole) {
+        // (a) Lettore puro: libreria non aperta
+        pill.hidden = false;
+        pill.className = 'visibility-pill visibility-pill--locked';
+        pill.innerHTML = '<span aria-hidden="true">🔒</span> non ancora visibile';
+        banner.hidden = false;
+        banner.className = 'visibility-banner visibility-banner--strong';
+        banner.innerHTML = `
+          <span class="visibility-banner__icon" aria-hidden="true">ⓘ</span>
+          <div>
+            <strong>La tua libreria non è ancora visibile agli altri.</strong>
+            Sei iscritto come <em>lettore</em>: per apparire negli elenchi della
+            comunità e ricevere richieste di prestito, apri ufficialmente la tua
+            libreria (bio, città, motto, tema) e pubblica almeno un volume.
+          </div>`;
+        headerActions.hidden = true;
+      } else if (books.length === 0) {
+        // (b) Curatore senza libri: tecnicamente aperta ma "vuota"
+        pill.hidden = false;
+        pill.className = 'visibility-pill visibility-pill--empty';
+        pill.innerHTML = '<span aria-hidden="true">◐</span> in attesa del primo volume';
+        banner.hidden = false;
+        banner.className = 'visibility-banner visibility-banner--soft';
+        banner.innerHTML = `
+          <span class="visibility-banner__icon" aria-hidden="true">ⓘ</span>
+          <div>
+            La tua libreria è configurata ma <strong>non ancora elencabile dagli altri
+            membri</strong>: pubblica almeno un volume per apparire nelle ricerche
+            e nelle pagine pubbliche della comunità.
+          </div>`;
+        headerActions.hidden = false;
+      } else {
+        // (c) Curatore con almeno un libro: tutto pubblico
+        pill.hidden = true;
+        banner.hidden = true;
+        headerActions.hidden = false;
+      }
+      // ────────────────────────────────────────────────────────────────
+
+      // v1.9: il banner "Apri la tua libreria" sopra le tab è stato
+      // rimosso. La CTA è ora integrata nell'empty-state della tab libri
+      // e apre il wizard di apertura libreria inline.
+
+      // v1.3: empty-state pieno e accogliente quando l'utente non ha
+      // ancora pubblicato nulla. Il bottone "+ Aggiungi volume" è già
+      // nella toolbar sopra, ma qui replichiamo un CTA enorme che fa
+      // chiaramente capire "questa è la cosa da fare adesso".
+      const myBooks = document.getElementById('my-books');
+      const isBorrower = user.library_role === 'borrower';
+
+      if (books.length === 0) {
+        myBooks.classList.remove('books-grid');
+        if (isBorrower) {
+          // v1.9: Lettore senza libreria aperta — CTA per il wizard
+          // inline che la apre ufficialmente. Niente link a pagina
+          // esterna: il wizard si materializza qui sotto.
+          myBooks.innerHTML = `
+            <div class="empty-state empty-state--first-book" id="open-library-empty">
+              <div class="empty-state__art" aria-hidden="true">
+                <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="10" y="20" width="44" height="40" rx="2" fill="none" stroke="currentColor" stroke-width="2.4"/>
+                  <path d="M14 28 h 36 M14 36 h 30 M14 44 h 32 M14 52 h 28" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  <circle cx="58" cy="50" r="11" fill="var(--color-paper)" stroke="currentColor" stroke-width="2.4"/>
+                  <path d="M58 45 v 10 M 53 50 h 10" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <h3>Vuoi diventare anche tu un curatore?</h3>
+              <p>Sei iscritto come <strong>lettore</strong>: puoi continuare a prendere
+              in prestito quando vuoi. Quando ti va, apri ufficialmente la tua libreria —
+              gli altri membri della comunità potranno richiederti in prestito i tuoi volumi.</p>
+              <button type="button" class="btn btn--primary btn--lg btn--pulse" id="open-library-btn">
+                <span class="btn__icon" aria-hidden="true">📚</span> Apri ufficialmente la tua libreria
+              </button>
+              <p class="empty-state__hint">Bastano due minuti: ti chiediamo bio, città, motto e tema cromatico.</p>
+            </div>`;
+          // Wiring del wizard inline (definito più sotto)
+          document.getElementById('open-library-btn').addEventListener('click', () => {
+            startOpenLibraryWizard(myBooks, user);
+          });
+        } else {
+          // Curatore con 0 libri — empty-state classico (link diretto a add-book)
+          myBooks.innerHTML = `
+            <div class="empty-state empty-state--first-book">
+              <div class="empty-state__art" aria-hidden="true">
+                <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="14" y="48" width="44" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2.4"/>
+                  <rect x="18" y="34" width="40" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2.4"/>
+                  <rect x="22" y="20" width="36" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2.4"/>
+                  <circle cx="62" cy="20" r="9" fill="currentColor" opacity="0.15"/>
+                  <path d="M62 16 v 8 M 58 20 h 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <h3>La tua libreria è pronta — manca solo il primo volume.</h3>
+              <p>Pubblica il libro che vorresti far conoscere ai lettori del quartiere: bastano titolo, autore e categoria. Potrai aggiungerne altri quando vuoi.</p>
+              <a href="add-book.html" class="btn btn--primary btn--lg btn--pulse">
+                <span class="btn__icon" aria-hidden="true">+</span> Aggiungi il primo volume
+              </a>
+              <p class="empty-state__hint">Suggerimento: dalle <a href="profile-setup.html">impostazioni del profilo</a> puoi anche scegliere un tema cromatico e una grafica di copertina.</p>
+            </div>`;
+        }
+      } else {
+        myBooks.classList.add('books-grid');
+        UI.renderBooksGrid(myBooks, books);
+      }
+
+      /* v1.9: wizard inline per aprire ufficialmente la libreria.
+         Sostituisce in-place l'empty-state con un wizard a 3 step
+         (Identità → Estetica → Conferma) usando le stesse classi
+         visuali della registrazione. Al termine: aggiorna
+         user.library_role a 'curator', salva profile_prefs, e re-render
+         dell'empty-state classico (con CTA "Aggiungi il primo volume"). */
+      function startOpenLibraryWizard(container, user) {
+        container.classList.add('is-transitioning');
+        setTimeout(() => {
+          container.innerHTML = `
+            <div class="library-wizard">
+              <div class="library-wizard__progress" role="tablist">
+                <span class="library-wizard__step is-active" data-step="1">1. Identità</span>
+                <span class="library-wizard__step" data-step="2">2. Estetica</span>
+                <span class="library-wizard__step" data-step="3">3. Conferma</span>
+              </div>
+
+              <form class="library-wizard__form" novalidate>
+                <!-- Step 1: Identità -->
+                <div class="library-wizard__panel is-active" data-panel="1">
+                  <h3>Racconta la tua libreria</h3>
+                  <div class="form__group">
+                    <label class="form__label" for="lw-bio">Biografia *</label>
+                    <textarea id="lw-bio" name="bio" rows="3" class="form__input"
+                              placeholder="I tuoi interessi di lettura, i generi che ami…"
+                              minlength="20" maxlength="500" required></textarea>
+                    <small class="form__help">Tra 20 e 500 caratteri.</small>
+                  </div>
+                  <div class="form__row">
+                    <div class="form__group">
+                      <label class="form__label" for="lw-city">Città o quartiere *</label>
+                      <input id="lw-city" name="city" type="text" class="form__input"
+                             placeholder="Napoli, Vomero" required value="${user.city || ''}" />
+                    </div>
+                    <div class="form__group">
+                      <label class="form__label" for="lw-motto">Motto (facoltativo)</label>
+                      <input id="lw-motto" name="motto" type="text" class="form__input"
+                             placeholder="Un libro è un sogno che tieni in mano" maxlength="120" />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Step 2: Estetica -->
+                <div class="library-wizard__panel" data-panel="2">
+                  <h3>Scegli un tema cromatico</h3>
+                  <p style="color: var(--color-ink-soft); margin-bottom: 1rem;">
+                    Determina la copertina generata della tua libreria. Modificabile in seguito.
+                  </p>
+                  <div class="theme-swatches" role="radiogroup" aria-label="Tema cromatico">
+                    <label class="theme-swatch" style="background: linear-gradient(135deg, #7a1e2b, #b08840);">
+                      <input type="radio" name="theme" value="classic" checked />
+                      <span class="theme-swatch__name">Classico</span>
+                      <span class="theme-swatch__desc">bordeaux e oro</span>
+                    </label>
+                    <label class="theme-swatch" style="background: linear-gradient(135deg, #5a141f, #3d342e);">
+                      <input type="radio" name="theme" value="bordeaux" />
+                      <span class="theme-swatch__name">Bordeaux</span>
+                      <span class="theme-swatch__desc">rosso profondo</span>
+                    </label>
+                    <label class="theme-swatch" style="background: linear-gradient(135deg, #6e7a5a, #b08840);">
+                      <input type="radio" name="theme" value="sage" />
+                      <span class="theme-swatch__name">Salvia</span>
+                      <span class="theme-swatch__desc">verde e oro</span>
+                    </label>
+                    <label class="theme-swatch" style="background: linear-gradient(135deg, #1a1512, #6e7a5a);">
+                      <input type="radio" name="theme" value="midnight" />
+                      <span class="theme-swatch__name">Notturno</span>
+                      <span class="theme-swatch__desc">scuro</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Step 3: Conferma -->
+                <div class="library-wizard__panel" data-panel="3">
+                  <h3>Tutto pronto</h3>
+                  <p style="color: var(--color-ink-soft);">
+                    Con un click la tua libreria sarà ufficialmente aperta. Diventerai un
+                    <strong>curatore</strong> a tutti gli effetti: gli altri membri della
+                    comunità potranno richiederti in prestito i volumi che pubblicherai.
+                  </p>
+                  <div class="library-wizard__summary" id="lw-summary"></div>
+                </div>
+
+                <div class="library-wizard__nav">
+                  <button type="button" class="btn btn--ghost" id="lw-back" hidden>← Indietro</button>
+                  <div style="flex:1"></div>
+                  <button type="button" class="btn btn--primary" id="lw-next">Continua →</button>
+                  <button type="submit" class="btn btn--primary" id="lw-finish" hidden>
+                    <span class="btn__icon" aria-hidden="true">📚</span> Apri la libreria
+                  </button>
+                </div>
+              </form>
+            </div>`;
+          container.classList.remove('is-transitioning');
+          container.classList.add('is-wizard-active');
+          wireOpenLibraryWizard(container, user);
+        }, 280);
+      }
+
+      function wireOpenLibraryWizard(container, user) {
+        const form = container.querySelector('.library-wizard__form');
+        const panels = container.querySelectorAll('.library-wizard__panel');
+        const steps = container.querySelectorAll('.library-wizard__step');
+        const backBtn = container.querySelector('#lw-back');
+        const nextBtn = container.querySelector('#lw-next');
+        const finishBtn = container.querySelector('#lw-finish');
+        let current = 1;
+
+        function showStep(n) {
+          current = n;
+          panels.forEach(p => p.classList.toggle('is-active', +p.dataset.panel === n));
+          steps.forEach(s => {
+            s.classList.toggle('is-active', +s.dataset.step === n);
+            s.classList.toggle('is-done', +s.dataset.step < n);
+          });
+          backBtn.hidden = (n === 1);
+          nextBtn.hidden = (n === 3);
+          finishBtn.hidden = (n !== 3);
+
+          if (n === 3) {
+            const bio = form.bio.value.trim();
+            const city = form.city.value.trim();
+            const motto = form.motto.value.trim();
+            const theme = form.theme.value;
+            document.getElementById('lw-summary').innerHTML = `
+              <dl class="library-wizard__summary-list">
+                <dt>Biografia</dt><dd>${bio}</dd>
+                <dt>Città</dt><dd>${city}</dd>
+                <dt>Motto</dt><dd>${motto || '—'}</dd>
+                <dt>Tema</dt><dd style="text-transform: capitalize;">${theme}</dd>
+              </dl>`;
+          }
+        }
+
+        function validateStep(n) {
+          if (n === 1) {
+            const bio = form.bio.value.trim();
+            const city = form.city.value.trim();
+            if (bio.length < 20) { UI.toast('La biografia deve essere lunga almeno 20 caratteri.', 'error'); return false; }
+            if (!city) { UI.toast('Inserisci la tua città o quartiere.', 'error'); return false; }
+          }
+          return true;
+        }
+
+        nextBtn.addEventListener('click', () => {
+          if (!validateStep(current)) return;
+          showStep(current + 1);
+        });
+        backBtn.addEventListener('click', () => showStep(current - 1));
+
+        form.addEventListener('submit', e => {
+          e.preventDefault();
+          if (!validateStep(1)) { showStep(1); return; }
+          // Salva: aggiorna user.library_role + bio + city + motto + theme
+          const users = Storage.get('users');
+          const u = users.find(x => x.id === user.id);
+          if (u) {
+            u.library_role = 'curator';
+            u.bio = form.bio.value.trim();
+            u.city = form.city.value.trim();
+            Storage.set('users', users);
+          }
+          // Salva preferences
+          Storage.set(`profile_prefs_${user.id}`, {
+            motto: form.motto.value.trim(),
+            theme: form.theme.value,
+            avatar_style: 'initials'
+          });
+          UI.toast('Libreria aperta! Ora sei un curatore — puoi pubblicare il primo volume.', 'success');
+          // Re-render dopo un attimo per mostrare l'empty-state classico
+          setTimeout(() => location.reload(), 1500);
+        });
+      }
 
       // Gestione tab (accessibile da tastiera)
       document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -245,8 +617,285 @@
           btn.classList.add('active');
           btn.setAttribute('aria-selected', 'true');
           document.getElementById(`panel-${btn.dataset.tab}`).hidden = false;
+
+          // v1.4: popola la tab Recensioni quando viene aperta
+          if (btn.dataset.tab === 'reviews') renderReviewsTab(user.id);
+          // v1.5: popola la tab Richieste ricevute quando viene aperta
+          if (btn.dataset.tab === 'requests') renderLenderLoansTab(user.id);
+          // v2.4: popola la tab Post quando viene aperta
+          if (btn.dataset.tab === 'posts') renderPostsTab(user.id);
         });
       });
+
+      /* v2.4: rendering della tab Post — composer in cima per chi può
+         pubblicare (cioè ha almeno un volume), cronologia sotto. */
+      function renderPostsTab(userId) {
+        const composer = document.getElementById('post-composer');
+        const list = document.getElementById('my-posts-list');
+        function paint() {
+          UI.renderPostComposer(composer, { onPublished: paint });
+          const myPosts = API.getPostsByAuthor(userId);
+          UI.renderPostsFeed(list, myPosts, {
+            showAuthor: false,
+            emptyMessage: API.canPublishPosts(userId)
+              ? 'Non hai ancora pubblicato nessun aggiornamento. Scrivi il tuo primo post qui sopra.'
+              : 'Pubblica almeno un volume per iniziare a scrivere aggiornamenti.',
+            onChange: paint
+          });
+        }
+        paint();
+      }
+
+      /* Render dinamico delle richieste ricevute (v1.5).
+         Mostra ogni prestito come una piccola card con timeline compatta
+         e i pulsanti azione adatti allo stato corrente:
+         - requested → "Conferma" / "Rifiuta"
+         - confirmed → in attesa che il richiedente confermi il ritiro
+         - borrowed  → in possesso del richiedente, niente azioni
+         - returning → "Conferma ricezione"
+         - returned  → chiuso */
+      function renderLenderLoansTab(userId) {
+        const container = document.getElementById('lender-loans-list');
+        function paint() {
+          const loans = API.getLoansByLender(userId);
+          if (loans.length === 0) {
+            container.innerHTML = `<p class="alert alert--info">
+              Nessuna richiesta di prestito ricevuta. Pubblica più volumi per
+              aumentare le possibilità di essere contattato dalla comunità.
+            </p>`;
+            return;
+          }
+          container.innerHTML = loans.map(loan => {
+            const book = API.getBooks().find(b => b.id === loan.book_id) || {};
+            const requester = API.getUser(loan.requester_id) || {};
+            const reqPrefs = API.getProfilePrefs(loan.requester_id) || {};
+            const themeClass = `cover--${reqPrefs.theme || 'classic'}`;
+            const symbol = reqPrefs.avatar_style === 'symbol' && reqPrefs.avatar_symbol
+              ? reqPrefs.avatar_symbol
+              : (requester.display_name || '?').trim()[0].toUpperCase();
+            let actions = '';
+            if (loan.status === LOAN_STATUS.REQUESTED) {
+              actions = `<button type="button" class="btn btn--primary btn--small"
+                                 data-loan-action="confirm" data-loan-id="${loan.id}">
+                          ✓ Conferma richiesta
+                        </button>
+                        <button type="button" class="btn btn--ghost btn--small"
+                                 data-loan-action="reject" data-loan-id="${loan.id}">
+                          ✕ Rifiuta
+                        </button>`;
+            } else if (loan.status === LOAN_STATUS.RETURNING) {
+              actions = `<button type="button" class="btn btn--primary btn--small"
+                                 data-loan-action="confirm-return" data-loan-id="${loan.id}">
+                          ✓ Conferma ricezione del volume
+                        </button>`;
+            }
+            return `
+              <article class="loan-card loan-card--lender">
+                <div class="loan-card__head">
+                  <div class="loan-card__book">
+                    <div class="loan-card__cover book-card__cover book-card__cover--placeholder"
+                         style="background: ${book.cover_gradient || 'var(--color-paper-dark)'};">
+                      <span class="book-card__cover-title">${book.title || ''}</span>
+                    </div>
+                    <div class="loan-card__book-info">
+                      <h3 class="loan-card__title">
+                        <a href="book-detail.html?id=${book.id}">${book.title || 'Libro non trovato'}</a>
+                      </h3>
+                      <p class="loan-card__author">${book.author || ''}, ${book.year || ''}</p>
+                      <p class="loan-card__lender">
+                        Richiesto da
+                        <a href="library.html?id=${requester.id}" class="loan-card__lender-link">
+                          <span class="loan-card__lender-avatar ${themeClass}" aria-hidden="true">${symbol}</span>
+                          <strong>${requester.display_name || ''}</strong>
+                        </a>
+                      </p>
+                    </div>
+                  </div>
+                  <div class="loan-card__actions">${actions}</div>
+                </div>
+                ${UI.renderLoanTimeline(loan, { compact: true })}
+                <div class="loan-chat-mount" data-loan-id="${loan.id}"></div>
+              </article>`;
+          }).join('');
+
+          // v1.7: monta la chat sotto ogni card lato prestatore
+          container.querySelectorAll('.loan-chat-mount').forEach(mount => {
+            const lid = +mount.dataset.loanId;
+            const lo = loans.find(x => x.id === lid);
+            if (lo) UI.renderLoanChat(mount, lo);
+          });
+        }
+        // Wiring azioni (delega)
+        container.addEventListener('click', e => {
+          const btn = e.target.closest('[data-loan-action]');
+          if (!btn) return;
+          const loanId = +btn.dataset.loanId;
+          const action = btn.dataset.loanAction;
+          if (action === 'confirm') {
+            const r = API.confirmLoan(loanId);
+            if (r.ok) { UI.toast('Richiesta confermata.', 'success'); paint(); }
+            else UI.toast('Errore: ' + r.reason, 'error');
+          }
+          if (action === 'reject') {
+            openRejectModal(loanId, paint);
+          }
+          if (action === 'confirm-return') {
+            const r = API.confirmReturn(loanId);
+            if (r.ok) { UI.toast('Restituzione confermata. Prestito chiuso.', 'success'); paint(); }
+            else UI.toast('Errore: ' + r.reason, 'error');
+          }
+        });
+        paint();
+      }
+
+      /* v1.6: modale "Rifiuta richiesta" — richiede una motivazione
+         testuale (min 10 caratteri), così il richiedente capisce il
+         perché. Costruisce il modale al volo, non richiede HTML extra. */
+      function openRejectModal(loanId, onDone) {
+        const loan = API.getLoan(loanId);
+        const book = API.getBooks().find(b => b.id === loan.book_id) || {};
+        const requester = API.getUser(loan.requester_id) || {};
+
+        // Costruzione modale
+        const modal = document.createElement('div');
+        modal.className = 'return-wizard';   // riusa il modale del wizard
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.innerHTML = `
+          <div class="return-wizard__backdrop" data-close></div>
+          <div class="return-wizard__panel">
+            <button type="button" class="return-wizard__close" aria-label="Chiudi" data-close>×</button>
+            <h2>Rifiuta la richiesta</h2>
+            <p style="color: var(--color-ink-soft); margin-bottom: 1.2rem;">
+              Stai per rifiutare la richiesta di
+              <strong>${requester.display_name}</strong> per il volume
+              <em>${book.title}</em>. Aggiungi una breve motivazione: il
+              richiedente la riceverà nella sua pagina prestiti.
+            </p>
+            <div class="form__group">
+              <label class="form__label" for="reject-reason">Motivazione</label>
+              <textarea id="reject-reason" class="form__input" rows="3"
+                placeholder="Esempio: «Il volume è già impegnato per un altro prestito imminente — riprova fra due settimane.»"
+                minlength="10" required></textarea>
+              <small class="form__help">Minimo 10 caratteri. Sii cortese e chiaro.</small>
+            </div>
+            <div class="return-wizard__actions">
+              <button type="button" class="btn btn--ghost" data-close>Annulla</button>
+              <button type="button" class="btn btn--primary" id="reject-confirm">
+                Rifiuta richiesta
+              </button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+
+        function close() { modal.remove(); }
+        modal.addEventListener('click', e => {
+          if (e.target.matches('[data-close]')) close();
+        });
+        document.addEventListener('keydown', function esc(e) {
+          if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); }
+        });
+        modal.querySelector('#reject-confirm').addEventListener('click', () => {
+          const reason = modal.querySelector('#reject-reason').value;
+          const r = API.rejectLoan(loanId, reason);
+          if (!r.ok) {
+            UI.toast(r.reason === 'reason-short'
+              ? 'La motivazione deve essere lunga almeno 10 caratteri.'
+              : 'Errore: ' + r.reason, 'error');
+            return;
+          }
+          UI.toast('Richiesta rifiutata. Il richiedente è stato notificato.', 'info');
+          close();
+          if (typeof onDone === 'function') onDone();
+        });
+        setTimeout(() => modal.querySelector('#reject-reason').focus(), 50);
+      }
+
+      /* Rende la tab "Recensioni" — v1.6: due sub-tabs "Ricevute" e
+         "Scritte" che condividono lo stesso pannello principale. */
+      function renderReviewsTab(userId) {
+        // === Recensioni RICEVUTE ===
+        const s = API.getReviewSummary(userId);
+        document.getElementById('received-count').textContent = s.count;
+        document.getElementById('my-reviews-summary').innerHTML = s.count === 0
+          ? `<p class="alert alert--info" style="margin: 0;">
+              Ancora nessuna recensione. Quando un altro lettore avrà concluso
+              un prestito con te, potrà valutare la tua libreria — il voto
+              comparirà qui.
+             </p>`
+          : `<div class="reviews-summary">
+              <div class="reviews-summary__big">
+                <div class="reviews-summary__avg">${s.average.toFixed(1)}</div>
+                <div class="reviews-summary__stars">
+                  ${UI.renderStars(s.average, { size: 'lg', showAverage: false })}
+                </div>
+                <div class="reviews-summary__count">
+                  ${s.count === 1 ? '1 recensione' : `${s.count} recensioni`}
+                </div>
+              </div>
+              <div class="reviews-summary__breakdown" aria-label="Distribuzione delle valutazioni">
+                ${[5,4,3,2,1].map(n => {
+                  const pct = (s.distribution[n] / s.count) * 100;
+                  return `<div class="reviews-summary__row">
+                    <span class="reviews-summary__row-num">${n} ★</span>
+                    <span class="reviews-summary__row-bar">
+                      <span class="reviews-summary__row-fill" style="width:${pct}%"></span>
+                    </span>
+                    <span class="reviews-summary__row-count">${s.distribution[n]}</span>
+                  </div>`;
+                }).join('')}
+              </div>
+             </div>`;
+        UI.renderReviewsList(document.getElementById('my-reviews-list'), userId);
+
+        // === Recensioni SCRITTE (v1.6) ===
+        const written = API.getReviewsByReviewer(userId);
+        document.getElementById('written-count').textContent = written.length;
+        UI.renderReviewsByReviewerList(
+          document.getElementById('my-written-reviews-list'), userId);
+      }
+
+      // v1.6: sub-tabs Ricevute / Scritte
+      document.querySelectorAll('.sub-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.sub-tab').forEach(b => {
+            b.classList.remove('is-active');
+            b.setAttribute('aria-selected', 'false');
+          });
+          btn.classList.add('is-active');
+          btn.setAttribute('aria-selected', 'true');
+          const t = btn.dataset.subTab;
+          document.getElementById('sub-panel-received').hidden = (t !== 'received');
+          document.getElementById('sub-panel-written').hidden  = (t !== 'written');
+        });
+      });
+
+      // Apri direttamente la tab Recensioni se l'anchor è #panel-reviews
+      // (così le stelle nell'header funzionano come scorciatoia)
+      if (location.hash === '#panel-reviews') {
+        document.getElementById('tab-reviews').click();
+      }
+
+      // v1.7: GDPR export — produce un file JSON e attiva il download
+      const exportBtn = document.getElementById('gdpr-export-btn');
+      if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+          const data = API.exportUserData(user.id);
+          if (!data) { UI.toast('Errore nell\'esportazione.', 'error'); return; }
+          const blob = new Blob([JSON.stringify(data, null, 2)],
+            { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const date = new Date().toISOString().slice(0, 10);
+          a.href = url;
+          a.download = `libreria-diffusa-export-${user.username}-${date}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          UI.toast('Esportazione completata. Il file è stato scaricato.', 'success');
+        });
+      }
     });
   </script>
 </body>
