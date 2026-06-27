@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crea la tua libreria — Lookup</title>
+  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <a href="#main" class="skip-link">Vai al contenuto principale</a>
+
+  <header class="site-header" role="banner">
+    <div class="site-header__inner">
+      <a href="index.html" class="site-logo">
+        <span class="site-logo__mark" aria-hidden="true"></span>
+        <span>Lookup</span>
+      </a>
+      <button class="nav-toggle" aria-label="Apri menu" aria-expanded="false">☰</button>
+      <nav class="site-nav" role="navigation">
+        <a href="explore.html" class="nav-icon" aria-label="Esplora la mappa" title="Esplora la mappa"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 L9 4 L15 6.5 L21 4 V17.5 L15 20 L9 17.5 L3 20 Z"/><path d="M9 4 V17.5 M15 6.5 V20"/><circle cx="17" cy="14" r="2.4"/><path d="M18.8 15.8 L21 18"/></svg></a>
+        <a href="stats.html" class="nav-icon" aria-label="Statistiche" title="Statistiche"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 V10"/><path d="M10 20 V4"/><path d="M16 20 V13"/><path d="M22 20 V7"/><path d="M3 20 H23"/></svg></a>
+        <a href="loans.html" class="auth-only nav-icon" aria-label="Prestiti e chat" title="Prestiti e chat"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5 H17 A2 2 0 0 1 19 7 V13 A2 2 0 0 1 17 15 H10 L6 19 V15 H5 A2 2 0 0 1 3 13 Z"/><path d="M7 9 H15"/><path d="M7 12 H12"/></svg></a>
+        <a href="add-book.html" class="auth-only nav-publish nav-icon" aria-label="Pubblica un volume" title="Pubblica un volume"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4 H14 L19 9 V20 A1 1 0 0 1 18 21 H5 A1 1 0 0 1 4 20 V5 A1 1 0 0 1 5 4 Z"/><path d="M14 4 V9 H19"/><path d="M11.5 12 V17.5 M8.75 14.75 H14.25"/></svg></a>
+        <a href="register.html" class="nav-auth-cta guest-only">Registrati / Accedi</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="section container container--narrow">
+
+      <!-- Switch in cima (v1.3): chi ha già un account lo trova subito,
+           senza dover scorrere a fine pagina dopo tutta la registrazione. -->
+      <p class="auth-switch auth-switch--top">
+        Hai già un account? <a href="login.html">Accedi</a>
+      </p>
+
+      <span class="eyebrow">unisciti alla rete diffusa</span>
+      <h1 style="font-size: 2.5rem; margin-bottom: .5rem;">
+        Crea la tua <em style="color: var(--color-burgundy);">libreria</em>
+      </h1>
+      <p style="color: var(--color-ink-soft); margin-bottom: 2rem;">
+        Una libreria è la raccolta di volumi di un membro della comunità: può essere
+        la collezione personale di un lettore oppure il fondo di un ente che mette i
+        propri libri a disposizione per il prestito. Tre passi e sei pronto.
+      </p>
+
+      <!-- Banner mostrato a chi arriva da una richiesta di prestito interrotta -->
+      <div class="intent-banner" id="intent-banner" role="status" hidden>
+        <span class="intent-banner__icon" aria-hidden="true">📖</span>
+        <div>
+          <strong>Un solo passo prima del prestito.</strong>
+          Da <em>lettore</em> puoi richiedere prestiti subito dopo l'iscrizione,
+          senza pubblicare alcun volume. Quando vorrai condividere i tuoi libri,
+          potrai aprire la tua libreria in qualsiasi momento dalla tua area
+          personale — diventando a tutti gli effetti un curatore.
+        </div>
+      </div>
+
+      <!-- Indicatore di avanzamento -->
+      <ol class="wizard-steps" aria-label="Avanzamento registrazione">
+        <li class="wizard-step is-active" data-step="1">
+          <div class="wizard-step__bar"></div>
+          <div class="wizard-step__label">
+            <span class="wizard-step__num"><span>1</span></span> Tipo e accesso
+          </div>
+        </li>
+        <li class="wizard-step" data-step="2">
+          <div class="wizard-step__bar"></div>
+          <div class="wizard-step__label">
+            <span class="wizard-step__num"><span>2</span></span> La tua libreria
+          </div>
+        </li>
+        <li class="wizard-step" data-step="3">
+          <div class="wizard-step__bar"></div>
+          <div class="wizard-step__label">
+            <span class="wizard-step__num"><span>3</span></span> Primi volumi
+          </div>
+        </li>
+      </ol>
+
+      <!-- Riepilogo errori (annunciato agli screen reader) -->
+      <div id="wizard-error" class="alert alert--error" role="alert" hidden></div>
+
+      <form id="wizard-form" novalidate>
+
+        <!-- ============ STEP 1 — Tipo account + credenziali ============ -->
+        <div class="wizard-panel is-active" data-panel="1">
+
+          <div class="wizard-panel-header">
+            <div class="wizard-panel-header__icon" aria-hidden="true">
+              <!-- Icona "scelta": due cerchi affiancati che evocano la dualità persona/ente -->
+              <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="28" cy="36" r="14" fill="none" stroke="currentColor" stroke-width="2.4"/>
+                <circle cx="52" cy="44" r="14" fill="none" stroke="currentColor" stroke-width="2.4" opacity="0.5"/>
+                <path d="M40 56 v 14 m -6 -6 l 6 6 l 6 -6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+              </svg>
+            </div>
+            <div class="wizard-panel-header__text">
+              <h2 data-account-type-label>Che tipo di libreria stai creando?</h2>
+              <p data-account-type-label>La scelta determina quali informazioni potrai pubblicare sul tuo profilo.</p>
+            </div>
+          </div>
+
+          <div class="account-type-choice account-type-choice--three account-type-grid" role="radiogroup" aria-label="Tipo di account">
+            <label class="account-type-card">
+              <input type="radio" name="account_type" value="person" checked />
+              <div class="account-type-card__icon" aria-hidden="true">☺</div>
+              <div class="account-type-card__title">Persona</div>
+              <div class="account-type-card__desc">
+                Un lettore che condivide la propria collezione privata con il vicinato.
+              </div>
+            </label>
+            <label class="account-type-card">
+              <input type="radio" name="account_type" value="borrower" />
+              <div class="account-type-card__icon" aria-hidden="true">⇄</div>
+              <div class="account-type-card__title">Lettore</div>
+              <div class="account-type-card__desc">
+                Voglio solo prendere in prestito. Potrò aprire la mia libreria
+                quando vorrò.
+              </div>
+            </label>
+            <label class="account-type-card">
+              <input type="radio" name="account_type" value="organization" />
+              <div class="account-type-card__icon" aria-hidden="true">⌂</div>
+              <div class="account-type-card__title">Ente</div>
+              <div class="account-type-card__desc">
+                Un'associazione, una biblioteca di quartiere, una libreria indipendente
+                o un centro culturale.
+              </div>
+            </label>
+          </div>
+
+          <h3 style="font-family: var(--font-display); font-size: 1.3rem; margin: 1.5rem 0 .5rem;">Credenziali di accesso</h3>
+
+          <div class="form">
+            <div class="form__row">
+              <div class="form__group">
+                <label class="form__label" for="display_name">
+                  <span data-label-person>Nome visualizzato *</span>
+                  <span data-label-org hidden>Nome della libreria *</span>
+                </label>
+                <input type="text" id="display_name" name="display_name" class="form__input"
+                       required minlength="2" maxlength="120" autocomplete="off" />
+              </div>
+              <div class="form__group">
+                <label class="form__label" for="username">Nome utente *</label>
+                <input type="text" id="username" name="username" class="form__input"
+                       required minlength="3" maxlength="40" pattern="^[a-z0-9._]+$"
+                       autocomplete="off" />
+                <span class="form__help">Solo minuscole, numeri, punto e underscore.</span>
+              </div>
+            </div>
+
+            <div class="form__row">
+              <div class="form__group">
+                <label class="form__label" for="email">Email *</label>
+                <input type="email" id="email" name="email" class="form__input"
+                       required autocomplete="off" />
+              </div>
+              <div class="form__group">
+                <label class="form__label" for="password">Password *</label>
+                <input type="password" id="password" name="password" class="form__input"
+                       required minlength="8" autocomplete="new-password" />
+                <span class="form__help">Almeno 8 caratteri.</span>
+              </div>
+            </div>
+
+            <!-- Campi specifici dell'ente: visibili solo se account_type = organization -->
+            <div class="org-fields" id="org-fields" aria-hidden="true">
+              <h3 style="font-family: var(--font-display); font-size: 1.3rem; margin: 1rem 0 .5rem;">
+                Dati dell'ente
+              </h3>
+              <div class="form__group">
+                <label class="form__label" for="legal_name">Denominazione ufficiale *</label>
+                <input type="text" id="legal_name" name="legal_name" class="form__input"
+                       maxlength="200" autocomplete="off" />
+                <span class="form__help">Ragione sociale completa (es. "Associazione … APS").</span>
+              </div>
+              <div class="form__row">
+                <div class="form__group">
+                  <label class="form__label" for="org_category">Categoria di ente *</label>
+                  <select id="org_category" name="org_category" class="form__select">
+                    <option value="biblioteca">Biblioteca</option>
+                    <option value="associazione">Associazione culturale</option>
+                    <option value="libreria_indipendente">Libreria indipendente</option>
+                    <option value="centro_culturale">Centro culturale</option>
+                    <option value="scuola">Scuola o istituto</option>
+                    <option value="altro">Altro ente</option>
+                  </select>
+                </div>
+                <div class="form__group">
+                  <label class="form__label" for="contact_person">Referente *</label>
+                  <input type="text" id="contact_person" name="contact_person" class="form__input"
+                         maxlength="120" autocomplete="off" />
+                  <span class="form__help">Nome della persona di riferimento.</span>
+                </div>
+              </div>
+              <div class="form__row">
+                <div class="form__group">
+                  <label class="form__label" for="website">Sito web</label>
+                  <input type="url" id="website" name="website" class="form__input"
+                         placeholder="https://…" autocomplete="off" />
+                </div>
+                <div class="form__group">
+                  <label class="form__label" for="public_phone">Telefono pubblico</label>
+                  <input type="tel" id="public_phone" name="public_phone" class="form__input"
+                         maxlength="30" autocomplete="off" />
+                </div>
+              </div>
+              <div class="form__group">
+                <label class="form__label" for="public_address">Indirizzo pubblico *</label>
+                <input type="text" id="public_address" name="public_address" class="form__input"
+                       maxlength="200" autocomplete="off" />
+                <span class="form__help">Dove si trova l'ente — sarà visibile sulla mappa.</span>
+              </div>
+              <div class="form__group">
+                <label class="form__label" for="opening_hours">Orari di apertura *</label>
+                <input type="text" id="opening_hours" name="opening_hours" class="form__input"
+                       maxlength="200" autocomplete="off"
+                       placeholder="Es. Lun–Ven 10:00–18:00 · Sab 10:00–13:00" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ STEP 2 — Profilo della libreria ============ -->
+        <div class="wizard-panel" data-panel="2">
+          <div class="wizard-panel-header">
+            <div class="wizard-panel-header__icon" aria-hidden="true">
+              <!-- Icona "narrazione": penna che scrive su una linea ondulata -->
+              <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 58 C 22 50, 30 66, 38 58 S 54 50, 62 58" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+                <path d="M48 18 L 60 30 L 30 60 L 18 60 L 18 48 Z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+                <line x1="44" y1="22" x2="56" y2="34" stroke="currentColor" stroke-width="2.4"/>
+              </svg>
+            </div>
+            <div class="wizard-panel-header__text">
+              <h2>Racconta la tua libreria</h2>
+              <p>Queste informazioni compaiono sulla pagina pubblica della libreria. Potrai arricchirle e cambiare l'aspetto in seguito dalla pagina «Personalizza».</p>
+            </div>
+          </div>
+
+          <div class="form">
+            <div class="form__group">
+              <label class="form__label" for="bio">
+                <span data-label-person>Biografia *</span>
+                <span data-label-org hidden>Descrizione dell'ente *</span>
+              </label>
+              <textarea id="bio" name="bio" class="form__textarea" required
+                        minlength="20" maxlength="500"
+                        placeholder="I tuoi interessi di lettura, il tipo di volumi che raccogli, la missione del tuo ente…"></textarea>
+              <span class="form__help">Tra 20 e 500 caratteri.</span>
+            </div>
+
+            <div class="form__row">
+              <div class="form__group">
+                <label class="form__label" for="city">Città o quartiere *</label>
+                <input type="text" id="city" name="city" class="form__input"
+                       required minlength="2" maxlength="150"
+                       placeholder="Napoli, Vomero" autocomplete="off" />
+              </div>
+              <div class="form__group">
+                <label class="form__label" for="motto">Motto (facoltativo)</label>
+                <input type="text" id="motto" name="motto" class="form__input"
+                       maxlength="120" placeholder='"Un libro è un sogno che tieni in mano"'
+                       autocomplete="off" />
+              </div>
+            </div>
+
+            <div class="form__group">
+              <span class="form__label">Tema cromatico della libreria</span>
+              <div class="theme-swatches" role="radiogroup" aria-label="Tema cromatico">
+                <label class="theme-swatch" style="background: linear-gradient(135deg, #7a1e2b, #b08840);">
+                  <input type="radio" name="theme" value="classic" checked />
+                  <span class="theme-swatch__name">Classico</span>
+                  <span class="theme-swatch__desc">bordeaux e oro</span>
+                </label>
+                <label class="theme-swatch" style="background: linear-gradient(135deg, #5a141f, #3d342e);">
+                  <input type="radio" name="theme" value="bordeaux" />
+                  <span class="theme-swatch__name">Bordeaux</span>
+                  <span class="theme-swatch__desc">rosso profondo</span>
+                </label>
+                <label class="theme-swatch" style="background: linear-gradient(135deg, #6e7a5a, #b08840);">
+                  <input type="radio" name="theme" value="sage" />
+                  <span class="theme-swatch__name">Salvia</span>
+                  <span class="theme-swatch__desc">verde e oro</span>
+                </label>
+                <label class="theme-swatch" style="background: linear-gradient(135deg, #1a1512, #6e7a5a);">
+                  <input type="radio" name="theme" value="midnight" />
+                  <span class="theme-swatch__name">Notturno</span>
+                  <span class="theme-swatch__desc">scuro</span>
+                </label>
+              </div>
+              <span class="form__help">Determina la copertina generata della tua libreria. Modificabile in seguito.</span>
+            </div>
+
+            <fieldset id="consent-block" style="border: 1px solid var(--color-line); border-radius: var(--radius); padding: 1rem 1.25rem;">
+              <legend style="font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .1em; color: var(--color-ink-soft); padding: 0 .5rem;">Consensi</legend>
+              <div class="form__check">
+                <input type="checkbox" id="consent_tos" required aria-required="true" />
+                <label for="consent_tos">Accetto i termini di servizio e la privacy policy. *</label>
+              </div>
+              <div class="form__check" style="margin-top: .5rem;">
+                <input type="checkbox" id="consent_age" required aria-required="true" />
+                <label for="consent_age">Dichiaro di avere almeno 18 anni (o di rappresentare legalmente l'ente). *</label>
+              </div>
+              <div class="form__check" style="margin-top: .5rem;">
+                <input type="checkbox" id="consent_news" />
+                <label for="consent_news">Desidero ricevere aggiornamenti sulle attività della comunità (facoltativo).</label>
+              </div>
+            </fieldset>
+
+            <div class="alert alert--info" role="note" style="margin-top: 1rem;">
+              <strong>Privacy della posizione:</strong>
+              <span data-label-person>per le librerie personali la posizione sulla mappa viene mostrata con un margine di imprecisione di ~200 m.</span>
+              <span data-label-org hidden>per gli enti l'indirizzo è pubblico per definizione, così la comunità può raggiungervi.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ STEP 3 — Primi volumi ============ -->
+        <div class="wizard-panel" data-panel="3">
+          <div class="wizard-panel-header">
+            <div class="wizard-panel-header__icon" aria-hidden="true">
+              <!-- Icona "pila di libri": tre volumi impilati con piccolo "+" -->
+              <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                <rect x="14" y="48" width="44" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2.4"/>
+                <rect x="18" y="34" width="40" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2.4"/>
+                <rect x="22" y="20" width="36" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2.4"/>
+                <line x1="22" y1="40" x2="34" y2="40" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+                <line x1="26" y1="26" x2="38" y2="26" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+                <circle cx="62" cy="20" r="9" fill="currentColor" opacity="0.15"/>
+                <path d="M62 16 v 8 M 58 20 h 8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="wizard-panel-header__text">
+              <h2>I tuoi primi volumi <span style="color: var(--color-ink-soft); font-weight: 400; font-size: 0.7em;">(opzionale)</span></h2>
+              <p>Se vuoi puoi aggiungere subito uno o più libri — oppure saltare questo passo e completare l'iscrizione: la tua libreria nascerà comunque, e potrai pubblicare i tuoi volumi più tardi dalla tua area personale.</p>
+            </div>
+          </div>
+
+          <div class="form">
+            <div class="form__row">
+              <div class="form__group">
+                <label class="form__label" for="bk_title">Titolo</label>
+                <input type="text" id="bk_title" class="form__input" maxlength="300" autocomplete="off" />
+              </div>
+              <div class="form__group">
+                <label class="form__label" for="bk_author">Autore</label>
+                <input type="text" id="bk_author" class="form__input" maxlength="200" autocomplete="off" />
+              </div>
+            </div>
+            <div class="form__row">
+              <div class="form__group">
+                <label class="form__label" for="bk_year">Anno</label>
+                <input type="number" id="bk_year" class="form__input" min="1400" max="2030" />
+              </div>
+              <div class="form__group">
+                <label class="form__label" for="bk_category">Categoria</label>
+                <select id="bk_category" class="form__select">
+                  <option value="">Seleziona…</option>
+                </select>
+              </div>
+            </div>
+            <button type="button" class="btn btn--ghost btn--small" id="add-book-btn">
+              + Aggiungi alla libreria
+            </button>
+          </div>
+
+          <h3 style="font-family: var(--font-display); font-size: 1.2rem; margin: 1.5rem 0 .5rem;">
+            Volumi aggiunti (<span id="book-count">0</span>)
+          </h3>
+          <div class="onboarding-books" id="onboarding-books">
+            <div class="onboarding-empty" id="onboarding-empty">
+              Nessun volume ancora. Aggiungine almeno uno per completare la registrazione.
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ Navigazione del wizard ============ -->
+        <div class="wizard-nav">
+          <button type="button" class="btn btn--ghost" id="wizard-back" hidden>← Indietro</button>
+          <div style="flex: 1;"></div>
+          <button type="button" class="btn btn--primary" id="wizard-next">Continua →</button>
+          <button type="submit" class="btn btn--primary" id="wizard-finish" hidden>Crea la libreria</button>
+        </div>
+
+      </form>
+
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div><h4>Lookup</h4><p style="color: rgba(244,239,230,.7); font-size: .9rem;">Un progetto di condivisione del patrimonio librario privato.</p></div>
+      <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
+      <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
+      <div><h4>Info</h4><a href="#">Privacy</a></div>
+      <div class="site-footer__colophon"><span>© 2026 Lookup</span><span>v3.0.0-alpha.0</span></div>
+    </div>
+  </footer>
+
+  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+      const form = document.getElementById('wizard-form');
+      const panels = [...form.querySelectorAll('.wizard-panel')];
+      const steps = [...document.querySelectorAll('.wizard-step')];
+      const backBtn = document.getElementById('wizard-back');
+      const nextBtn = document.getElementById('wizard-next');
+      const finishBtn = document.getElementById('wizard-finish');
+      const errorBox = document.getElementById('wizard-error');
+
+      let currentStep = 1;          // 1..3
+      const addedBooks = [];        // volumi aggiunti nello step 3
+
+      /* ----- Popola categorie nello step 3 ----- */
+      const bkCategory = document.getElementById('bk_category');
+      API.getCategories().forEach(c => {
+        const o = document.createElement('option');
+        o.value = c; o.textContent = c;
+        bkCategory.appendChild(o);
+      });
+
+      /* ----- Mostra/nascondi i campi in base al tipo account ----- */
+      const orgFields = document.getElementById('org-fields');
+      const borrowerHint = document.getElementById('borrower-hint'); // v1.9: element removed; null-safe below
+      const step3Indicator = document.querySelector('.wizard-step[data-step="3"]');
+
+      // Il "lettore" è una persona che per ora vuole solo prendere in
+      // prestito: salta lo step dei primi volumi e parte con library_role
+      // 'borrower'. Resta una persona a livello di account_type.
+      // v1.8: con `?intent=borrow` salta ANCHE lo step della libreria
+      // (bio/motto/theme), passando direttamente al login + creazione
+      // automatica del prestito → singolo step di registrazione.
+      function isBorrower() { return form.account_type.value === 'borrower'; }
+      function lastStep()   {
+        if (window.__isBorrowIntent) return 1;     // fast-track
+        return isBorrower() ? 2 : 3;
+      }
+
+      function syncAccountType() {
+        const type = form.account_type.value;
+        const isOrg = type === 'organization';
+        const borrower = type === 'borrower';
+
+        orgFields.classList.toggle('is-visible', isOrg);
+        orgFields.setAttribute('aria-hidden', String(!isOrg));
+        ['legal_name', 'org_category', 'contact_person', 'public_address', 'opening_hours']
+          .forEach(name => {
+            const f = form.elements[name];
+            if (f) f.required = isOrg;
+          });
+        // Etichette che cambiano fra persona/lettore ed ente
+        document.querySelectorAll('[data-label-person]').forEach(el => el.hidden = isOrg);
+        document.querySelectorAll('[data-label-org]').forEach(el => el.hidden = !isOrg);
+
+        // Suggerimento del lettore (rimosso in v1.9 perché ridondante col banner)
+        if (borrowerHint) borrowerHint.hidden = !borrower;
+
+        // Per il lettore lo step "Primi volumi" è facoltativo/saltato:
+        // lo segnaliamo nell'indicatore di avanzamento e rendiamo la
+        // biografia non obbligatoria (meno attrito per chi vuole solo leggere).
+        step3Indicator.classList.toggle('is-skipped', borrower);
+        const bioField = form.elements['bio'];
+        if (bioField) {
+          bioField.required = !borrower;
+          // Aggiorna il testo di aiuto della bio
+          const help = bioField.parentElement.querySelector('.form__help');
+          if (help) help.textContent = borrower
+            ? 'Facoltativa per i lettori — scrivi due righe se vuoi presentarti.'
+            : 'Tra 20 e 500 caratteri.';
+        }
+      }
+      form.querySelectorAll('input[name="account_type"]').forEach(r =>
+        r.addEventListener('change', syncAccountType));
+
+      /* ----- Intento "prestito": se l'utente arriva qui dopo aver
+         tentato di richiedere un prestito da non iscritto
+         (register.html?intent=borrow), pre-selezioniamo la card
+         "Lettore" e mostriamo un banner che spiega perché si trova qui.
+         v1.8: in questo flusso saltiamo ANCHE lo step 2 (libreria) per
+         portare l'utente al massimo in un solo passaggio. I consensi
+         GDPR vengono spostati nello step 1, e l'utente viene loggato
+         e portato direttamente alla pagina dei prestiti. */
+      const intent = new URLSearchParams(location.search).get('intent');
+      const isBorrowIntent = (intent === 'borrow');
+      window.__isBorrowIntent = isBorrowIntent;   // letto da lastStep()
+      if (isBorrowIntent) {
+        const borrowerRadio = form.querySelector('input[value="borrower"]');
+        if (borrowerRadio) borrowerRadio.checked = true;
+        const banner = document.getElementById('intent-banner');
+        if (banner) banner.hidden = false;
+
+        // Nascondi del tutto la scelta del tipo account: è pre-selezionata
+        const accountTypeBlock = form.querySelector('.account-type-grid');
+        if (accountTypeBlock) accountTypeBlock.style.display = 'none';
+        const accountTypeLabel = form.querySelector('[data-account-type-label]');
+        if (accountTypeLabel) accountTypeLabel.hidden = true;
+
+        // Sposta i consensi (TOS, età, newsletter) dallo step 2 allo step 1
+        // così il Lettore può completare tutto in un unico passaggio.
+        const consentsBlock = document.getElementById('consent-block');
+        const step1Panel = document.querySelector('[data-panel="1"]');
+        const step1Footer = step1Panel.querySelector('.wizard-panel__footer');
+        if (consentsBlock && step1Panel) {
+          if (step1Footer) step1Panel.insertBefore(consentsBlock, step1Footer);
+          else step1Panel.appendChild(consentsBlock);
+        }
+
+        // Marca gli step 2 e 3 come saltati nell'indicatore di avanzamento
+        document.querySelector('.wizard-step[data-step="2"]').classList.add('is-skipped');
+        document.querySelector('.wizard-step[data-step="3"]').classList.add('is-skipped');
+
+        // CRITICO: showStep(1) DOPO il setup del fast-track, così
+        // lastStep() ricalcola e finishBtn diventa visibile (nextBtn nascosto).
+        // Senza questa chiamata, il pulsante "Continua →" resta su perché
+        // lastStep era stato risolto a 2 al primo render.
+      }
+      syncAccountType();
+
+      /* ----- Validazione live su tutti i campi del form ----- */
+      UI.attachLiveValidation(form, {
+        username: (v) => /^[a-z0-9._]+$/.test(v) || 'Solo minuscole, numeri, punto e underscore.',
+        password: (v) => v.length >= 8 || 'La password deve avere almeno 8 caratteri.',
+        bio: (v) => {
+          const len = v.trim().length;
+          if (len < 20) return `Ancora ${20 - len} caratteri al minimo.`;
+          if (len > 500) return 'Massimo 500 caratteri.';
+          return true;
+        }
+      });
+
+      /* ----- Naviga fra gli step ----- */
+      function showStep(n) {
+        currentStep = n;
+        panels.forEach(p => p.classList.toggle('is-active', +p.dataset.panel === n));
+        steps.forEach(s => {
+          const sn = +s.dataset.step;
+          s.classList.toggle('is-active', sn === n);
+          s.classList.toggle('is-done', sn < n);
+        });
+        /* Logica della wizard-nav, adattata al tipo account:
+           - L'ultimo step è il 3 per persone/enti, il 2 per i lettori.
+           - Primo step: solo "Continua →"
+           - Step intermedio: "← Indietro" + "Continua →"
+           - Ultimo step: solo "Crea la libreria" (per i lettori
+             l'etichetta diventa "Completa l'iscrizione").
+           "Indietro" e il pulsante finale non coesistono mai. */
+        const last = lastStep();
+        backBtn.hidden   = (n === 1) || (n === last);
+        nextBtn.hidden   = (n >= last);
+        finishBtn.hidden = (n !== last);
+        finishBtn.textContent = isBorrower() ? "Completa l'iscrizione" : 'Crea la libreria';
+        errorBox.hidden = true;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      // v1.8: per il fast-track Lettore, forza un re-render dello step 1
+      // così la nav mostri "Completa l'iscrizione" invece di "Continua →"
+      // (lastStep() ora restituisce 1 perché __isBorrowIntent è true).
+      if (isBorrowIntent) showStep(1);
+
+      // v2.1: check live di univocità su blur — dà feedback immediato
+      // prima del submit finale. La validazione "vera" resta in createUser.
+      function attachLiveUniqueCheck(fieldId, errorReason) {
+        const input = document.getElementById(fieldId);
+        if (!input) return;
+        input.addEventListener('blur', () => {
+          const value = input.value.trim().toLowerCase();
+          if (!value) return;
+          const users = API.getUsers();
+          const taken = users.some(u => {
+            const stored = (u[fieldId] || '').trim().toLowerCase();
+            return stored === value;
+          });
+          // Annulla eventuale precedente errore visuale
+          input.setCustomValidity('');
+          input.classList.remove('is-invalid-unique');
+          // Cerca/rimuove un eventuale messaggio già presente
+          const existingMsg = input.parentElement.querySelector('.form__error-unique');
+          if (existingMsg) existingMsg.remove();
+          if (taken) {
+            input.setCustomValidity(errorReason);
+            input.classList.add('is-invalid-unique');
+            const msg = document.createElement('span');
+            msg.className = 'form__error-unique';
+            msg.textContent = errorReason;
+            input.parentElement.appendChild(msg);
+          }
+        });
+      }
+      attachLiveUniqueCheck('username', 'Nome utente già in uso.');
+      attachLiveUniqueCheck('email', 'Email già registrata.');
+
+      /* Valida i campi visibili dello step corrente */
+      function validateStep(n) {
+        const panel = panels[n - 1];
+        const fields = [...panel.querySelectorAll('input, select, textarea')]
+          .filter(f => f.offsetParent !== null);   // solo campi visibili
+        const errors = [];
+        fields.forEach(f => {
+          f.classList.add('touched');
+          f.dispatchEvent(new Event('blur'));
+          if (!f.checkValidity()) {
+            const label = f.closest('.form__group')?.querySelector('.form__label')?.innerText
+                          || f.previousElementSibling?.innerText || f.name;
+            errors.push(label.replace(/\s*\*$/, '').trim());
+          }
+        });
+        // Step 2: i checkbox di consenso obbligatori
+        if (n === 2) {
+          if (!document.getElementById('consent_tos').checked)
+            errors.push('Accettazione dei termini di servizio');
+          if (!document.getElementById('consent_age').checked)
+            errors.push('Dichiarazione dei 18 anni');
+        }
+        return errors;
+      }
+
+      function showErrors(errors) {
+        if (!errors.length) { errorBox.hidden = true; return false; }
+        errorBox.hidden = false;
+        errorBox.innerHTML = `<strong>Controlla questi campi:</strong>
+          <ul style="margin: .5rem 0 0; padding-left: 1.4rem;">
+            ${errors.map(e => `<li>${e}</li>`).join('')}
+          </ul>`;
+        errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return true;
+      }
+
+      nextBtn.addEventListener('click', () => {
+        const errors = validateStep(currentStep);
+        if (showErrors(errors)) return;
+        showStep(currentStep + 1);
+      });
+      backBtn.addEventListener('click', () => showStep(currentStep - 1));
+
+      /* ----- Step 3: aggiunta volumi ----- */
+      const booksList = document.getElementById('onboarding-books');
+      const emptyMsg = document.getElementById('onboarding-empty');
+      const bookCount = document.getElementById('book-count');
+
+      function renderBooks() {
+        bookCount.textContent = addedBooks.length;
+        emptyMsg.style.display = addedBooks.length ? 'none' : 'block';
+        // rimuove le righe esistenti (tranne il messaggio vuoto)
+        booksList.querySelectorAll('.onboarding-book').forEach(el => el.remove());
+        addedBooks.forEach((b, i) => {
+          const row = document.createElement('div');
+          row.className = 'onboarding-book';
+          row.innerHTML = `
+            <span><strong>${b.title}</strong> — ${b.author}, ${b.year} <em style="color:var(--color-ink-soft)">(${b.category})</em></span>
+            <button type="button" class="onboarding-book__remove" aria-label="Rimuovi ${b.title}">✕</button>`;
+          row.querySelector('button').addEventListener('click', () => {
+            addedBooks.splice(i, 1);
+            renderBooks();
+          });
+          booksList.appendChild(row);
+        });
+      }
+
+      document.getElementById('add-book-btn').addEventListener('click', () => {
+        const title = document.getElementById('bk_title').value.trim();
+        const author = document.getElementById('bk_author').value.trim();
+        const year = parseInt(document.getElementById('bk_year').value, 10);
+        const category = document.getElementById('bk_category').value;
+
+        if (!title || !author || !category || !year) {
+          showErrors(['Compila titolo, autore, anno e categoria del volume da aggiungere.']);
+          return;
+        }
+        if (year < 1400 || year > 2030) {
+          showErrors(['Anno del volume non plausibile (1400–2030).']);
+          return;
+        }
+        errorBox.hidden = true;
+        addedBooks.push({ title, author, year, category });
+        renderBooks();
+        // pulisce i campi per il prossimo inserimento
+        ['bk_title', 'bk_author', 'bk_year'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('bk_category').value = '';
+        document.getElementById('bk_title').focus();
+      });
+
+      /* ----- Submit finale: crea utente + (eventuali) volumi + login ----- */
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const borrower = isBorrower();
+
+        // Rivalida tutti gli step necessari (per i lettori solo 1 e 2)
+        for (let n = 1; n <= lastStep(); n++) {
+          const errs = validateStep(n);
+          if (errs.length) { showStep(n); showErrors(errs); return; }
+        }
+        // v1.3: i volumi non sono più obbligatori al momento dell'iscrizione.
+        // L'utente può completare ora e aggiungere libri in seguito; gliene
+        // diamo memoria con due notifiche di onboarding e con un banner
+        // evidente sul profilo (vedi API.createUser → seedOnboardingNotifications).
+
+        const choice = form.account_type.value;   // person | borrower | organization
+        // Il lettore è una persona con ruolo 'borrower'; tutti gli altri
+        // sono curatori della propria libreria.
+        const accountType = choice === 'organization' ? 'organization' : 'person';
+        const libraryRole = borrower ? 'borrower' : 'curator';
+
+        // Costruisce il payload per API.createUser
+        const payload = {
+          account_type: accountType,
+          library_role: libraryRole,
+          username: form.username.value.trim(),
+          display_name: form.display_name.value.trim(),
+          email: form.email.value.trim(),
+          city: form.city.value.trim(),
+          bio: form.bio.value.trim(),
+          motto: form.motto.value.trim(),
+          theme: form.theme.value
+        };
+
+        if (choice === 'organization') {
+          payload.org_profile = {
+            legal_name: form.legal_name.value.trim(),
+            org_category: form.org_category.value,
+            contact_person: form.contact_person.value.trim(),
+            website: form.website.value.trim(),
+            public_email: form.email.value.trim(),
+            public_phone: form.public_phone.value.trim(),
+            public_address: form.public_address.value.trim(),
+            opening_hours: form.opening_hours.value.trim()
+          };
+        }
+
+        // Crea l'utente
+        const createResult = API.createUser(payload);
+        if (!createResult.ok) {
+          // v2.1: errori bloccanti — username o email già in uso
+          const messages = {
+            'username-taken': 'Questo nome utente è già in uso. Scegline uno diverso.',
+            'email-taken': 'Questa email è già registrata. Se sei tu, accedi invece di registrarti.',
+            'username-empty': 'Il nome utente è obbligatorio.'
+          };
+          showErrors([messages[createResult.reason] || ('Errore: ' + createResult.reason)]);
+          // Riporta l'utente al passo dei dati account (lo step 1)
+          showStep(1);
+          // Focus sul campo problematico
+          const focusField = createResult.reason === 'email-taken' ? 'email' : 'username';
+          setTimeout(() => document.getElementById(focusField)?.focus(), 300);
+          return;
+        }
+        const newUser = createResult.user;
+
+        // Aggiunge gli eventuali volumi dell'onboarding alla sua libreria
+        addedBooks.forEach(b => {
+          API.addBook({
+            title: b.title,
+            author: b.author,
+            year: b.year,
+            category: b.category,
+            language: 'Italiano',
+            isbn: '—',
+            pages: null,
+            condition: 'buone condizioni',
+            description: `Volume della libreria di ${newUser.display_name}.`,
+            owner_id: newUser.id
+          });
+        });
+
+        // Login automatico come nuovo utente
+        API.setAuthState('user');
+        API.setCurrentUser(newUser.id);
+
+        // v1.8: per il Lettore fast-track con un prestito in sospeso,
+        // creiamo automaticamente la richiesta e portiamo direttamente
+        // alla pagina dei prestiti — niente passaggio intermedio.
+        const pendingBook = sessionStorage.getItem('pending_loan_book');
+        const pendingDays = parseInt(sessionStorage.getItem('pending_loan_days'), 10) || 14;
+        const pendingMessage = sessionStorage.getItem('pending_loan_message') || '';
+
+        if (isBorrowIntent && pendingBook) {
+          sessionStorage.removeItem('pending_loan_book');
+          sessionStorage.removeItem('pending_loan_days');
+          sessionStorage.removeItem('pending_loan_message');
+
+          const r = API.requestLoan(+pendingBook, newUser.id, pendingMessage, pendingDays);
+
+          // Notifica onboarding: suggerisci di aprire la libreria
+          API.addNotification(newUser.id, {
+            type: 'onboarding',
+            onboarding_action: 'open-library',
+            message: '<strong>Vuoi condividere i tuoi libri?</strong> Apri la tua libreria con un click — diventerai un curatore a tutti gli effetti.',
+            created_at: new Date().toISOString()
+          });
+
+          if (r.ok) {
+            UI.toast('Iscrizione completata e richiesta di prestito inviata!', 'success');
+            setTimeout(() => location.href = `loans.html?id=${r.loan.id}`, 1400);
+          } else {
+            UI.toast('Iscrizione fatta, ma la richiesta non è andata: ' + r.reason, 'error');
+            setTimeout(() => location.href = `loans.html`, 1400);
+          }
+          return;
+        }
+
+        // Fallback: l'utente è arrivato qui senza un prestito in sospeso
+        // (cambio idea, o registrazione "tradizionale" da Lettore).
+        if (pendingBook) {
+          sessionStorage.removeItem('pending_loan_book');
+          UI.toast('Iscrizione completata! Ora puoi richiedere il prestito.', 'info');
+          setTimeout(() => location.href = `book-detail.html?id=${pendingBook}&loan=1`, 1400);
+          return;
+        }
+
+        if (borrower) {
+          UI.toast('Iscrizione completata. Benvenuto fra i lettori!', 'info');
+          setTimeout(() => location.href = `library.html?id=${newUser.id}`, 1400);
+        } else {
+          UI.toast('Libreria creata con successo. Benvenuto!', 'info');
+          setTimeout(() => location.href = `library.html?id=${newUser.id}`, 1400);
+        }
+      });
+
+      /* Effetto "ripple" sui bottoni del wizard (e su tutti i btn--lg
+         della pagina). Crea un'onda concentrica sul punto del click,
+         tipico delle interfacce mobile moderne. Rispetta automatica-
+         mente prefers-reduced-motion (l'animazione CSS è disattivata). */
+      document.querySelectorAll('.wizard-nav .btn, .btn--lg').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const rect = btn.getBoundingClientRect();
+          const size = Math.max(rect.width, rect.height);
+          const ripple = document.createElement('span');
+          ripple.className = 'btn-ripple';
+          ripple.style.width = ripple.style.height = `${size}px`;
+          ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+          ripple.style.top  = `${e.clientY - rect.top  - size / 2}px`;
+          btn.appendChild(ripple);
+          setTimeout(() => ripple.remove(), 600);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

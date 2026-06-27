@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="La libreria di un membro della comunità Lookup: i suoi volumi disponibili al prestito." />
+  <title>Libreria — Lookup</title>
+  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <!-- Leaflet per la mini-mappa della libreria (singolo pin minimale). -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <a href="#main" class="skip-link">Vai al contenuto principale</a>
+
+  <header class="site-header" role="banner">
+    <div class="site-header__inner">
+      <a href="index.html" class="site-logo" aria-label="Lookup — Home">
+        <span class="site-logo__mark" aria-hidden="true"></span>
+        <span>Lookup</span>
+      </a>
+      <button class="nav-toggle" aria-label="Apri menu di navigazione" aria-expanded="false" aria-controls="main-nav">☰</button>
+            <nav class="site-nav" id="main-nav" role="navigation" aria-label="Navigazione principale">
+        <a href="explore.html" class="nav-icon" aria-label="Esplora la mappa" title="Esplora la mappa"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 L9 4 L15 6.5 L21 4 V17.5 L15 20 L9 17.5 L3 20 Z"/><path d="M9 4 V17.5 M15 6.5 V20"/><circle cx="17" cy="14" r="2.4"/><path d="M18.8 15.8 L21 18"/></svg></a>
+        <a href="stats.html" class="nav-icon" aria-label="Statistiche" title="Statistiche"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 V10"/><path d="M10 20 V4"/><path d="M16 20 V13"/><path d="M22 20 V7"/><path d="M3 20 H23"/></svg></a>
+        <a href="loans.html" class="auth-only nav-icon" aria-label="Prestiti e chat" title="Prestiti e chat"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5 H17 A2 2 0 0 1 19 7 V13 A2 2 0 0 1 17 15 H10 L6 19 V15 H5 A2 2 0 0 1 3 13 Z"/><path d="M7 9 H15"/><path d="M7 12 H12"/></svg></a>
+        <a href="add-book.html" class="auth-only nav-publish nav-icon" aria-label="Pubblica un volume" title="Pubblica un volume"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4 H14 L19 9 V20 A1 1 0 0 1 18 21 H5 A1 1 0 0 1 4 20 V5 A1 1 0 0 1 5 4 Z"/><path d="M14 4 V9 H19"/><path d="M11.5 12 V17.5 M8.75 14.75 H14.25"/></svg></a>
+        <a href="register.html" class="nav-auth-cta guest-only">Registrati / Accedi</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="section container">
+
+      <!-- Breadcrumb -->
+      <nav aria-label="Percorso" style="font-size: var(--fs-xs); color: var(--color-ink-soft); margin-bottom: var(--sp-5);">
+        <a href="index.html" style="color: var(--color-ink-soft);">Home</a>
+        <span aria-hidden="true"> › </span>
+        <span id="crumb-name">Libreria</span>
+      </nav>
+
+      <!-- Contenitore popolato dinamicamente -->
+      <div id="library-root" aria-live="polite">
+        <p style="color: var(--color-ink-soft); font-style: italic;">Caricamento della libreria…</p>
+      </div>
+
+    </section>
+  </main>
+
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <div>
+        <h4>Lookup</h4>
+        <p style="color: rgba(244,239,230,.7); font-size: .9rem;">
+          Un progetto di condivisione del patrimonio librario privato, radicato nel territorio.
+        </p>
+      </div>
+      <div>
+        <h4>Esplora</h4>
+        <a href="explore.html">Mappa dei libri</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="loans.html" class="auth-only">Prestiti</a>
+      </div>
+      <div>
+        <h4>Partecipa</h4>
+        <a href="add-book.html">Pubblica un libro</a>
+        <a href="register.html">Crea una libreria</a>
+      </div>
+      <div>
+        <h4>Informazioni</h4>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="terms.html">Termini</a>
+      </div>
+      <div class="site-footer__colophon">
+        <span>© 2026 Lookup — Prototipo didattico</span>
+        <span>v3.0.0-alpha.0 — GPL-3.0</span>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+      const root = document.getElementById('library-root');
+
+      /* ----- Lettura del parametro ?id= ----- */
+      const params = new URLSearchParams(location.search);
+      const libId = parseInt(params.get('id'), 10);
+
+      if (!libId) {
+        root.innerHTML = errorBlock('Libreria non specificata',
+          'Manca il parametro identificativo della libreria.');
+        return;
+      }
+
+      const data = API.getLibraryData(libId);
+
+      if (!data) {
+        root.innerHTML = errorBlock('Libreria non trovata',
+          'Nessuna libreria corrisponde a questo identificativo. Potrebbe essere stata rimossa.');
+        return;
+      }
+
+      renderLibrary(data);
+
+      /* Se cambia lo stato di autenticazione, ricalcola (il flag
+         can_edit dipende dall'utente corrente) */
+      document.addEventListener('auth:change', () => {
+        const fresh = API.getLibraryData(libId);
+        if (fresh) renderLibrary(fresh);
+      });
+
+      /* =========================================================
+         RENDER PRINCIPALE
+         ========================================================= */
+      function renderLibrary(d) {
+        const { user, prefs, books, stats, org_profile, is_organization, distance_km, can_edit } = d;
+
+        document.getElementById('crumb-name').textContent = user.display_name;
+        document.title = `${user.display_name} — Lookup`;
+
+        const { themeClass, glyph } = API.libraryCoverData(user, prefs);
+
+        /* Etichetta tipo libreria: per i lettori senza volumi mostriamo
+           "Lettore" invece di "Libreria personale". */
+        const borrowerNoBooks = API.isBorrower(user.id) && books.length === 0;
+        const typeLabel = is_organization
+          ? API.orgCategoryLabel(org_profile && org_profile.org_category)
+          : (borrowerNoBooks ? 'Lettore' : 'Libreria personale');
+        const typeClass = is_organization ? 'library-hero__type--org' : '';
+
+        /* Distanza: mostrata solo per i visitatori. Per il proprietario
+           "a 0 m da te" è ridondante. */
+        let distLabel = '';
+        if (!can_edit && distance_km !== null) {
+          distLabel = distance_km < 1
+            ? `a ${Math.round(distance_km * 1000)} m da te`
+            : `a ${distance_km.toFixed(1).replace('.', ',')} km da te`;
+        }
+
+        /* v2.4: banner di proprietà solo per il proprietario.
+           Per i visitatori il fatto di non poter modificare è ovvio
+           dal contesto, niente banner. */
+        const ownershipBanner = can_edit
+          ? `<div class="ownership-banner ownership-banner--owner">
+               <span aria-hidden="true">✦</span>
+               <span>Questa è la tua libreria. Puoi modificarne i contenuti e l'aspetto dalla pagina
+               <a href="profile.html">Profilo</a>.</span>
+             </div>`
+          : '';
+
+        /* Azioni: il proprietario gestisce, il visitatore esplora i volumi
+           e — se autenticato — può seguire la libreria. */
+        const followerCount = API.getFollowerCount(user.id);
+        const me = API.getCurrentUser();
+        const followBtn = (!can_edit && me)
+          ? renderFollowButton(user.id)
+          : '';
+        const actions = can_edit
+          ? `<a href="profile.html" class="btn btn--primary">Vai al profilo</a>
+             <a href="add-book.html" class="btn btn--ghost">Aggiungi un volume</a>`
+          : `<a href="#volumi" class="btn btn--primary">Sfoglia i ${stats.total} volumi</a>
+             ${followBtn}`;
+
+        /* Riga "nome ufficiale" solo per gli enti */
+        const legalRow = (is_organization && org_profile && org_profile.legal_name)
+          ? `<p class="library-hero__legal">${org_profile.legal_name}</p>`
+          : '';
+
+        /* Pannello informativo dell'ente */
+        const orgPanel = (is_organization && org_profile)
+          ? renderOrgPanel(org_profile)
+          : '';
+
+        /* Suggerimento per i lettori: se il proprietario è iscritto come
+           "lettore" e non ha ancora pubblicato volumi, lo invitiamo ad
+           aprire la propria libreria aggiungendo il primo libro. */
+        const isBorrower = API.isBorrower(user.id);
+        const borrowerCta = (can_edit && isBorrower && stats.total === 0)
+          ? `<div class="borrower-cta">
+               <div class="borrower-cta__text">
+                 <h3>Sei iscritto come lettore</h3>
+                 <p>Puoi richiedere prestiti agli altri membri della comunità. Quando
+                 vorrai condividere i tuoi libri, aggiungi il primo volume: la tua
+                 libreria si aprirà automaticamente e diventerai un curatore.</p>
+               </div>
+               <a href="add-book.html" class="btn btn--primary">Apri la mia libreria</a>
+             </div>`
+          : '';
+
+        root.innerHTML = `
+          ${ownershipBanner}
+          ${borrowerCta}
+
+          <div class="library-hero">
+            <div class="library-hero__cover ${themeClass}">
+              <span class="library-hero__glyph" aria-hidden="true">${glyph}</span>
+            </div>
+            <div class="library-hero__info">
+              <span class="library-hero__type ${typeClass}">${typeLabel}</span>
+              <h1 class="library-hero__name">${user.display_name}</h1>
+              ${(() => {
+                const summary = API.getReviewSummary(user.id);
+                const completed = API.getCompletedLoansCount(user.id);
+                return `<div class="library-hero__stars">
+                  ${UI.renderStars(summary.average, {
+                    count: summary.count,
+                    asLink: '#recensioni',
+                    size: 'md'
+                  })}
+                  ${completed > 0
+                    ? `<span class="loan-experience">
+                         <span class="loan-experience__icon" aria-hidden="true">↺</span>
+                         <strong>${completed}</strong>
+                         ${completed === 1 ? 'prestito completato' : 'prestiti completati'}
+                       </span>`
+                    : ''}
+                </div>`;
+              })()}
+              ${legalRow}
+              ${prefs.motto ? `<p class="library-hero__motto">«${prefs.motto}»</p>` : ''}
+              <p class="library-hero__bio">${user.bio || 'Questa libreria non ha ancora una descrizione.'}</p>
+              <div class="library-hero__meta">
+                <span>📍 <strong>${user.city || '—'}</strong></span>
+                ${distLabel ? `<span>${distLabel}</span>` : ''}
+                <span class="follower-count"><strong id="follower-count">${followerCount}</strong> follower</span>
+                <span>Su Lookup dal <strong>${formatDate(user.joined)}</strong></span>
+              </div>
+              <div class="library-hero__actions">${actions}</div>
+            </div>
+          </div>
+
+          <div class="library-stats library-stats--hero">
+            <div class="library-stat library-stat--lg library-stat--available">
+              <div class="library-stat__value">${stats.available}</div>
+              <div class="library-stat__label">disponibili al prestito</div>
+            </div>
+            <div class="library-stat library-stat--lg">
+              <div class="library-stat__value">${stats.total}</div>
+              <div class="library-stat__label">volumi totali</div>
+            </div>
+          </div>
+
+          <!-- Mini-mappa della libreria: un solo pin, controlli ridotti,
+               serve a "dare un volto" al luogo senza distrarre dal catalogo.
+               (Verrà inizializzata da Leaflet dopo il render.) -->
+          <div class="library-map-wrap" aria-label="Posizione della libreria sulla mappa">
+            <div class="library-map" id="library-map"></div>
+            <div class="library-map__caption">
+              <strong>${user.city || '—'}</strong>
+              ${user.account_type === 'organization' && (API.getOrgProfile(user.id) || {}).public_address
+                ? ` · ${(API.getOrgProfile(user.id)).public_address}` : ''}
+            </div>
+          </div>
+
+          ${orgPanel}
+
+          <div id="volumi">
+            <div class="library-toolbar">
+              <h2>I volumi della libreria</h2>
+              <!-- v2.4: rimossi i bottoni di switch layout: la pagina
+                   rispetta la preferenza salvata dal curatore in
+                   profile-setup (prefs.view_mode). I visitatori vedono
+                   sempre la libreria come l'ha pensata il proprietario. -->
+            </div>
+
+            <!-- Filtro volumi (v1.1): stesso set di filtri di Esplora —
+                 testo (titolo/autore/luogo), tag BISAC multipli con
+                 autocomplete, e selettore "solo disponibili". -->
+            <div class="library-filter">
+              <input type="search" id="lib-query" class="form__input"
+                     placeholder="Cerca per titolo, autore o luogo" aria-label="Cerca nei volumi" />
+              <div id="lib-tags" class="library-filter__tags" aria-label="Filtra per genere BISAC"></div>
+              <label class="library-filter__avail">
+                <input type="checkbox" id="lib-only-avail" />
+                <span>Solo disponibili</span>
+              </label>
+            </div>
+
+            <div id="books-container"></div>
+          </div>
+
+          <!-- v2.4: Post recenti del curatore — sezione pubblica
+               raggiungibile via #posts dalle notifiche di new_post -->
+          <section id="posts" class="posts-section" aria-labelledby="posts-h">
+            <h2 id="posts-h">Aggiornamenti dalla libreria</h2>
+            <div id="library-posts-list"></div>
+          </section>
+
+          <!-- ============================================================
+               Recensioni della libreria (v1.4)
+               Sezione raggiungibile via anchor #recensioni dalle stelle
+               dell'hero. Mostra il riepilogo (stelle + media + breakdown)
+               + form per scrivere (solo autenticati non proprietari) +
+               lista delle recensioni esistenti ordinate per data.
+               ============================================================ -->
+          <section id="recensioni" class="reviews-section" aria-labelledby="reviews-h">
+            <div class="reviews-section__header">
+              <h2 id="reviews-h">Recensioni della libreria</h2>
+              <div id="reviews-summary"></div>
+            </div>
+            <div id="review-form-container"></div>
+            <div id="reviews-list" class="reviews-list"></div>
+          </section>
+        `;
+
+        /* v2.4: render dei post del curatore (vista pubblica) */
+        (function renderLibraryPosts() {
+          const container = document.getElementById('library-posts-list');
+          function paint() {
+            const posts = API.getPostsByAuthor(user.id);
+            UI.renderPostsFeed(container, posts, {
+              showAuthor: false,
+              emptyMessage: `${user.display_name} non ha ancora pubblicato aggiornamenti.`,
+              onChange: paint
+            });
+          }
+          paint();
+        })();
+
+        /* ----- v2.4: render dei volumi nella modalità scelta dal
+           curatore in profile-setup. Niente switcher — la pagina
+           rispetta sempre l'impostazione del proprietario. ----- */
+        const booksContainer = document.getElementById('books-container');
+        const sorted = sortBooks(books, prefs.sort_by);
+        UI.renderBooksInMode(booksContainer, sorted, prefs.view_mode || 'grid');
+
+        // Wiring del pulsante "Segui" (presente solo per visitatori autenticati)
+        wireFollowButton(user.id);
+
+        // Mini-mappa Leaflet: un solo pin sulla posizione della libreria,
+        // controlli minimali, zoom predefinito di quartiere.
+        initLibraryMap(user);
+
+        // Filtro volumi (testo + tag BISAC + disponibilità) — riusa il
+        // componente tag-input dell'esplora, e ricalcola la vista a
+        // ogni variazione (debounce 200 ms sul testo).
+        wireLibraryFilter(books, prefs);
+
+        // v1.4: render delle recensioni (riepilogo + form + lista)
+        renderReviewsSection(user);
+      }
+
+      /* Sezione recensioni: riepilogo grande in cima, form (se ammesso),
+         lista delle recensioni esistenti. Si rirenda dopo ogni submit. */
+      function renderReviewsSection(user) {
+        function refresh() {
+          const s = API.getReviewSummary(user.id);
+          document.getElementById('reviews-summary').innerHTML = `
+            <div class="reviews-summary">
+              <div class="reviews-summary__big">
+                <div class="reviews-summary__avg">${s.count ? s.average.toFixed(1) : '—'}</div>
+                <div class="reviews-summary__stars">
+                  ${UI.renderStars(s.average, { size: 'lg', showAverage: false })}
+                </div>
+                <div class="reviews-summary__count">
+                  ${s.count === 0 ? 'Nessuna recensione' :
+                    s.count === 1 ? '1 recensione' : `${s.count} recensioni`}
+                </div>
+              </div>
+              ${s.count > 0 ? `
+                <div class="reviews-summary__breakdown" aria-label="Distribuzione delle valutazioni">
+                  ${[5,4,3,2,1].map(n => {
+                    const pct = (s.distribution[n] / s.count) * 100;
+                    return `<div class="reviews-summary__row">
+                      <span class="reviews-summary__row-num">${n} ★</span>
+                      <span class="reviews-summary__row-bar">
+                        <span class="reviews-summary__row-fill" style="width:${pct}%"></span>
+                      </span>
+                      <span class="reviews-summary__row-count">${s.distribution[n]}</span>
+                    </div>`;
+                  }).join('')}
+                </div>` : ''}
+            </div>`;
+          UI.renderReviewsList(document.getElementById('reviews-list'), user.id);
+          UI.renderReviewForm(document.getElementById('review-form-container'),
+                              user.id, refresh);
+        }
+        refresh();
+      }
+
+      /* Mini-mappa Leaflet della libreria (singolo pin) */
+      function initLibraryMap(user) {
+        const el = document.getElementById('library-map');
+        if (!el || typeof L === 'undefined' || user.lat == null) return;
+        try {
+          const map = L.map(el, {
+            zoomControl: false, scrollWheelZoom: false,
+            doubleClickZoom: false, dragging: true,
+            attributionControl: false
+          }).setView([user.lat, user.lng], 15);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19, attribution: '© OpenStreetMap'
+          }).addTo(map);
+          // pin coerente con il tipo libreria
+          const isOrg = API.isOrganization(user);
+          const pin = L.divIcon({
+            className: 'lib-map-pin ' + (isOrg ? 'lib-map-pin--org' : 'lib-map-pin--person'),
+            html: `<span>${isOrg ? '🏛' : '📖'}</span>`,
+            iconSize: [34, 34], iconAnchor: [17, 17]
+          });
+          L.marker([user.lat, user.lng], { icon: pin }).addTo(map);
+          // re-render del layout dopo che il container ha le dimensioni
+          setTimeout(() => map.invalidateSize(), 100);
+        } catch (e) { console.warn('mini-map non disponibile', e); }
+      }
+
+      /* Filtro volumi della libreria — testo + tag BISAC + disponibilità */
+      function wireLibraryFilter(allBooks, prefs) {
+        const q = document.getElementById('lib-query');
+        const tagsEl = document.getElementById('lib-tags');
+        const onlyAvail = document.getElementById('lib-only-avail');
+        if (!q || !tagsEl || !onlyAvail) return;
+
+        UI.initTagInput(tagsEl, {
+          placeholder: 'Aggiungi un genere…',
+          onChange: () => apply()
+        });
+
+        let dq;
+        q.addEventListener('input', () => { clearTimeout(dq); dq = setTimeout(apply, 200); });
+        onlyAvail.addEventListener('change', apply);
+
+        function apply() {
+          const query = q.value.trim().toLowerCase();
+          const tags  = tagsEl.getTags ? tagsEl.getTags() : [];
+          const onlyA = onlyAvail.checked;
+          let filtered = allBooks.slice();
+          if (query) {
+            filtered = filtered.filter(b =>
+              b.title.toLowerCase().includes(query) ||
+              b.author.toLowerCase().includes(query) ||
+              (b.description && b.description.toLowerCase().includes(query)));
+          }
+          if (tags.length) {
+            const set = new Set(tags);
+            filtered = filtered.filter(b => {
+              const bookTags = b.categories || (b.category ? [b.category] : []);
+              return bookTags.some(t => set.has(t));
+            });
+          }
+          if (onlyA) filtered = filtered.filter(b => b.available);
+          const sorted = sortBooks(filtered, prefs.sort_by);
+          // riusa il rendering della modalità corrente
+          const activeMode = prefs.view_mode || 'grid';
+          UI.renderBooksInMode(document.getElementById('books-container'), sorted, activeMode);
+        }
+      }
+
+      /* Genera il markup del pulsante segui/seguito in base allo stato */
+      function renderFollowButton(targetId) {
+        const following = API.isFollowing((API.getCurrentUser() || {}).id, targetId);
+        return following
+          ? `<button type="button" class="btn btn--follow btn--following" id="follow-btn" data-target="${targetId}" aria-pressed="true">
+               <span class="btn--following__on">✓ Segui già</span>
+               <span class="btn--following__off">Smetti di seguire</span>
+             </button>`
+          : `<button type="button" class="btn btn--primary btn--follow" id="follow-btn" data-target="${targetId}" aria-pressed="false">
+               <span class="btn--follow__icon" aria-hidden="true">+</span> Segui
+             </button>`;
+      }
+
+      /* Collega il click del pulsante segui: aggiorna stato, conteggio
+         follower, notifiche e ridisegna il pulsante. */
+      function wireFollowButton(targetId) {
+        const btn = document.getElementById('follow-btn');
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+          const nowFollowing = API.toggleFollow(targetId);
+          // ridisegna il pulsante
+          btn.outerHTML = renderFollowButton(targetId);
+          wireFollowButton(targetId);
+          // aggiorna conteggio follower
+          const fc = document.getElementById('follower-count');
+          if (fc) fc.textContent = API.getFollowerCount(targetId);
+          // aggiorna la campanella e dà un riscontro
+          if (UI._refreshNotifications) UI._refreshNotifications();
+          UI.toast(nowFollowing
+            ? 'Ora segui questa libreria: riceverai i suoi aggiornamenti.'
+            : 'Non segui più questa libreria.', 'info');
+        });
+      }
+
+      /* =========================================================
+         PANNELLO INFORMATIVO DELL'ENTE
+         ========================================================= */
+      function renderOrgPanel(org) {
+        const field = (label, value) => value
+          ? `<div class="org-field">
+               <div class="org-field__label">${label}</div>
+               <div class="org-field__value">${value}</div>
+             </div>`
+          : '';
+
+        const website = org.website
+          ? `<a href="${org.website}" target="_blank" rel="noopener noreferrer">${org.website.replace(/^https?:\/\//, '')}</a>`
+          : '';
+        const email = org.public_email
+          ? `<a href="mailto:${org.public_email}">${org.public_email}</a>`
+          : '';
+
+        return `
+          <section class="org-panel" aria-labelledby="org-title">
+            <h2 id="org-title">Informazioni sull'ente</h2>
+            <div class="org-panel__grid">
+              ${field('Categoria', API.orgCategoryLabel(org.org_category))}
+              ${field('Referente', org.contact_person)}
+              ${field('Indirizzo', org.public_address)}
+              ${field('Orari di apertura', org.opening_hours)}
+              ${field('Telefono', org.public_phone)}
+              ${field('Email', email)}
+              ${field('Sito web', website)}
+            </div>
+          </section>`;
+      }
+
+      /* =========================================================
+         HELPER
+         ========================================================= */
+      function sortBooks(books, sortBy) {
+        const copy = [...books];
+        switch (sortBy) {
+          case 'title':  return copy.sort((a, b) => a.title.localeCompare(b.title, 'it'));
+          case 'author': return copy.sort((a, b) => a.author.localeCompare(b.author, 'it'));
+          case 'year':   return copy.sort((a, b) => b.year - a.year);
+          case 'recent':
+          default:       return copy.sort((a, b) => (b.added || '').localeCompare(a.added || ''));
+        }
+      }
+
+      function formatDate(iso) {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        if (isNaN(d)) return iso;
+        return d.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+      }
+
+      function errorBlock(title, message) {
+        return `
+          <div style="text-align: center; padding: var(--sp-16) var(--sp-4);">
+            <div style="font-family: var(--font-display); font-size: 4rem; color: var(--color-line); line-height: 1;">§</div>
+            <h1 style="font-family: var(--font-display); font-size: 1.8rem; margin: var(--sp-3) 0 var(--sp-2);">${title}</h1>
+            <p style="color: var(--color-ink-soft); margin-bottom: var(--sp-5);">${message}</p>
+            <a href="index.html" class="btn btn--primary">Torna alla home</a>
+          </div>`;
+      }
+    });
+  </script>
+</body>
+</html>

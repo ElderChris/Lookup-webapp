@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Lookup — piattaforma di geolocalizzazione culturale per la condivisione di patrimoni librari privati." />
+  <title>Lookup — Condividi la tua biblioteca</title>
+  <!-- Il parametro ?v= serve come "cache-busting": cambiando versione,
+       il browser è costretto a riscaricare il file invece di servire
+       una copia obsoleta dalla cache. -->
+  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <a href="#main" class="skip-link">Vai al contenuto principale</a>
+
+  <!-- ============ HEADER ============ -->
+  <header class="site-header" role="banner">
+    <div class="site-header__inner">
+      <a href="index.html" class="site-logo" aria-label="Lookup — Home">
+        <span class="site-logo__mark" aria-hidden="true"></span>
+        <span>Lookup</span>
+      </a>
+
+      <button class="nav-toggle" aria-label="Apri menu di navigazione" aria-expanded="false" aria-controls="main-nav">☰</button>
+
+            <nav class="site-nav" id="main-nav" role="navigation" aria-label="Navigazione principale">
+        <a href="explore.html" class="nav-icon" aria-label="Esplora la mappa" title="Esplora la mappa"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 L9 4 L15 6.5 L21 4 V17.5 L15 20 L9 17.5 L3 20 Z"/><path d="M9 4 V17.5 M15 6.5 V20"/><circle cx="17" cy="14" r="2.4"/><path d="M18.8 15.8 L21 18"/></svg></a>
+        <a href="stats.html" class="nav-icon" aria-label="Statistiche" title="Statistiche"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 V10"/><path d="M10 20 V4"/><path d="M16 20 V13"/><path d="M22 20 V7"/><path d="M3 20 H23"/></svg></a>
+        <a href="loans.html" class="auth-only nav-icon" aria-label="Prestiti e chat" title="Prestiti e chat"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5 H17 A2 2 0 0 1 19 7 V13 A2 2 0 0 1 17 15 H10 L6 19 V15 H5 A2 2 0 0 1 3 13 Z"/><path d="M7 9 H15"/><path d="M7 12 H12"/></svg></a>
+        <a href="add-book.html" class="auth-only nav-publish nav-icon" aria-label="Pubblica un volume" title="Pubblica un volume"><svg class="nav-icon__svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4 H14 L19 9 V20 A1 1 0 0 1 18 21 H5 A1 1 0 0 1 4 20 V5 A1 1 0 0 1 5 4 Z"/><path d="M14 4 V9 H19"/><path d="M11.5 12 V17.5 M8.75 14.75 H14.25"/></svg></a>
+        <a href="register.html" class="nav-auth-cta guest-only">Registrati / Accedi</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- v2.4: Aggiornamenti recenti — visibili solo agli utenti loggati,
+         mostrano i post degli utenti seguiti in ordine cronologico. -->
+    <section class="container recent-updates auth-only" id="recent-updates-section" hidden>
+      <div class="recent-updates__head">
+        <span class="eyebrow">aggiornamenti recenti</span>
+        <h2 class="recent-updates__title">
+          Dai profili che <em style="color: var(--color-burgundy);">segui</em>
+        </h2>
+      </div>
+      <div id="recent-updates-feed"></div>
+    </section>
+
+    <!-- ============ HERO con CONTATORI LIVE ============ -->
+    <section class="hero container guest-presentation" aria-labelledby="hero-title">
+
+      <!-- Parte alta dell'hero: testo introduttivo + illustrazione,
+           affiancati su desktop. Le CTA e i contatori stanno sotto,
+           a tutta larghezza. -->
+      <div class="hero__top">
+
+        <div class="hero__intro">
+          <!-- Saluto personalizzato (utente autenticato) -->
+          <div class="user-greeting auth-only" id="user-greeting" hidden>
+            <span aria-hidden="true">✦</span>
+            <span id="user-greeting-text">…</span>
+          </div>
+
+          <h1 class="hero__title" id="hero-title">
+            La tua biblioteca,<br />
+            al servizio del <em>vicinato letterario</em>.
+          </h1>
+          <p class="hero__lead">
+            Pubblica i volumi della tua collezione privata, scopri cosa custodiscono
+            i lettori a pochi passi da te, e partecipa a una rete diffusa di
+            consultazioni e prestiti.
+          </p>
+        </div>
+
+        <!-- ░░░░░ ILLUSTRAZIONE INTERATTIVA ░░░░░
+             Illustrazione esterna (Freepik/Storyset) in assets/.
+             Il file SVG contiene: un'animazione d'ingresso di ~1s e un
+             leggero "respiro" continuo (galleggiamento dei personaggi,
+             lieve pulsazione di libreria e insegna) iniettato da noi.
+             Per sostituirla basta cambiare il file in assets/ o l'src
+             qui sotto (anche con un .json Lottie + <lottie-player>). -->
+        <div class="hero__illustration" id="hero-illustration">
+          <img src="assets/library-animate.svg?v=3.0.0-alpha.0"
+               alt="Illustrazione: due lettori che condividono un libro in una biblioteca" />
+        </div>
+
+      </div>
+
+      <!-- CTA primarie: subito sotto l'introduzione, above the fold
+           anche su mobile. Per i visitatori guidano alla registrazione,
+           per gli utenti loggati alla pubblicazione di un volume. -->
+      <!-- Azioni + contatori "live" sulla stessa riga: i numeri stanno
+           accanto al CTA secondario, in caratteri piccoli e tipografia
+           monospazio, in modo da restare minimali e non sopraffare i
+           bottoni principali. Su mobile vanno a capo. -->
+      <div class="hero__actions">
+        <a href="register.html" class="btn btn--primary btn--lg btn--pulse guest-only">
+          <span class="btn__icon" aria-hidden="true">→</span>
+          Inizia a scambiare
+        </a>
+        <a href="add-book.html" class="btn btn--primary btn--lg btn--pulse auth-only">
+          <span class="btn__icon" aria-hidden="true">+</span>
+          Pubblica un volume
+        </a>
+        <a href="explore.html" class="btn btn--ghost btn--lg">
+          <span class="btn__icon" aria-hidden="true">◐</span>
+          Esplora la mappa
+        </a>
+
+        <div class="hero__stats-inline" id="hero-stats" aria-label="Numeri della piattaforma in tempo reale">
+          <span class="hero__stats-inline__pip" aria-hidden="true"></span>
+          <span class="hero__stats-inline__live">in tempo reale</span>
+          <span class="hero__stats-inline__group">
+            <strong id="stat-books" data-stat="books">0</strong> volumi
+          </span>
+          <span class="hero__stats-inline__sep" aria-hidden="true">·</span>
+          <span class="hero__stats-inline__group">
+            <strong id="stat-users" data-stat="users">0</strong> lettori
+          </span>
+          <span class="hero__stats-inline__sep" aria-hidden="true">·</span>
+          <span class="hero__stats-inline__group">
+            <strong id="stat-categories" data-stat="categories">0</strong> categorie
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HOME PERSONALIZZATA (solo utenti autenticati) ============ -->
+    <!-- Quando l'utente è loggato, l'hero di presentazione e "Come funziona"
+         sono nascosti; al loro posto compaiono, in ordine: novità da chi
+         segui, preferiti, librerie vicine. -->
+    <section class="section container auth-only" aria-labelledby="welcome-title" id="welcome-section">
+      <div class="home-welcome">
+        <div>
+          <span class="eyebrow">la tua home</span>
+          <h1 id="welcome-title" class="home-welcome__title" data-name=""></h1>
+          <p class="home-welcome__sub">Ecco cosa è successo nelle librerie che segui e fra i tuoi volumi preferiti.</p>
+        </div>
+        <a href="add-book.html" class="btn btn--primary btn--lg btn--pulse">
+          <span class="btn__icon" aria-hidden="true">+</span> Pubblica un volume
+        </a>
+      </div>
+    </section>
+
+    <!-- Novità dalle librerie seguite -->
+    <section class="section container auth-only" aria-labelledby="feed-title">
+      <div class="section-header">
+        <h2 id="feed-title">Novità da chi segui</h2>
+        <span class="section-meta">N° 01 — aggiornamenti recenti</span>
+      </div>
+      <div id="follow-feed" class="books-grid" aria-live="polite"></div>
+    </section>
+
+    <!-- Volumi preferiti -->
+    <section class="section container auth-only" aria-labelledby="likes-title">
+      <div class="section-header">
+        <h2 id="likes-title">I tuoi preferiti</h2>
+        <span class="section-meta">N° 02 — volumi con «mi piace»</span>
+      </div>
+      <div id="liked-books" class="books-grid" aria-live="polite"></div>
+    </section>
+
+    <!-- ============ LIBRERIE VICINO A TE ============ -->
+    <section class="section container" aria-labelledby="nearby-title">
+      <div class="section-header">
+        <h2 id="nearby-title">Librerie vicino a te</h2>
+        <span class="section-meta">N° 01 — per prossimità e attività</span>
+      </div>
+      <p style="max-width: 62ch; color: var(--color-ink-soft); margin-bottom: var(--sp-2);">
+        Le collezioni più vicine e più attive della comunità, ordinate in base
+        alla distanza dalla tua posizione e alla vivacità della libreria. Ogni
+        copertina è generata automaticamente a partire dalle scelte di
+        personalizzazione del suo curatore.
+      </p>
+      <p id="nearby-ref-note" style="font-size: var(--fs-xs); color: var(--color-ink-soft); font-style: italic; margin-bottom: var(--sp-2);"></p>
+      <div class="nearby-grid" id="nearby-libraries" aria-live="polite"></div>
+    </section>
+
+    <!-- ============ COME FUNZIONA ============ -->
+    <section class="section container guest-presentation" aria-labelledby="how-title">
+      <div class="section-header">
+        <h2 id="how-title">Come funziona</h2>
+        <span class="section-meta">N° 02 — in tre gesti</span>
+      </div>
+
+      <!-- Infografica: tre passi con icone SVG line-art editoriali e
+           una linea di connessione che li unisce visivamente.
+           Mobile-first: gli step si impilano in verticale, su desktop
+           si dispongono in orizzontale. -->
+      <ol class="how-steps" role="list">
+        <li class="how-step">
+          <span class="how-step__num" aria-hidden="true">1</span>
+          <div class="how-step__icon" aria-hidden="true">
+            <!-- Icona "profilo": cerchio + busto stilizzato + check -->
+            <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="40" cy="30" r="13" fill="none" stroke="currentColor" stroke-width="2.2"/>
+              <path d="M14 68 C 14 52, 26 46, 40 46 S 66 52, 66 68" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+              <circle cx="60" cy="20" r="7" fill="currentColor" opacity="0.18"/>
+              <path d="M57 20 l3 3 l5 -6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="how-step__title">Crea la tua libreria</h3>
+          <p class="how-step__desc">
+            Pochi minuti per registrarti, indicare la tua zona e scegliere
+            l'identità visiva. Persona o ente: scegli tu, la libreria è
+            tua e modificabile in ogni momento.
+          </p>
+        </li>
+
+        <li class="how-step">
+          <span class="how-step__num" aria-hidden="true">2</span>
+          <div class="how-step__icon" aria-hidden="true">
+            <!-- Icona "libro aperto" con freccia di upload -->
+            <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14 24 C 22 20, 32 20, 40 26 C 48 20, 58 20, 66 24 L 66 60 C 58 56, 48 56, 40 62 C 32 56, 22 56, 14 60 Z"
+                    fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/>
+              <line x1="40" y1="26" x2="40" y2="62" stroke="currentColor" stroke-width="2.2"/>
+              <path d="M40 16 l 0 -8 m -5 5 l 5 -5 l 5 5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+            </svg>
+          </div>
+          <h3 class="how-step__title">Pubblica i tuoi volumi</h3>
+          <p class="how-step__desc">
+            Titolo, autore, categoria, una foto della copertina. Il modulo
+            controlla i dati in tempo reale e genera automaticamente le
+            miniature ottimizzate.
+          </p>
+        </li>
+
+        <li class="how-step">
+          <span class="how-step__num" aria-hidden="true">3</span>
+          <div class="how-step__icon" aria-hidden="true">
+            <!-- Icona "scambio": libro al centro fra due archi che richiamano due lettori -->
+            <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+              <rect x="30" y="28" width="20" height="26" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/>
+              <line x1="40" y1="28" x2="40" y2="54" stroke="currentColor" stroke-width="1.5" opacity="0.5"/>
+              <circle cx="14" cy="42" r="6" fill="none" stroke="currentColor" stroke-width="2.2"/>
+              <circle cx="66" cy="42" r="6" fill="none" stroke="currentColor" stroke-width="2.2"/>
+              <path d="M20 42 L 30 42" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="2 3"/>
+              <path d="M60 42 L 50 42" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="2 3"/>
+            </svg>
+          </div>
+          <h3 class="how-step__title">Scambia, presta, consulta</h3>
+          <p class="how-step__desc">
+            Altri lettori della zona possono chiederti un prestito o una
+            consultazione. Tu gestisci tutto in autonomia, con la privacy
+            che hai scelto.
+          </p>
+        </li>
+      </ol>
+
+      <!-- CTA ripresa: chi è arrivato fin qui sa già cosa fare -->
+      <div class="how-cta">
+        <a href="register.html" class="btn btn--primary btn--lg btn--pulse guest-only">
+          <span class="btn__icon" aria-hidden="true">→</span>
+          Apri ora la tua libreria
+        </a>
+        <a href="add-book.html" class="btn btn--primary btn--lg btn--pulse auth-only">
+          <span class="btn__icon" aria-hidden="true">+</span>
+          Pubblica il tuo primo volume
+        </a>
+      </div>
+    </section>
+
+    <!-- ============ LIBRI IN EVIDENZA ============ -->
+    <section class="section container" aria-labelledby="featured-title">
+      <div class="section-header">
+        <h2 id="featured-title">Libri in evidenza</h2>
+        <span class="section-meta">N° 03 — selezione della settimana</span>
+      </div>
+      <div class="books-grid" id="featured-books" aria-live="polite"></div>
+    </section>
+
+  </main>
+
+  <!-- CTA flottante per visitatori su mobile: la registrazione resta
+       sempre a portata di pollice mentre l'utente scrolla. -->
+  <div class="floating-cta guest-only" aria-hidden="true">
+    <a href="register.html" class="btn btn--primary btn--lg btn--pulse">
+      <span class="btn__icon" aria-hidden="true">→</span>
+      Inizia a scambiare
+    </a>
+  </div>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <div>
+        <h4>Lookup</h4>
+        <p style="color: rgba(244,239,230,.7); font-size: .9rem;">
+          Un progetto di condivisione del patrimonio librario privato, radicato nel territorio.
+        </p>
+      </div>
+      <div>
+        <h4>Esplora</h4>
+        <a href="explore.html">Mappa dei libri</a>
+        <a href="explore.html?sort=recent">Ultime pubblicazioni</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="loans.html" class="auth-only">Prestiti</a>
+      </div>
+      <div>
+        <h4>Partecipa</h4>
+        <a href="add-book.html">Pubblica un libro</a>
+        <a href="profile.html">Profilo personale</a>
+      </div>
+      <div>
+        <h4>Informazioni</h4>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="terms.html">Termini</a>
+        <a href="#">Contatti</a>
+      </div>
+
+      <div class="site-footer__colophon">
+        <span>© 2026 Lookup — Prototipo didattico</span>
+        <span>v3.0.0-alpha.0 — GPL-3.0</span>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+  <script>
+    /* Popolamento dei contenuti dinamici della homepage */
+
+    document.addEventListener('DOMContentLoaded', () => {
+
+      /* v2.4: Aggiornamenti recenti dai profili seguiti
+         ========================================================= */
+      (function renderRecentUpdates() {
+        const me = API.getCurrentUser();
+        const isAuth = API.getAuthState() === 'user';
+        const section = document.getElementById('recent-updates-section');
+        if (!section || !isAuth || !me) return;
+        const feed = document.getElementById('recent-updates-feed');
+        function paint() {
+          const posts = API.getPostsFromFollowed(me.id, 10);
+          if (posts.length === 0) {
+            feed.innerHTML = `
+              <p class="recent-updates__empty">
+                Quando un utente che segui pubblicherà un post, lo vedrai qui.
+                Esplora i profili nella <a href="explore.html">mappa</a> per iniziare
+                a seguirne qualcuno.
+              </p>`;
+          } else {
+            UI.renderPostsFeed(feed, posts, { showAuthor: true, onChange: paint });
+          }
+          section.hidden = false;
+        }
+        paint();
+      })();
+
+      /* =========================================================
+         CONTATORI "LIVE"
+         I valori partono dai dati reali e vengono incrementati a
+         intervalli regolari con piccoli scatti casuali, per dare
+         la sensazione di una piattaforma viva e in crescita.
+         È un pattern di gamification: riprova sociale + senso di
+         slancio. In produzione gli incrementi arriverebbero da un
+         canale realtime (WebSocket / SSE) alimentato dal backend.
+         ========================================================= */
+      const baseStats = API.getGlobalStats();
+
+      // Stato corrente dei contatori (number)
+      const counters = {
+        books:      baseStats.total_books,
+        users:      baseStats.total_users,
+        categories: baseStats.categories_count,
+        views:      baseStats.total_views
+      };
+
+      // Quanto può crescere ogni metrica ad ogni "tick"
+      const increments = {
+        books:      () => (Math.random() < 0.5 ? 1 : 0),
+        users:      () => (Math.random() < 0.3 ? 1 : 0),
+        categories: () => 0,                       // le categorie sono stabili
+        views:      () => Math.floor(Math.random() * 9) + 1
+      };
+
+      function paintCounter(key) {
+        const el = document.querySelector(`[data-stat="${key}"]`);
+        if (!el) return;
+        el.textContent = counters[key].toLocaleString('it-IT');
+      }
+
+      // Render iniziale
+      Object.keys(counters).forEach(paintCounter);
+
+      // Tick periodico ogni 4 secondi
+      setInterval(() => {
+        Object.keys(counters).forEach(key => {
+          const delta = increments[key]();
+          if (delta > 0) {
+            counters[key] += delta;
+            const el = document.querySelector(`[data-stat="${key}"]`);
+            paintCounter(key);
+            // Micro-animazione di scatto
+            el.classList.remove('is-ticking');
+            void el.offsetWidth;            // forza il reflow per riavviare l'animazione
+            el.classList.add('is-ticking');
+          }
+        });
+      }, 4000);
+
+      /* =========================================================
+         LIBRERIE VICINO A TE
+         Ordinate per prossimità + attività. La posizione di
+         riferimento è quella dell'utente autenticato oppure, per i
+         visitatori anonimi, una posizione simulata sul centro di
+         Napoli.
+         ========================================================= */
+      function renderNearby() {
+        const container = document.getElementById('nearby-libraries');
+        const refNote = document.getElementById('nearby-ref-note');
+        const ref = API.getReferenceLocation();
+
+        refNote.textContent = ref.simulated
+          ? 'Le distanze sono calcolate da una posizione simulata sul centro di Napoli. Accedi per usare la tua posizione reale.'
+          : 'Le distanze sono calcolate dalla tua posizione registrata.';
+
+        const allLibs = API.getNearbyLibraries();
+
+        /* Selezione di 6 librerie con varietà di profilo: ordinate per
+           rank_score (vicinanza + attività), ma forziamo almeno 2 enti
+           e 3 librerie personali fra le 6 prescelte, così la vetrina
+           non si appiattisce su un solo tipo di profilo. */
+        const orgs = allLibs.filter(l => API.isOrganization(l));
+        const persons = allLibs.filter(l => !API.isOrganization(l));
+        const picked = [];
+        const TARGET = 6, MIN_ORGS = 2, MIN_PERSONS = 3;
+        // garantisce i minimi
+        orgs.slice(0, MIN_ORGS).forEach(l => picked.push(l));
+        persons.slice(0, MIN_PERSONS).forEach(l => picked.push(l));
+        // riempi i posti rimanenti col rank globale, evitando duplicati
+        const seen = new Set(picked.map(l => l.id));
+        allLibs.filter(l => !seen.has(l.id)).slice(0, TARGET - picked.length)
+               .forEach(l => picked.push(l));
+        const libs = picked.slice(0, TARGET).sort((a, b) => a.rank_score - b.rank_score);
+        container.innerHTML = libs.map(l => UI.renderNearbyLibraryCard(l)).join('');
+      }
+      renderNearby();
+
+      /* v2.6: Libri in evidenza "selezione della settimana"
+         ========================================================
+         Algoritmo realistico (vedi API.getFeaturedBooks):
+         engagement recente (views 7d ×1 + prestiti 7d ×3 + like ×2)
+         × quality multiplier (rating del proprietario)
+         ÷ decay sqrt(giorni dall'aggiunta), con diversity penalty
+         per evitare la dominanza di un singolo genere. */
+      const featured = API.getFeaturedBooks(4).map(c => c.book);
+      UI.renderBooksGrid(document.getElementById('featured-books'), featured);
+
+      /* ----- Saluto personalizzato (utente autenticato)
+         v2.6: gender neutral, rotazione fra 17 frasi diverse a ogni login */
+      function updateGreeting() {
+        const greeting = document.getElementById('user-greeting');
+        const user = API.getCurrentUser();
+        if (user) {
+          const msg = API.getWelcomeMessage(user);
+          document.getElementById('user-greeting-text').textContent = msg;
+          greeting.hidden = false;
+        } else {
+          greeting.hidden = true;
+        }
+      }
+      updateGreeting();
+
+      /* ----- HOME PERSONALIZZATA (utenti autenticati) -----
+         Popola: nome di benvenuto, novità dalle librerie seguite,
+         volumi preferiti. Le sezioni sono nascoste ai guest via CSS. */
+      function renderPersonalizedHome() {
+        const me = API.getCurrentUser();
+        if (!me) return;
+
+        // v2.6: titolo di benvenuto gender neutral con rotazione
+        const wTitle = document.getElementById('welcome-title');
+        if (wTitle) {
+          const msg = API.getWelcomeMessage(me);
+          // Spezza in due: prima parte normale, nome come <em>
+          const first = (me.display_name || me.username).split(' ')[0];
+          const html = msg.replace(first, `<em>${first}</em>`);
+          wTitle.innerHTML = html;
+        }
+
+        // --- Novità da chi segui: volumi recenti delle librerie seguite ---
+        const feed = document.getElementById('follow-feed');
+        if (feed) {
+          const followed = API.getFollows(me.id);
+          if (!followed.length) {
+            feed.innerHTML = `<div class="empty-feed">
+              <p>Non segui ancora nessuna libreria. Visita una libreria e premi
+              <strong>«Segui»</strong> per ricevere qui i suoi nuovi volumi e aggiornamenti.</p>
+              <a href="explore.html" class="btn btn--ghost">Esplora le librerie</a>
+            </div>`;
+          } else {
+            // libri delle librerie seguite, più recenti prima
+            const books = followed
+              .flatMap(uid => API.getBooksByOwner(uid))
+              .sort((a, b) => (b.added || '').localeCompare(a.added || ''))
+              .slice(0, 4);
+            if (books.length) {
+              UI.renderBooksGrid(feed, books, { highlightRecent: true });
+            } else {
+              feed.innerHTML = `<p style="color:var(--color-ink-soft);font-style:italic;">Le librerie che segui non hanno ancora pubblicato volumi.</p>`;
+            }
+          }
+        }
+
+        // --- I tuoi preferiti ---
+        const likedBox = document.getElementById('liked-books');
+        if (likedBox) {
+          const liked = API.getLikedBooks(me.id);
+          if (!liked.length) {
+            likedBox.innerHTML = `<div class="empty-feed">
+              <p>Non hai ancora preferiti. Premi il <strong>cuore</strong> su un volume
+              per salvarlo ed essere avvisato quando un titolo in prestito torna disponibile.</p>
+              <a href="explore.html" class="btn btn--ghost">Cerca volumi</a>
+            </div>`;
+          } else {
+            UI.renderBooksGrid(likedBox, liked);
+          }
+        }
+      }
+      renderPersonalizedHome();
+
+      /* ----- Reazione al toggle di autenticazione -----
+         Cambiando stato cambia anche la posizione di riferimento,
+         quindi le librerie "vicino a te" vanno ricalcolate, e vanno
+         ripopolate le sezioni personalizzate. ----- */
+      document.addEventListener('auth:change', () => {
+        updateGreeting();
+        renderNearby();
+        renderPersonalizedHome();
+      });
+
+      /* Effetto "ripple" sui CTA grandi (Inizia a scambiare, Esplora
+         la mappa, e i CTA della sezione "Come funziona"). Si attiva
+         al click con un'animazione concentrica sul punto premuto. */
+      document.querySelectorAll('.btn--lg').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const rect = btn.getBoundingClientRect();
+          const size = Math.max(rect.width, rect.height);
+          const ripple = document.createElement('span');
+          ripple.className = 'btn-ripple';
+          ripple.style.width = ripple.style.height = `${size}px`;
+          ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
+          ripple.style.top  = `${e.clientY - rect.top  - size / 2}px`;
+          btn.appendChild(ripple);
+          setTimeout(() => ripple.remove(), 600);
+        });
+      });
+
+      /* ----- Illustrazione interattiva dell'hero -----
+         Al tocco/click l'illustrazione fa un rimbalzo gentile. Essendo
+         ora un'immagine esterna (assets/library-animate.svg) il suo
+         "respiro" continuo vive dentro il file SVG; qui gestiamo solo
+         il piccolo feedback al tocco sul contenitore. La classe
+         is-tapped viene rimossa a fine ciclo per poterla riattivare. */
+      const heroIll = document.getElementById('hero-illustration');
+      if (heroIll) {
+        let tapTimer = null;
+        const bounce = () => {
+          heroIll.classList.remove('is-tapped');
+          void heroIll.offsetWidth;            // reflow → riavvia l'animazione
+          heroIll.classList.add('is-tapped');
+          clearTimeout(tapTimer);
+          tapTimer = setTimeout(() => heroIll.classList.remove('is-tapped'), 650);
+        };
+        heroIll.addEventListener('click', bounce);
+        heroIll.addEventListener('touchstart', () => bounce(), { passive: true });
+      }
+    });
+  </script>
+</body>
+</html>

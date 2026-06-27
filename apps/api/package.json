@@ -1,0 +1,19 @@
+{
+  "name": "@lookup/api",
+  "version": "3.0.0-alpha.1-monorepo",
+  "private": true,
+  "description": "Backend di Lookup — Node + Fastify + Prisma + PostgreSQL. Scaffold creato in Fase 1a, runtime aggiunto in Fase 1c.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "echo '[fase 1c] Backend non ancora implementato. Verrà aggiunto in 1c con: fastify dev'",
+    "build": "echo '[fase 1c] Build non ancora implementato'",
+    "start": "echo '[fase 1c] Start non ancora implementato'",
+    "test": "echo '[fase 1h] Test backend non ancora implementati'",
+    "db:migrate": "echo '[fase 1b] Prisma migrate verrà aggiunto in 1b'",
+    "db:seed": "echo '[fase 1b] Prisma seed verrà aggiunto in 1b'"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

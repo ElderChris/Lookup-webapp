@@ -1,21 +1,32 @@
 {
-  "name": "libreria-diffusa",
-  "version": "3.0.0-alpha.0",
+  "name": "lookup",
+  "version": "3.0.0-alpha.1-monorepo",
   "private": true,
-  "description": "Piattaforma di geolocalizzazione culturale per la condivisione del patrimonio librario privato — prototipo accademico in transizione verso Alpha.",
+  "description": "Lookup — piattaforma di geolocalizzazione culturale per la condivisione del patrimonio librario privato. Prototipo accademico in transizione verso Alpha.",
   "type": "module",
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
   "scripts": {
-    "dev": "python3 no-cache-server.py 8765",
+    "dev": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "build": "npm run build --workspaces --if-present",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report",
-    "lint": "eslint js/",
-    "lint:fix": "eslint js/ --fix",
-    "format": "prettier --write \"{js,tests}/**/*.{js,json}\"",
-    "format:check": "prettier --check \"{js,tests}/**/*.{js,json}\"",
+    "test:api": "npm run test --workspace=apps/api",
+    "lint": "eslint apps/ tests-e2e/",
+    "lint:fix": "eslint apps/ tests-e2e/ --fix",
+    "format": "prettier --write \"apps/**/*.{js,mjs,ts,json}\" \"tests-e2e/**/*.{js,mjs}\"",
+    "format:check": "prettier --check \"apps/**/*.{js,mjs,ts,json}\" \"tests-e2e/**/*.{js,mjs}\"",
     "check": "npm run lint && npm run format:check && npm test",
-    "prepare": "[ -d .git ] && husky || true"
+    "prepare": "node scripts/setup-husky.mjs",
+    "db:up": "docker compose up -d postgres redis",
+    "db:down": "docker compose stop postgres redis",
+    "db:shell": "docker compose exec postgres psql -U lookup -d lookup",
+    "db:reset": "docker compose down -v && docker compose up -d postgres redis"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.0",
@@ -25,11 +36,11 @@
     "prettier": "^3.3.3"
   },
   "lint-staged": {
-    "js/**/*.js": [
+    "apps/**/*.{js,mjs,ts}": [
       "eslint --fix",
       "prettier --write"
     ],
-    "tests/**/*.js": [
+    "tests-e2e/**/*.{js,mjs}": [
       "prettier --write"
     ]
   },

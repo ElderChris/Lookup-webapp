@@ -1,14 +1,18 @@
 # Generated / dependency dirs
 node_modules/
+apps/*/node_modules/
 dist/
+build/
 test-results/
 playwright-report/
 *.zip
 
-# Per Fase 0c esclude HTML/CSS (verranno formattati in fase dedicata).
-# Per ora Prettier processa solo js/ e tests/.
+# Per Fase 1a esclude HTML/CSS (verranno formattati in fase dedicata).
 *.html
-css/
+apps/web/css/
+
+# Prisma generated
+apps/api/prisma/migrations/
 
 # Dati locali
 *.log

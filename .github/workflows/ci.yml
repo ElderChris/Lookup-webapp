@@ -1,5 +1,5 @@
 # =============================================================================
-# CI — Libreria Diffusa
+# CI — Lookup
 # =============================================================================
 # Esegue lint + format check + smoke test su ogni push e PR verso main.
 # Niente deploy automatico (vincolo self-host: il cliente deploya in autonomia).
