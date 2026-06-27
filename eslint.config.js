@@ -15,7 +15,7 @@ import globals from 'globals';
 
 export default [
   {
-    files: ['js/**/*.js'],
+    files: ['apps/web/js/**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
@@ -57,7 +57,7 @@ export default [
     }
   },
   {
-    files: ['tests/**/*.js'],
+    files: ['tests-e2e/**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',

@@ -1,0 +1,14 @@
+{
+  "name": "@lookup/web",
+  "version": "3.0.0-alpha.1-monorepo",
+  "private": true,
+  "description": "Frontend di Lookup — vanilla JS modules + static HTML, servito da nginx in production o python no-cache-server in dev.",
+  "type": "module",
+  "scripts": {
+    "dev": "python3 no-cache-server.py 8765",
+    "dev:win": "python no-cache-server.py 8765"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
