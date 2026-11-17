@@ -205,7 +205,7 @@ export async function buildApp(opts = {}) {
       const route = request.routeOptions?.url || request.routerPath || 'unknown';
       const method = request.method || 'UNKNOWN';
       const status = String(reply.statusCode);
-      const seconds = reply.getResponseTime() / 1000;
+      const seconds = reply.elapsedTime / 1000; // ms → s (getResponseTime non esiste in Fastify 5)
       httpDuration.labels(method, route, status).observe(seconds);
       httpRequests.labels(method, route, status).inc();
       done();
