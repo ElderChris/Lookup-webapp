@@ -6,7 +6,7 @@
 
 import { z } from 'zod';
 import {
-  IntId, UserId, NullableUrl, AccountType, UserSummaryDto, CategorySummaryDto,
+  IntId, UserId, NullableUrl, AccountType, UserSummaryDto, CategorySummaryDto, IsoDateTime,
 } from './common.js';
 
 // -----------------------------------------------------------------------------
@@ -187,44 +187,3 @@ export const BookTimelineDto = z.object({
   }),
 });
 
-// -----------------------------------------------------------------------------
-// Beta 2: Global stats (contatori aggregati per admin dashboard + stats page)
-// -----------------------------------------------------------------------------
-
-export const GlobalStatsDto = z.object({
-  totalUsers: z.number().int().nonnegative(),
-  activeUsers: z.number().int().nonnegative(),        // status='active'
-  personUsers: z.number().int().nonnegative(),
-  orgUsers: z.number().int().nonnegative(),
-  totalBooks: z.number().int().nonnegative(),
-  availableBooks: z.number().int().nonnegative(),
-  totalLoans: z.number().int().nonnegative(),
-  activeLoans: z.number().int().nonnegative(),        // requested + confirmed + borrowed + returning
-  completedLoans: z.number().int().nonnegative(),     // returned
-  totalPosts: z.number().int().nonnegative(),
-  totalReviews: z.number().int().nonnegative(),
-  totalCategories: z.number().int().nonnegative(),
-  computedAt: IsoDateTime,
-});
-
-// -----------------------------------------------------------------------------
-// Beta 2: Activity timeline (ultimi N giorni di attività aggregata)
-// -----------------------------------------------------------------------------
-
-export const ActivityTimelinePointDto = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD
-  signups: z.number().int().nonnegative(),
-  newBooks: z.number().int().nonnegative(),
-  loanRequests: z.number().int().nonnegative(),
-  reviews: z.number().int().nonnegative(),
-  posts: z.number().int().nonnegative(),
-});
-
-export const ActivityTimelineQuery = z.object({
-  days: z.coerce.number().int().min(1).max(90).default(30),
-});
-
-export const ActivityTimelineResponse = z.object({
-  days: z.number().int().positive(),
-  timeline: z.array(ActivityTimelinePointDto),
-});
