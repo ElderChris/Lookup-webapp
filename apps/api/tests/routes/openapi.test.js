@@ -5,8 +5,11 @@
 // siano registrati correttamente da @fastify/swagger e @fastify/swagger-ui.
 // =============================================================================
 
+import { readFileSync } from 'node:fs';
 import { describe, it, expect, afterAll } from 'vitest';
 import { buildTestApp, closeTestApp } from '../helpers.mjs';
+
+const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
 
 describe('OpenAPI documentation', () => {
   afterAll(closeTestApp);
@@ -20,7 +23,7 @@ describe('OpenAPI documentation', () => {
 
     expect(spec.openapi).toMatch(/^3\.[01]/); // 3.0.x o 3.1.x
     expect(spec.info.title).toBe('Lookup API');
-    expect(spec.info.version).toContain('alpha');
+    expect(spec.info.version).toBe(pkg.version); // allineata a apps/api/package.json
     expect(spec.tags).toBeInstanceOf(Array);
     expect(spec.tags.map((t) => t.name)).toEqual(
       expect.arrayContaining([
