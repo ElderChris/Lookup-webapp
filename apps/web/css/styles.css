@@ -6846,10 +6846,16 @@ a:hover { color: var(--color-burgundy-dk); }
   letter-spacing: 0.01em;
   height: 38px;          /* match altezza icone */
   border-width: 1.5px;
+  /* `.site-nav a` (specificita' piu' alta di `.nav-auth-cta`) imposta
+     border-bottom trasparente e colore inchiostro per i link della nav:
+     senza queste due righe il bordo inferiore del pulsante spariva. */
+  border-color: var(--color-burgundy);
+  color: var(--color-burgundy);
 }
 .site-nav .nav-auth-cta:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(122, 30, 43, 0.20);
+  color: var(--color-paper); /* serve: la regola sopra fissa il colore per la nav */
 }
 
 /* =====================================================================
