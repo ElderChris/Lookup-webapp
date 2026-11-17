@@ -312,12 +312,14 @@ Invoke-Step 'Smoke HTTP infrastruttura' $SkipSmoke.IsPresent {
     return @{ Status = 'PASS'; Detail = 'ping, health (db+redis ok), web, openapi' }
 }
 
+# Stessi percorsi del browser: login, sessione e SSE passano dal frontend
+# (nginx inoltra /api/* all'API), le chiamate REST vanno all'API sulla 3000.
 Invoke-Step 'Smoke applicativo (login, prestiti, SSE)' $SkipSmoke.IsPresent {
     $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
     $body = @{ email = $SeedEmail; password = $SeedPassword } | ConvertTo-Json
-    Write-Log ">>> POST $ApiUrl/api/auth/sign-in/email ($SeedEmail)"
+    Write-Log ">>> POST $WebUrl/api/auth/sign-in/email ($SeedEmail)"
     try {
-        $login = Invoke-WebRequest -Uri "$ApiUrl/api/auth/sign-in/email" -Method Post -Body $body `
+        $login = Invoke-WebRequest -Uri "$WebUrl/api/auth/sign-in/email" -Method Post -Body $body `
             -ContentType 'application/json' -Headers @{ Origin = $WebUrl } `
             -WebSession $session -UseBasicParsing -TimeoutSec 15
         Write-Log "<<< $([int]$login.StatusCode)"
@@ -335,6 +337,8 @@ Invoke-Step 'Smoke applicativo (login, prestiti, SSE)' $SkipSmoke.IsPresent {
     }
 
     $issues = @()
+    $sess = Invoke-Http "$WebUrl/api/auth/get-session" $session
+    if ($sess.Code -ne 200 -or $sess.Body -notmatch [regex]::Escape($SeedEmail)) { $issues += "get-session $($sess.Code)" }
     $me = Invoke-Http "$ApiUrl/api/users/me" $session
     if ($me.Code -ne 200) { $issues += "users/me $($me.Code)" }
     $sent = Invoke-Http "$ApiUrl/api/me/loans/sent" $session
@@ -344,9 +348,9 @@ Invoke-Step 'Smoke applicativo (login, prestiti, SSE)' $SkipSmoke.IsPresent {
 
     # SSE: basta ricevere gli header con Content-Type text/event-stream,
     # poi si chiude la connessione (lo stream resterebbe aperto per sempre).
-    Write-Log ">>> GET $ApiUrl/api/me/events (SSE, solo header)"
+    Write-Log ">>> GET $WebUrl/api/me/events (SSE, solo header)"
     try {
-        $req = [System.Net.HttpWebRequest]::Create("$ApiUrl/api/me/events")
+        $req = [System.Net.HttpWebRequest]::Create("$WebUrl/api/me/events")
         $req.CookieContainer = $session.Cookies
         $req.Accept  = 'text/event-stream'
         $req.Timeout = 10000
@@ -364,7 +368,7 @@ Invoke-Step 'Smoke applicativo (login, prestiti, SSE)' $SkipSmoke.IsPresent {
         [void](Invoke-Native 'docker logs --tail 80 lookup-api')
         return @{ Status = 'FAIL'; Detail = $issues -join '; ' }
     }
-    return @{ Status = 'PASS'; Detail = "login $SeedEmail, users/me, prestiti inviati/ricevuti, stream SSE aperto" }
+    return @{ Status = 'PASS'; Detail = "login e sessione via frontend ($SeedEmail), users/me, prestiti inviati/ricevuti, stream SSE via frontend" }
 }
 
 Invoke-Step 'Test suite Vitest' $SkipTests.IsPresent {
