@@ -237,7 +237,10 @@ Invoke-Step 'Avvio container + healthcheck' $false {
     $left = Wait-Healthy $targets $HealthTimeoutSec
     if ($left.Count -gt 0) {
         [void](Invoke-Native 'docker compose --profile backend ps')
-        foreach ($c in $left) { [void](Invoke-Native "docker logs --tail 40 $c") }
+        foreach ($c in $left) {
+            [void](Invoke-Native "docker inspect -f {{json .State.Health}} $c")
+            [void](Invoke-Native "docker logs --tail 40 $c")
+        }
         return @{ Status = 'FAIL'; Detail = "non healthy dopo $HealthTimeoutSec s: $($left -join ', ')" }
     }
     return @{ Status = 'PASS'; Detail = ($targets -join ', ') + ' healthy' }
