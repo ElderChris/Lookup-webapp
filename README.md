@@ -125,6 +125,7 @@ Opzioni utili:
 | `-SkipPull -SkipBuild` | Riusa le immagini Docker già presenti |
 | `-SkipTests` | Salta la suite di test automatici |
 | `-Down` | Ferma i servizi al termine |
+| `-Reseed` | Ricarica i dati di prova anche se il database non è vuoto (**cancella** i dati esistenti) |
 
 Se PowerShell impedisce l'esecuzione dello script, eseguire una sola volta:
 
