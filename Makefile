@@ -46,8 +46,8 @@ help:
 	@echo ""
 	@echo "  Sviluppo (rapido, locale):"
 	@echo "    make dev           Avvia python no-cache-server (frontend) su :8765"
-	@echo "    make install       Installa dev deps (npm + playwright browsers)"
-	@echo "    make test          Esegue i test Playwright"
+	@echo "    make install       Installa le dipendenze npm"
+	@echo "    make test          Esegue i test del backend (servizi avviati)"
 	@echo "    make lint          ESLint + Prettier check"
 	@echo "    make format        Auto-fix con Prettier"
 	@echo "    make check         Lint + format check + test (come CI)"
@@ -138,7 +138,6 @@ dev:
 
 install:
 	npm install
-	npx playwright install --with-deps chromium
 
 test:
 	npm test

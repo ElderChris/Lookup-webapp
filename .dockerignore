@@ -1,7 +1,5 @@
 # Build context Docker — riduce dimensione e velocizza build.
 **/node_modules/
-test-results/
-playwright-report/
 .husky/
 .git/
 .github/
@@ -17,7 +15,6 @@ Thumbs.db
 
 # Docs e file di sviluppo non necessari nei container
 docs/
-tests-e2e/
 *.md
 
 # Non servono all'immagine dell'API (contesto di build = root del repo)

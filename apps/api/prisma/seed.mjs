@@ -30,7 +30,7 @@ const prisma = new PrismaClient();
 // =============================================================================
 // Tutti gli utenti seed hanno la stessa password: `Lookup2026!`. Questo
 // permette di fare login vero via Better Auth durante lo sviluppo e i test
-// end-to-end (Playwright, curl, browser reali).
+// end-to-end (curl, browser reali).
 //
 // L'algoritmo di hashing replica esattamente quello di Better Auth v1.x:
 //   salt = 16 bytes random hex

@@ -43,8 +43,8 @@ function Show-Help {
     Write-Host ""
     Write-Host "  Sviluppo (rapido, locale):"
     Write-Host "    .\dev.ps1 dev        Avvia python no-cache-server su :8765"
-    Write-Host "    .\dev.ps1 install    Installa dev deps [npm + playwright browsers]"
-    Write-Host "    .\dev.ps1 test       Esegue i test Playwright"
+    Write-Host "    .\dev.ps1 install    Installa le dipendenze npm"
+    Write-Host "    .\dev.ps1 test       Esegue i test del backend [servizi avviati]"
     Write-Host "    .\dev.ps1 lint       ESLint + Prettier check"
     Write-Host "    .\dev.ps1 format     Auto-fix con Prettier"
     Write-Host "    .\dev.ps1 check      Lint + format check + test [come CI]"
@@ -178,7 +178,6 @@ switch ($Command.ToLower()) {
             Write-Host "[ERROR] npm install fallito" -ForegroundColor Red
             exit 1
         }
-        npx playwright install --with-deps chromium
     }
 
     "test"    { npm test }
