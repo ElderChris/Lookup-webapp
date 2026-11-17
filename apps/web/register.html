@@ -2,7 +2,15 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Beta 9: PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#7a1e2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lookup" />
+  <link rel="apple-touch-icon" href="/img/icon-180.png" />
+
   <title>Crea la tua libreria — Lookup</title>
   <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
@@ -403,6 +411,7 @@
     </div>
   </footer>
 
+  <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -688,7 +697,7 @@
       });
 
       /* ----- Submit finale: crea utente + (eventuali) volumi + login ----- */
-      form.addEventListener('submit', (e) => {
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const borrower = isBorrower();
@@ -735,24 +744,104 @@
           };
         }
 
-        // Crea l'utente
-        const createResult = API.createUser(payload);
-        if (!createResult.ok) {
-          // v2.1: errori bloccanti — username o email già in uso
-          const messages = {
-            'username-taken': 'Questo nome utente è già in uso. Scegline uno diverso.',
-            'email-taken': 'Questa email è già registrata. Se sei tu, accedi invece di registrarti.',
-            'username-empty': 'Il nome utente è obbligatorio.'
-          };
-          showErrors([messages[createResult.reason] || ('Errore: ' + createResult.reason)]);
-          // Riporta l'utente al passo dei dati account (lo step 1)
-          showStep(1);
-          // Focus sul campo problematico
-          const focusField = createResult.reason === 'email-taken' ? 'email' : 'username';
-          setTimeout(() => document.getElementById(focusField)?.focus(), 300);
-          return;
+        // ================================================================
+        // Fase 3.2: registrazione via Better Auth (se backend UP)
+        // ================================================================
+        // Il signup Better Auth:
+        //   - Crea User + Account credential + invia email verify a MailHog
+        //   - Setta cookie httpOnly `better-auth.session_token`
+        //   - autoSignIn=true → l'utente e' subito loggato
+        //
+        // I dati extra (bio, org_profile, motto, theme) restano nel legacy
+        // localStorage per compat con pagine ancora non migrate (profile.html
+        // legge da Storage). In Fase 3.3 tutto va al backend.
+        let newUser;
+        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+          try {
+            const password = form.password.value;
+            const authResult = await window.LB_API.authClient.signUp({
+              email: payload.email,
+              password: password,
+              name: payload.display_name,
+              username: payload.username,
+              bio: payload.bio || undefined,
+              city: payload.city || undefined,
+              accountType: payload.account_type,
+            });
+            // authResult.user ha l'id backend (CUID). Costruisco un oggetto
+            // legacy-compatible per il flow rimanente (add books, redirect).
+            const be = authResult.user;
+            newUser = {
+              id: be.id,
+              username: be.username || payload.username,
+              display_name: be.name || payload.display_name,
+              email: be.email,
+              account_type: payload.account_type,
+              library_role: payload.library_role,
+              city: payload.city,
+              bio: payload.bio,
+              motto: payload.motto,
+              theme: payload.theme,
+            };
+            // Salva anche in Storage per compat pagine legacy
+            try {
+              // Beta 2: current_user_id non piu' sincronizzato
+              localStorage.setItem('auth_state', JSON.stringify('user'));
+              // Merge anche i dati extra nella tabella users legacy (per profile.html)
+              const legacyUsers = JSON.parse(localStorage.getItem('users') || '[]');
+              legacyUsers.push(newUser);
+              localStorage.setItem('users', JSON.stringify(legacyUsers));
+              if (payload.org_profile) {
+                const orgs = JSON.parse(localStorage.getItem('org_profiles') || '[]');
+                orgs.push({ user_id: be.id, ...payload.org_profile });
+                localStorage.setItem('org_profiles', JSON.stringify(orgs));
+              }
+            } catch (_) { /* quota o incognito, ignora */ }
+          } catch (authErr) {
+            // Errori Better Auth normalizzati
+            const errorMap = {
+              'USER_ALREADY_EXISTS': 'email-taken',
+              'EMAIL_TAKEN': 'email-taken',
+              'USERNAME_TAKEN': 'username-taken',
+              'INVALID_EMAIL': 'invalid-email',
+              'INVALID_PASSWORD': 'password-too-short',
+              'RATE_LIMITED': 'rate-limited',
+            };
+            const legacyReason = errorMap[authErr.code] || 'signup-failed';
+            const messages = {
+              'email-taken': 'Questa email e\' gia\' registrata. Se sei tu, accedi invece di registrarti.',
+              'username-taken': 'Questo nome utente e\' gia\' in uso. Scegline uno diverso.',
+              'invalid-email': 'L\'email inserita non e\' valida.',
+              'password-too-short': 'La password deve avere almeno 8 caratteri.',
+              'rate-limited': 'Troppi tentativi. Riprova tra qualche minuto.',
+              'signup-failed': 'Errore di registrazione: ' + (authErr.message || authErr.code),
+            };
+            showErrors([messages[legacyReason]]);
+            showStep(1);
+            const focusField = legacyReason === 'email-taken' ? 'email'
+                             : legacyReason === 'username-taken' ? 'username'
+                             : legacyReason === 'password-too-short' ? 'password'
+                             : 'email';
+            setTimeout(() => document.getElementById(focusField)?.focus(), 300);
+            return;
+          }
+        } else {
+          // Fallback: backend giu' → registrazione legacy (localStorage)
+          const createResult = API.createUser(payload);
+          if (!createResult.ok) {
+            const messages = {
+              'username-taken': 'Questo nome utente e\' gia\' in uso. Scegline uno diverso.',
+              'email-taken': 'Questa email e\' gia\' registrata. Se sei tu, accedi invece di registrarti.',
+              'username-empty': 'Il nome utente e\' obbligatorio.'
+            };
+            showErrors([messages[createResult.reason] || ('Errore: ' + createResult.reason)]);
+            showStep(1);
+            const focusField = createResult.reason === 'email-taken' ? 'email' : 'username';
+            setTimeout(() => document.getElementById(focusField)?.focus(), 300);
+            return;
+          }
+          newUser = createResult.user;
         }
-        const newUser = createResult.user;
 
         // Aggiunge gli eventuali volumi dell'onboarding alla sua libreria
         addedBooks.forEach(b => {
@@ -770,7 +859,7 @@
           });
         });
 
-        // Login automatico come nuovo utente
+        // Login automatico come nuovo utente (per compat pagine legacy)
         API.setAuthState('user');
         API.setCurrentUser(newUser.id);
 

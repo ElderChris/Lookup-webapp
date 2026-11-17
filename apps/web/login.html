@@ -2,9 +2,18 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Beta 9: PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#7a1e2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lookup" />
+  <link rel="apple-touch-icon" href="/img/icon-180.png" />
+
   <title>Accedi — Lookup</title>
   <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
 </head>
 <body>
@@ -76,12 +85,72 @@
       </form>
 
       <script>
-        document.getElementById('login-form').addEventListener('submit', e => {
+        // Fase 3.2: login via Better Auth (cookie session firmato)
+        // - Il legacy API.authenticate accettava username OR email; Better
+        //   Auth accetta solo email → se l'input non contiene "@", lo
+        //   trattiamo come username e facciamo lookup /api/users/by-username
+        //   (o meglio, chiediamo direttamente l'email nel form — semplice).
+        // - Il cookie httpOnly `better-auth.session_token` viene settato dal
+        //   backend automaticamente. Il frontend NON lo vede (piu' sicuro).
+        // - Fallback legacy: se il backend e' offline, prova API.authenticate.
+        document.getElementById('login-form').addEventListener('submit', async e => {
           e.preventDefault();
           const usernameOrEmail = document.getElementById('email').value.trim();
           const password = document.getElementById('password').value;
-          const result = API.authenticate(usernameOrEmail, password);
           const errBox = document.getElementById('login-error');
+          const submitBtn = e.target.querySelector('button[type="submit"]');
+          errBox.hidden = true;
+
+          if (!usernameOrEmail || !password) {
+            errBox.textContent = 'Inserisci email e password.';
+            errBox.hidden = false;
+            return;
+          }
+
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Accesso in corso...';
+
+          // Tenta Better Auth se backend UP
+          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+            try {
+              const email = usernameOrEmail.includes('@') ? usernameOrEmail : null;
+              if (!email) {
+                errBox.textContent = 'Inserisci un indirizzo email valido (Better Auth non supporta login con username).';
+                errBox.hidden = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Accedi';
+                return;
+              }
+              const result = await window.LB_API.authClient.signIn({ email, password });
+              // Login OK: sincronizza legacy Storage per pagine ancora non migrate
+              const user = result.user;
+              try {
+                // Beta 2: current_user_id non piu' sincronizzato (bootstrap legge da session cookie)
+                localStorage.setItem('auth_state', JSON.stringify('user'));
+              } catch (_) {}
+              // Redirect: admin → admin.html, altri → profile.html
+              location.href = user.role === 'admin' ? 'admin.html' : 'profile.html';
+              return;
+            } catch (err) {
+              // Errori Better Auth normalizzati
+              const msgMap = {
+                'INVALID_CREDENTIALS': 'Email o password non corretti.',
+                'USER_NOT_FOUND': 'Nessun account corrisponde a questa email.',
+                'INVALID_EMAIL': 'Email non valida.',
+                'INVALID_PASSWORD': 'Password non corretta.',
+                'RATE_LIMITED': 'Troppi tentativi. Riprova tra qualche minuto.',
+                'EMAIL_NOT_VERIFIED': 'Devi verificare la tua email prima di accedere. Controlla la posta.',
+              };
+              errBox.textContent = msgMap[err.code] || err.message || 'Errore di accesso.';
+              errBox.hidden = false;
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Accedi';
+              return;
+            }
+          }
+
+          // Fallback legacy (backend offline)
+          const result = API.authenticate(usernameOrEmail, password);
           if (!result.ok) {
             const msgMap = {
               'missing-credentials': 'Inserisci username (o email) e password.',
@@ -91,9 +160,10 @@
             };
             errBox.textContent = msgMap[result.reason] || 'Errore di accesso.';
             errBox.hidden = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Accedi';
             return;
           }
-          // Login OK: gli admin vanno al loro pannello, gli altri al profilo
           location.href = result.user.is_admin ? 'admin.html' : 'profile.html';
         });
       </script>

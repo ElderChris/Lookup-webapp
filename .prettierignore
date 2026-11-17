@@ -11,6 +11,9 @@ playwright-report/
 *.html
 apps/web/css/
 
+# Archivio storico del vecchio frontend: conservato invariato
+apps/web/js/legacy/
+
 # Prisma generated
 apps/api/prisma/migrations/
 

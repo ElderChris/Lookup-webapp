@@ -29,13 +29,13 @@ const PAGES = [
   'loans.html',
   'loans.html#loan-3',
   'privacy.html',
-  'terms.html'
+  'terms.html',
 ];
 
 const AUTH_SCENARIOS = [
-  { state: 'guest', uid: null,  label: 'guest' },
-  { state: 'user',  uid: '1',   label: 'user (Chiara)' },
-  { state: 'user',  uid: '11',  label: 'admin' }
+  { state: 'guest', uid: null, label: 'guest' },
+  { state: 'user', uid: '1', label: 'user (Chiara)' },
+  { state: 'user', uid: '11', label: 'admin' },
 ];
 
 /* Errori che ignoriamo perché irrilevanti per la correttezza del codice:
@@ -48,11 +48,11 @@ const IGNORED_ERROR_PATTERNS = [
   /L is not defined/,
   /covers\.openlibrary/,
   /fonts\.googleapis/,
-  /favicon/
+  /favicon/,
 ];
 
 function isRelevantError(err) {
-  return !IGNORED_ERROR_PATTERNS.some(p => p.test(err));
+  return !IGNORED_ERROR_PATTERNS.some((p) => p.test(err));
 }
 
 for (const { state, uid, label } of AUTH_SCENARIOS) {
@@ -60,17 +60,20 @@ for (const { state, uid, label } of AUTH_SCENARIOS) {
     for (const url of PAGES) {
       test(`carica ${url} senza errori JS`, async ({ page, context }) => {
         const errors = [];
-        page.on('pageerror', err => {
+        page.on('pageerror', (err) => {
           if (isRelevantError(err.message)) errors.push(err.message);
         });
 
         // Imposta auth state via localStorage prima del navigate
         await page.goto('/index.html');
-        await page.evaluate(([s, u]) => {
-          localStorage.clear();
-          localStorage.setItem('auth_state', JSON.stringify(s));
-          if (u) localStorage.setItem('current_user_id', u);
-        }, [state, uid]);
+        await page.evaluate(
+          ([s, u]) => {
+            localStorage.clear();
+            localStorage.setItem('auth_state', JSON.stringify(s));
+            if (u) localStorage.setItem('current_user_id', u);
+          },
+          [state, uid]
+        );
 
         await page.goto(`/${url}`);
         await page.waitForLoadState('domcontentloaded');
@@ -85,7 +88,7 @@ for (const { state, uid, label } of AUTH_SCENARIOS) {
 
 test('admin.html accessibile solo da admin', async ({ page }) => {
   const errors = [];
-  page.on('pageerror', err => {
+  page.on('pageerror', (err) => {
     if (isRelevantError(err.message)) errors.push(err.message);
   });
 

@@ -26,7 +26,7 @@ import {
   LOAN_STATUS_LABEL, LOAN_STATUS_HINT,
   LIBRARY_COVER_DESIGN_MAP,
   daysAgo
-} from './data.js';
+} from '../data.js';
 
 export const API = {
 

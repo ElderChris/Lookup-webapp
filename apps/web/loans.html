@@ -2,7 +2,15 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Beta 9: PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#7a1e2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lookup" />
+  <link rel="apple-touch-icon" href="/img/icon-180.png" />
+
   <meta name="description" content="Lo stato dei volumi che hai chiesto in prestito su Lookup." />
   <title>I miei prestiti — Lookup</title>
   <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
@@ -113,6 +121,7 @@
     </div>
   </footer>
 
+  <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -417,46 +426,93 @@
       });
 
       // Click sulle azioni dentro al dettaglio (delega centrale)
-      document.getElementById('loans-detail').addEventListener('click', e => {
+      document.getElementById('loans-detail').addEventListener('click', async e => {
         const btn = e.target.closest('[data-loan-action]');
         if (!btn) return;
         const loanId = +btn.dataset.loanId;
         const action = btn.dataset.loanAction;
 
+        // ----- Fase 2c.3: helper WRITE con backend primary + fallback legacy -----
+        // Cambiamento rispetto al shadow di Fase 2b.3:
+        //   PRIMA:  legacy result decide, backend in shadow fire-and-forget
+        //   ORA:    tenta backend PRIMA con await. Se OK, replica in legacy.
+        //           Se backend giu' (network/5xx), fallback al legacy.
+        //           Errori 4xx del backend (WRONG_ROLE, INVALID_TRANSITION) →
+        //           toast + STOP (non fare fallback, la transizione e' invalida).
+        //
+        // Ritorna { ok: boolean, source: 'backend'|'legacy', reason?: string }
+        const transitionLoan = async (apiMethod, legacyFn, extraArg) => {
+          // 1. Prova backend
+          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+            try {
+              const fn = window.LB_API.loans[apiMethod];
+              const res = extraArg !== undefined
+                ? await fn(loanId, extraArg)
+                : await fn(loanId);
+              console.debug(`[loans WRITE] backend ${apiMethod}(${loanId}) OK, status=${res?.status}`);
+              window.LB_API.cache.invalidate('loans:'); // liste sent/received obsolete
+              // Replica anche in legacy per consistenza (altre pagine leggono ancora da Storage)
+              try { legacyFn(); } catch (_) { /* legacy potrebbe rifiutare, non blocchiamo */ }
+              return { ok: true, source: 'backend' };
+            } catch (err) {
+              // Errori business (4xx) sono decisioni del backend, non fallback-abili
+              if (err.status >= 400 && err.status < 500) {
+                return { ok: false, source: 'backend', reason: err.message || err.code };
+              }
+              console.debug(`[loans WRITE] backend fail, fallback legacy: ${err.code}`);
+            }
+          }
+          // 2. Fallback legacy (offline o 5xx backend)
+          const r = legacyFn();
+          return { ok: !!r?.ok, source: 'legacy', reason: r?.reason };
+        };
+        // ------------------------------------------------------------------
+
         if (action === 'confirm-pickup') {
           if (!confirm('Confermi di aver ritirato fisicamente il volume?')) return;
-          const r = API.confirmPickup(loanId);
-          if (r.ok) { UI.toast('Confermato. Il volume è ora in tuo possesso.', 'success'); render(); }
-          else { UI.toast('Errore: ' + r.reason, 'error'); }
+          const r = await transitionLoan('markBorrowed', () => API.confirmPickup(loanId));
+          if (r.ok) {
+            UI.toast(`Confermato. Il volume è ora in tuo possesso. (${r.source})`, 'success');
+            render();
+          } else UI.toast('Errore: ' + r.reason, 'error');
         }
         if (action === 'cancel') {
           if (!confirm('Annullare questa richiesta? Il prestatore verrà notificato.')) return;
-          const r = API.cancelLoan(loanId);
-          if (r.ok) { UI.toast('Richiesta annullata.', 'info'); render(); }
-          else { UI.toast('Errore: ' + r.reason, 'error'); }
+          const r = await transitionLoan('cancel', () => API.cancelLoan(loanId));
+          if (r.ok) {
+            UI.toast(`Richiesta annullata. (${r.source})`, 'info');
+            render();
+          } else UI.toast('Errore: ' + r.reason, 'error');
         }
         if (action === 'start-return') {
           openReturnWizard(loanId);
         }
-        // v2.0: azioni nuove dal lato prestatore (prima erano solo su profile.html)
         if (action === 'confirm-request') {
-          const r = API.confirmLoan(loanId);
-          if (r.ok) { UI.toast('Richiesta confermata.', 'success'); render(); }
-          else { UI.toast('Errore: ' + r.reason, 'error'); }
+          const r = await transitionLoan('accept', () => API.confirmLoan(loanId));
+          if (r.ok) {
+            UI.toast(`Richiesta confermata. (${r.source})`, 'success');
+            render();
+          } else UI.toast('Errore: ' + r.reason, 'error');
         }
         if (action === 'reject') {
           const reason = prompt('Motiva il rifiuto (min 10 caratteri):');
           if (!reason) return;
-          const r = API.rejectLoan(loanId, reason);
-          if (r.ok) { UI.toast('Richiesta rifiutata. Il richiedente è stato notificato.', 'info'); render(); }
-          else { UI.toast(r.reason === 'reason-short'
-            ? 'La motivazione deve essere lunga almeno 10 caratteri.'
-            : 'Errore: ' + r.reason, 'error'); }
+          const r = await transitionLoan('reject', () => API.rejectLoan(loanId, reason), reason);
+          if (r.ok) {
+            UI.toast(`Richiesta rifiutata. Il richiedente è stato notificato. (${r.source})`, 'info');
+            render();
+          } else {
+            UI.toast(r.reason === 'reason-short'
+              ? 'La motivazione deve essere lunga almeno 10 caratteri.'
+              : 'Errore: ' + r.reason, 'error');
+          }
         }
         if (action === 'confirm-return') {
-          const r = API.confirmReturn(loanId);
-          if (r.ok) { UI.toast('Restituzione confermata. Prestito chiuso.', 'success'); render(); }
-          else { UI.toast('Errore: ' + r.reason, 'error'); }
+          const r = await transitionLoan('markReturned', () => API.confirmReturn(loanId));
+          if (r.ok) {
+            UI.toast(`Restituzione confermata. Prestito chiuso. (${r.source})`, 'success');
+            render();
+          } else UI.toast('Errore: ' + r.reason, 'error');
         }
         if (action === 'simulate-next') {
           // v1.9: animazione fade-out → simulazione → fade-in con nuovo stato

@@ -29,3 +29,29 @@ BEGIN
     RAISE NOTICE 'pg_trgm:  installato';
     RAISE NOTICE 'citext:   installato';
 END $$;
+
+-- =============================================================================
+-- Database "lookup_test" per test backend (Fase 1h)
+-- =============================================================================
+-- I test Vitest girano su un database separato per non interferire con lo
+-- sviluppo locale. Lo creiamo qui al primo boot del container.
+--
+-- Le extension vanno create separatamente nel nuovo DB (sono per-database in
+-- Postgres). Usiamo una connessione esplicita via \connect.
+-- =============================================================================
+
+SELECT 'CREATE DATABASE lookup_test OWNER lookup'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'lookup_test')\gexec
+
+\connect lookup_test
+
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS citext;
+
+DO $$
+BEGIN
+    RAISE NOTICE 'lookup_test: estensioni installate (postgis, pg_trgm, citext)';
+END $$;
+
+\connect lookup

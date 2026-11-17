@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Beta 9: PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#7a1e2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lookup" />
+  <link rel="apple-touch-icon" href="/img/icon-180.png" />
+
+  <title>Verifica email — Lookup</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script type="module" src="js/api-bootstrap.js"></script>
+  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+</head>
+<body>
+  <div id="nav-mount"></div>
+
+  <main class="container" style="max-width: 480px; margin-top: 3rem;">
+    <section class="card" style="padding: 2rem;">
+      <h1 style="margin-top: 0;">Verifica email</h1>
+
+      <div id="loading" class="alert alert--info">
+        Sto verificando il tuo link...
+      </div>
+
+      <div id="success" hidden>
+        <div class="alert alert--success">
+          <strong>Email verificata!</strong> Il tuo account e' ora attivo.
+        </div>
+        <p style="margin-top: 1.5rem; text-align: center;">
+          <a href="profile.html" class="btn btn--primary">Vai al tuo profilo</a>
+        </p>
+      </div>
+
+      <div id="error" hidden>
+        <div class="alert alert--error" id="error-msg">
+          <strong>Verifica fallita.</strong>
+        </div>
+        <p style="margin-top: 1.5rem; text-align: center;">
+          <a href="login.html">Vai al login</a> — o <a href="register.html">registrati di nuovo</a>
+        </p>
+      </div>
+
+      <div id="no-token" hidden>
+        <div class="alert alert--info">
+          <strong>Nessun token trovato.</strong> Il link di verifica dovrebbe
+          contenere un parametro <code>?token=...</code>. Se sei arrivato qui
+          per errore, torna alla <a href="index.html">home</a>.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div><h4>Lookup</h4></div>
+      <div></div>
+      <div></div>
+      <div><h4>Info</h4><a href="privacy.html">Privacy</a></div>
+      <div class="site-footer__colophon"><span>© 2026 Lookup</span><span>v3.0.0-alpha</span></div>
+    </div>
+  </footer>
+
+  <script>
+    // =============================================================================
+    // Fase 3.2: verify-email landing page
+    // =============================================================================
+    // L'utente arriva qui cliccando il link nell'email inviata da Better Auth
+    // durante sign-up. URL: /verify-email.html?token=XXX
+    //
+    // Flow:
+    //   1. Leggo `token` da URL query string
+    //   2. Chiamo authClient.verifyEmail({ token }) → backend consuma il token
+    //   3. Se OK: mostra success + link al profilo
+    //   4. Se KO: mostra errore specifico (invalid, expired) + fallback options
+    // =============================================================================
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const loading = document.getElementById('loading');
+      const successEl = document.getElementById('success');
+      const errorEl = document.getElementById('error');
+      const noTokenEl = document.getElementById('no-token');
+      const errorMsg = document.getElementById('error-msg');
+
+      const params = new URLSearchParams(location.search);
+      const token = params.get('token');
+
+      if (!token) {
+        loading.hidden = true;
+        noTokenEl.hidden = false;
+        return;
+      }
+
+      // Aspetta che il bootstrap sia pronto (per assicurarsi che LB_API sia disponibile)
+      if (!window.LB_AUTH_READY) {
+        await new Promise((res) => window.addEventListener('lb-auth-ready', res, { once: true }));
+      }
+
+      if (!window.LB_API || window.LB_API_AVAILABLE === false) {
+        loading.hidden = true;
+        errorEl.hidden = false;
+        errorMsg.innerHTML = '<strong>Backend non raggiungibile.</strong> Riprova quando il server e\' online.';
+        return;
+      }
+
+      try {
+        await window.LB_API.authClient.verifyEmail({ token });
+        loading.hidden = true;
+        successEl.hidden = false;
+      } catch (err) {
+        loading.hidden = true;
+        errorEl.hidden = false;
+        const map = {
+          'INVALID_TOKEN': '<strong>Link non valido.</strong> Verifica di aver cliccato il link piu\' recente ricevuto per email.',
+          'EXPIRED_TOKEN': '<strong>Link scaduto.</strong> I link di verifica sono validi per 24 ore. Richiedi un nuovo invio.',
+          'ALREADY_VERIFIED': '<strong>Email gia\' verificata.</strong> Puoi accedere normalmente.',
+        };
+        errorMsg.innerHTML = map[err.code] || ('<strong>Errore:</strong> ' + (err.message || err.code));
+      }
+    });
+  </script>
+</body>
+</html>

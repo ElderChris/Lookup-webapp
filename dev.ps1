@@ -34,6 +34,13 @@ function Show-Help {
     Write-Host "    .\dev.ps1 db-reset   Ferma + cancella volumi + ricrea DB pulito"
     Write-Host "    .\dev.ps1 db-logs    Segui i log di postgres"
     Write-Host ""
+    Write-Host "  Backend API [Fase 1c+]:"
+    Write-Host "    .\dev.ps1 api-dev    Avvia backend Fastify in dev [hot-reload] su :3000"
+    Write-Host "    .\dev.ps1 api-build  Builda l'immagine Docker del backend"
+    Write-Host "    .\dev.ps1 api-up     Avvia il backend nel container [profilo backend]"
+    Write-Host "    .\dev.ps1 api-logs   Segui i log del container api"
+    Write-Host "    .\dev.ps1 api-health Test endpoint /api/health"
+    Write-Host ""
     Write-Host "  Sviluppo (rapido, locale):"
     Write-Host "    .\dev.ps1 dev        Avvia python no-cache-server su :8765"
     Write-Host "    .\dev.ps1 install    Installa dev deps [npm + playwright browsers]"
@@ -118,6 +125,41 @@ switch ($Command.ToLower()) {
     }
 
     "db-logs" { docker compose logs -f postgres }
+
+    # ==== Backend API commands (Fase 1c+) ====
+    "api-dev" {
+        Write-Host "Avvio backend Fastify in dev (hot-reload) su http://localhost:3000" -ForegroundColor Cyan
+        Push-Location apps/api
+        try {
+            npm run dev
+        } finally {
+            Pop-Location
+        }
+    }
+
+    "api-build" {
+        Require-Docker
+        docker compose build api
+    }
+
+    "api-up" {
+        Require-Docker
+        docker compose --profile backend up -d api
+        Write-Host "[OK] Backend avviato su http://localhost:3000" -ForegroundColor Green
+    }
+
+    "api-logs" { docker compose logs -f api }
+
+    "api-health" {
+        try {
+            $r = Invoke-RestMethod -Uri "http://localhost:3000/api/health" -Method Get
+            $r | ConvertTo-Json -Depth 5
+        } catch {
+            Write-Host "[ERROR] Backend non raggiungibile su :3000" -ForegroundColor Red
+            Write-Host "        Avvia con: .\dev.ps1 api-dev (locale) o .\dev.ps1 api-up (Docker)" -ForegroundColor Yellow
+            exit 1
+        }
+    }
 
     # ==== Dev commands ====
     "dev" {

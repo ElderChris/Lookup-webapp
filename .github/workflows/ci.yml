@@ -1,11 +1,15 @@
 # =============================================================================
 # CI — Lookup
 # =============================================================================
-# Esegue lint + format check + smoke test su ogni push e PR verso main.
+# Esegue lint + format check + smoke test.
 # Niente deploy automatico (vincolo self-host: il cliente deploya in autonomia).
 #
+# Rami:
+#   - main    = versione stabile
+#   - develop = sviluppo
+#
 # Triggers:
-#   - push su main
+#   - push su develop e main
 #   - pull request verso main
 #   - manual dispatch (workflow_dispatch) per re-run on-demand
 #
@@ -20,7 +24,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -35,7 +39,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -58,7 +62,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Setup Python (per no-cache-server.py)

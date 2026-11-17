@@ -2,7 +2,15 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Beta 9: PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#7a1e2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lookup" />
+  <link rel="apple-touch-icon" href="/img/icon-180.png" />
+
   <title>Dettaglio libro — Lookup</title>
   <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
 </head>
@@ -118,18 +126,66 @@
     </div>
   </footer>
 
+  <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    // Fase 2c.2: il DOMContentLoaded handler e' async. Il READ del libro
+    // proviene dal backend (con cache 30s), fallback graceful al legacy
+    // Storage se backend giu' o errore. La UI usa la shape legacy sempre,
+    // il transformer garantisce compatibilita' invisibile.
+    document.addEventListener('DOMContentLoaded', async () => {
 
-      const id = new URLSearchParams(location.search).get('id') || 1;
-      const book = API.getBook(id);
+      const id = +new URLSearchParams(location.search).get('id') || 1;
       const container = document.getElementById('book-detail');
+
+      // ----- Fase 2c.2 (refactor 2c.5): fetch dal backend via queryClient -----
+      // queryClient offre: dedup (2 aperture stessa tab = 1 fetch),
+      // refetch on window focus (torni al tab dopo 30s = auto-refresh),
+      // retry con exponential backoff su errori infrastrutturali,
+      // subscribe per componenti reattivi.
+      //
+      // Se backend giu' o non disponibile → fallback legacy API.getBook(id).
+      let book, source;
+      try {
+        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+          const apiBook = await window.LB_API.withApiFallback(
+            () => window.LB_QUERY.fetchQuery({
+              queryKey: ['book', id],
+              queryFn: () => window.LB_API.books.getById(id),
+              staleTime: window.LB_API.CACHE_TTL.BOOK_DETAIL,
+            }),
+            () => {
+              const legacy = API.getBook(id);
+              if (!legacy) throw new window.LB_API.ApiError('NOT_FOUND', 'Libro non trovato', 404);
+              return legacy;
+            },
+          );
+          book = ('coverUrl' in apiBook || 'viewCount' in apiBook)
+            ? window.LB_API.bookToLegacy(apiBook)
+            : apiBook;
+          source = ('coverUrl' in apiBook || 'viewCount' in apiBook) ? 'backend' : 'legacy';
+        } else {
+          book = API.getBook(id);
+          source = 'legacy';
+        }
+      } catch (err) {
+        if (err.code === 'NOT_FOUND' || err.status === 404) {
+          container.innerHTML = `<div class="alert alert--error">Libro non trovato.</div>`;
+          return;
+        }
+        book = API.getBook(id);
+        source = 'legacy (fallback errore)';
+      }
 
       if (!book) {
         container.innerHTML = `<div class="alert alert--error">Libro non trovato.</div>`;
         return;
       }
+      console.debug(`[book-detail] loaded from: ${source}`);
+      if (source === 'backend' && window.LB_markLive) {
+        window.LB_markLive('book-detail', `GET /api/books/${id} (cache 30s)`);
+      }
+      // ------------------------------------------------------------
 
       const owner = API.getUser(book.owner_id);
 
@@ -137,6 +193,21 @@
       // session). Sostituisce il vecchio incrementViews che gonfiava
       // il counter ad ogni reload.
       API.recordBookView(id);
+
+      // ----- Fase 2b.2: SHADOW WRITE al backend reale ---------------------
+      // Oltre al tracking legacy in localStorage (sopra), inviamo anche un
+      // POST /api/books/:id/views al backend Fastify.
+      // Fire-and-forget: se il backend e' giu', ignoriamo silenziosamente.
+      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+        window.LB_API.books.trackView(id)
+          .then((res) => {
+            console.debug(`[api shadow] /views OK, viewCount=${res?.viewCount}`);
+            // Fase 2c.5: invalida via queryClient (event-driven) invece di cache.js
+            window.LB_QUERY.invalidateQueries({ queryKey: ['book', id] });
+          })
+          .catch((err) => console.debug(`[api shadow] /views skip: ${err.code}`));
+      }
+      // --------------------------------------------------------------------
 
       // Aggiorna titolo pagina e breadcrumb
       document.title = `${book.title} — Lookup`;
@@ -247,7 +318,7 @@
         // v1.5: nasconde il bottone "Mi piace" se stiamo visualizzando un
         // libro nostro — non ha senso "salvare nei preferiti" un proprio
         // volume, e impedisce il self-like che gonfierebbe il counter.
-        const meNow = API.getCurrentUser();
+        const meNow = window.LB_UI.currentUser();
         if (meNow && +book.owner_id === +meNow.id) {
           likeBtn.hidden = true;
           return;
@@ -257,7 +328,7 @@
         const count = document.getElementById('like-count');
 
         function paint() {
-          const me = API.getCurrentUser();
+          const me = window.LB_UI.currentUser();
           const liked = me && API.isLiked(me.id, id);
           likeBtn.classList.toggle('is-liked', !!liked);
           likeBtn.setAttribute('aria-pressed', String(!!liked));
@@ -267,20 +338,107 @@
         }
         paint();
 
-        likeBtn.addEventListener('click', () => {
-          const me = API.getCurrentUser();
+        // ============================================================
+        // Fase 2c.6: subscribe reattivo al queryClient
+        // ============================================================
+        // Quando la queryKey ['book', id] cambia (per invalidateQueries,
+        // refetch on focus, o setQueryData), la pagina si aggiorna
+        // automaticamente. Esempio: se un'altra tab modifica il libro e
+        // invalida la cache, torno su questo tab e i counter (views/likes)
+        // si aggiornano da soli senza refresh.
+        //
+        // POC: solo book-detail. Estendere ad altre pagine in Fase 3+
+        // quando avremo Web Components per rendering reattivo strutturato.
+        if (window.LB_QUERY) {
+          const unsubscribe = window.LB_QUERY.subscribe(['book', id], (state) => {
+            if (state.state === 'success' && state.data) {
+              // Confronto shape: se e' backend (camelCase), converti
+              const fresh = ('coverUrl' in state.data || 'viewCount' in state.data)
+                ? window.LB_API.bookToLegacy(state.data)
+                : state.data;
+              // Aggiorna solo i counter che possono cambiare (views/likes),
+              // NON riscrivere tutto il DOM (perderebbe interazioni utente).
+              if (fresh.likes_count !== undefined) {
+                const countEl = document.getElementById('like-count');
+                if (countEl) countEl.textContent = `(${fresh.likes_count})`;
+              }
+              console.debug(`[book-detail] reactive update: likes=${fresh.likes_count}, views=${fresh.views}`);
+            }
+          });
+          // Cleanup on beforeunload (defensivo)
+          window.addEventListener('beforeunload', unsubscribe, { once: true });
+        }
+        // ============================================================
+
+        likeBtn.addEventListener('click', async () => {
+          const me = window.LB_UI.currentUser();
           if (!me) {
             UI.toast('Iscriviti per salvare i preferiti ed essere avvisato sulla disponibilità.', 'info');
             sessionStorage.setItem('pending_like_book', id);
             setTimeout(() => location.href = `register.html?intent=borrow&book=${id}`, 1100);
             return;
           }
-          const nowLiked = API.toggleLike(id);
-          paint();
-          if (UI._refreshNotifications) UI._refreshNotifications();
-          UI.toast(nowLiked
-            ? (book.available ? 'Aggiunto ai preferiti.' : 'Aggiunto ai preferiti: ti avviseremo quando tornerà disponibile.')
-            : 'Rimosso dai preferiti.', 'info');
+
+          // ============================================================
+          // Fase 2c.5: like/unlike con queryClient + optimistic update
+          // ============================================================
+          // Semantica optimistic:
+          //   1. onMutate: aggiorna subito legacy Storage (UI istantanea)
+          //              + salva vecchio stato in `context` per rollback
+          //   2. mutationFn: chiamata al backend
+          //   3. onSuccess: invalida cache detail (per counter freschi al re-mount)
+          //   4. onError: rollback allo stato precedente + toast errore
+          //
+          // Se backend giu' (LB_API_AVAILABLE === false), skip la mutation
+          // e fai solo l'azione legacy (behaviour di 2b.2).
+          //
+          // Vantaggio principale: la UI risponde in <1ms invece di 30-100ms
+          // (latency backend). Sensazione istantanea per l'utente.
+          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+            const currentlyLiked = API.isLiked(me.id, id); // stato PRIMA del toggle
+            try {
+              await window.LB_QUERY.mutate({
+                mutationFn: () => {
+                  // Il nuovo stato viene deciso dal legacy (single source of truth
+                  // per lo status "liked"). Il backend prende quello.
+                  return currentlyLiked
+                    ? window.LB_API.books.unlike(id)
+                    : window.LB_API.books.like(id);
+                },
+                onMutate: () => {
+                  // Snapshot per rollback
+                  const nowLiked = API.toggleLike(id); // legacy toggle (sync, subito)
+                  paint(); // UI aggiornata IMMEDIATAMENTE
+                  if (UI._refreshNotifications) UI._refreshNotifications();
+                  UI.toast(nowLiked
+                    ? (book.available ? 'Aggiunto ai preferiti.' : 'Aggiunto ai preferiti: ti avviseremo quando tornerà disponibile.')
+                    : 'Rimosso dai preferiti.', 'info');
+                  return { previousState: currentlyLiked };
+                },
+                onSuccess: (res) => {
+                  console.debug(`[book-detail] like backend OK, count=${res?.likesCount}`);
+                  // Invalida cache detail: prossimo mount avra' likesCount fresco
+                  window.LB_QUERY.invalidateQueries({ queryKey: ['book', id] });
+                },
+                onError: (err, _vars, ctx) => {
+                  console.warn('[book-detail] like backend failed, rollback:', err.code);
+                  // Rollback: rimettere lo stato PRIMA del click
+                  // Se currentlyLiked era true e ora è false, dobbiamo rifare like (rollback unlike)
+                  API.toggleLike(id); // toggle di nuovo per riportare allo stato ctx.previousState
+                  paint();
+                  UI.toast('Errore di rete: preferito ripristinato.', 'error');
+                },
+              });
+            } catch (_) { /* gia' gestito in onError */ }
+          } else {
+            // Path legacy puro (backend giu')
+            const nowLiked = API.toggleLike(id);
+            paint();
+            if (UI._refreshNotifications) UI._refreshNotifications();
+            UI.toast(nowLiked
+              ? (book.available ? 'Aggiunto ai preferiti.' : 'Aggiunto ai preferiti: ti avviseremo quando tornerà disponibile.')
+              : 'Rimosso dai preferiti.', 'info');
+          }
         });
       })();
 
@@ -288,7 +446,7 @@
       // utilizzabile SOLO al proprietario. L'admin elimina via il
       // pannello admin, non dal book-detail (separazione dei canali).
       (function wireDeleteBook() {
-        const meNow = API.getCurrentUser();
+        const meNow = window.LB_UI.currentUser();
         const isOwner = meNow && +book.owner_id === +meNow.id;
         if (!isOwner) return;
         const btn = document.getElementById('delete-book-btn');
@@ -313,7 +471,7 @@
         });
       })();
 
-      document.getElementById('loan-submit')?.addEventListener('click', e => {
+      document.getElementById('loan-submit')?.addEventListener('click', async (e) => {
         if (!document.getElementById('loan-consent').checked) return;
         e.preventDefault();
 
@@ -321,7 +479,7 @@
         // è ospite, salviamo il libro in sospeso e lo portiamo alla
         // registrazione (pre-selezionando il percorso "Lettore"). Al
         // termine tornerà qui per inviare la richiesta.
-        const me = API.getCurrentUser();
+        const me = window.LB_UI.currentUser();
         if (!me) {
           // v1.8: salviamo anche giorni e messaggio per creare il
           // prestito automaticamente dopo la registrazione fast-track
@@ -338,13 +496,33 @@
 
         const message = document.getElementById('loan-message').value;
         const days = parseInt(document.getElementById('loan-days').value, 10);
-        const r = API.requestLoan(id, me.id, message, days);
+
+        // Beta 7.1: usa backend con daysRequested (fallback legacy se offline)
+        let requestOk = false;
+        let errorMsg = null;
+        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+          try {
+            await window.LB_API.loans.request(id, {
+              message: message || undefined,
+              daysRequested: days,
+            });
+            requestOk = true;
+          } catch (err) {
+            errorMsg = err.message || err.code;
+            console.debug(`[book-detail] loan request backend failed: ${errorMsg}`);
+          }
+        }
+        if (!requestOk) {
+          const r = API.requestLoan(id, me.id, message, days);
+          requestOk = r.ok;
+          errorMsg = r.reason;
+        }
         document.getElementById('loan-dialog').close();
-        if (r.ok) {
+        if (requestOk) {
           UI.toast(`Richiesta inviata (per ${days} giorni). Il prestatore riceverà una notifica.`, 'success');
           setTimeout(() => location.reload(), 1500);
         } else {
-          UI.toast('Impossibile inviare la richiesta: ' + r.reason, 'error');
+          UI.toast('Impossibile inviare la richiesta: ' + errorMsg, 'error');
         }
       });
 

@@ -15,7 +15,8 @@
 # =============================================================================
 
 .PHONY: help up up-d down logs ps restart clean test lint format check dev install \
-        db-up db-down db-shell db-reset db-logs
+        db-up db-down db-shell db-reset db-logs \
+        api-dev api-build api-up api-logs api-health
 
 help:
 	@echo "Lookup — comandi disponibili:"
@@ -35,6 +36,13 @@ help:
 	@echo "    make db-shell      Apre psql nel container postgres"
 	@echo "    make db-reset      Ferma + cancella volumi + ricrea DB pulito"
 	@echo "    make db-logs       Segui i log di postgres"
+	@echo ""
+	@echo "  Backend API (Fase 1c+):"
+	@echo "    make api-dev       Avvia il backend in dev (hot-reload) su :3000"
+	@echo "    make api-build     Builda l'immagine Docker del backend"
+	@echo "    make api-up        Avvia il backend nel container (profilo backend)"
+	@echo "    make api-logs      Segui i log del container api"
+	@echo "    make api-health    curl http://localhost:3000/api/health"
 	@echo ""
 	@echo "  Sviluppo (rapido, locale):"
 	@echo "    make dev           Avvia python no-cache-server (frontend) su :8765"
@@ -98,6 +106,27 @@ db-reset:
 
 db-logs:
 	docker compose logs -f postgres
+
+# =============================================================================
+# Backend API (Fase 1c+)
+# =============================================================================
+
+api-dev:
+	@echo "Avvio backend Fastify in dev (hot-reload) su http://localhost:3000"
+	cd apps/api && npm run dev
+
+api-build:
+	docker compose build api
+
+api-up:
+	docker compose --profile backend up -d api
+	@echo "✓ Backend avviato in container su http://localhost:3000"
+
+api-logs:
+	docker compose logs -f api
+
+api-health:
+	@curl -s http://localhost:3000/api/health | python3 -m json.tool || curl -s http://localhost:3000/api/health
 
 # =============================================================================
 # Sviluppo locale

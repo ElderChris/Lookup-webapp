@@ -1,0 +1,14 @@
+# Fine riga LF per tutti i file di testo, indipendentemente dal sistema
+# operativo e dalla configurazione core.autocrlf del client git.
+* text=auto eol=lf
+
+# Binari: mai convertire
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.zip  binary

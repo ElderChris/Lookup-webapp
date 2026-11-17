@@ -2,7 +2,15 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Beta 9: PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#7a1e2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lookup" />
+  <link rel="apple-touch-icon" href="/img/icon-180.png" />
+
   <title>Esplora la mappa — Lookup</title>
   <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
   <!-- Leaflet: libreria per mappe interattive (OpenStreetMap tiles) -->
@@ -122,6 +130,7 @@
     </div>
   </footer>
 
+  <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
     /* =============================================================
@@ -134,7 +143,7 @@
     const DEFAULT_CENTER = [40.8358, 14.2488];   // Napoli (contesto scelto)
     const DEFAULT_ZOOM = 12;
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
 
       /* ----- Tag-input per i generi BISAC (multi-tag autocomplete) -----
          Sostituisce la vecchia <select> di categoria. L'utente digita
@@ -183,9 +192,30 @@
       // incapsuliamo in try/catch così che la ricerca funzioni comunque.
       try {
         initMap();
-        // All'avvio la mappa mostra tutte le librerie (utile per esplorare),
-        // ma l'ELENCO dei risultati resta nascosto finché non si cerca.
-        updateMapMarkers(API.getBooks());
+        // All'avvio la mappa mostra tutte le librerie (utile per esplorare).
+        // Fase 2c.4: fetch dal backend con fallback legacy. Cache 30s.
+        let allBooks;
+        let source = 'legacy';
+        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+          try {
+            const res = await window.LB_API.books.list({ limit: 200 }, {
+              cache: {
+                ttlMs: window.LB_API.CACHE_TTL.BOOKS_LIST,
+                key: 'books:list:limit=200',
+              },
+            });
+            allBooks = res.data.map(window.LB_API.bookToLegacy);
+            source = `backend (${allBooks.length})`;
+          } catch (err) {
+            console.debug(`[explore] initial books fallback legacy: ${err.code || err.message}`);
+          }
+        }
+        if (!allBooks) allBooks = API.getBooks();
+        console.debug(`[explore] initial map source: ${source}`);
+        updateMapMarkers(allBooks);
+        if (source.startsWith('backend') && window.LB_markLive) {
+          window.LB_markLive('explore', 'GET /api/books (cache 30s)');
+        }
       } catch (err) {
         console.warn('Mappa non disponibile:', err);
         const mw = document.querySelector('.map-wrapper');
@@ -248,18 +278,50 @@
     }
 
     /** Esegue la ricerca e aggiorna risultati + mappa */
-    function runSearch() {
+    async function runSearch() {
       const query = document.getElementById('search-query').value.trim();
       const tags  = (document.getElementById('search-tags').getTags
                        ? document.getElementById('search-tags').getTags()
                        : []);
       const radius = +document.getElementById('search-radius').value;     // 0 = qualsiasi
 
-      // 1. Ricerca testuale + filtro tag BISAC (semantica OR fra i tag)
-      let results = API.searchBooks(query, {
-        categories: tags,
-        max_km:     radius > 0 ? radius : undefined
-      });
+      // Fase 2c.4: se backend UP e no filtro distanza → usa /api/books.
+      // Se filtro distanza attivo (max_km > 0) → legacy (che ha la logica
+      // di distanza integrata, richiederebbe post-filtro client-side).
+      let results;
+      let source = 'legacy';
+      if (window.LB_API && window.LB_API_AVAILABLE !== false && radius === 0) {
+        try {
+          // Primo tag come filtro categoria (backend accetta solo uno)
+          const primaryCat = tags[0];
+          const cats = window.LB_API.cache.get('categories:list') || [];
+          const catIds = primaryCat ? window.LB_API.categories.slugsToIds(cats, [primaryCat]) : [];
+          const query_ = {
+            limit: 100,
+            ...(query && { q: query }),
+            ...(catIds.length > 0 && { categoryId: catIds[0] }),
+          };
+          const res = await window.LB_API.books.list(query_);
+          results = res.data.map(window.LB_API.bookToLegacy);
+          // Post-filtro: se sono stati indicati piu' tag, filtra client-side
+          // (backend accetta solo un categoryId per volta)
+          if (tags.length > 1) {
+            results = results.filter(b =>
+              (b.categories || []).some(slug => tags.includes(slug)));
+          }
+          source = `backend (${results.length})`;
+        } catch (err) {
+          console.debug(`[explore] search fallback legacy: ${err.code || err.message}`);
+        }
+      }
+      if (!results) {
+        // 1. Ricerca legacy: testuale + tag BISAC + max_km
+        results = API.searchBooks(query, {
+          categories: tags,
+          max_km:     radius > 0 ? radius : undefined
+        });
+      }
+      console.debug(`[explore] search source: ${source}`);
 
       // 3. Aggiornamento UI — elenco leggibile con enfasi sulla posizione.
       //    Rivela la sezione risultati (nascosta finché non si cerca) e

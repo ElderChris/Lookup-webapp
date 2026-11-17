@@ -7060,3 +7060,165 @@ a:hover { color: var(--color-burgundy-dk); }
   font-style: italic;
   color: var(--color-burgundy);
 }
+
+/* ============================================================================
+   Beta 9: PWA + mobile UX polish
+   ============================================================================ */
+
+/* Safe area su iPhone con notch (viewport-fit=cover)
+   Le pagine ora usano il full viewport, incluse aree sotto la barra di stato
+   e la home indicator. Aggiungiamo padding-safe alle sezioni chiave. */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0);
+  --safe-area-inset-left: env(safe-area-inset-left, 0);
+  --safe-area-inset-right: env(safe-area-inset-right, 0);
+}
+
+body {
+  /* Padding safe area laterale su tutti i dispositivi */
+  padding-left: var(--safe-area-inset-left);
+  padding-right: var(--safe-area-inset-right);
+}
+
+.site-header {
+  /* Padding top per notch iPhone */
+  padding-top: calc(var(--sp-3) + var(--safe-area-inset-top));
+}
+
+.site-footer {
+  /* Padding bottom per home indicator iPhone */
+  padding-bottom: calc(var(--sp-6) + var(--safe-area-inset-bottom));
+}
+
+/* Toast: bottom-center su mobile invece che top-right (standard iOS/Android) */
+@media (max-width: 600px) {
+  .alert[role="status"] {
+    /* Sovrascrivi lo style inline generato da UI.toast() */
+    top: auto !important;
+    right: 1rem !important;
+    left: 1rem !important;
+    bottom: calc(var(--sp-4) + var(--safe-area-inset-bottom)) !important;
+    max-width: none !important;
+    text-align: center;
+  }
+}
+
+/* Bottoni touch: garantiamo 48x48 minimum tap target (WCAG AA + Material) */
+@media (max-width: 900px) {
+  .btn,
+  .site-nav a,
+  .admin-icon-btn,
+  button:not(.btn--tiny) {
+    min-height: 48px;
+    min-width: 48px;
+  }
+}
+
+/* Feedback offline: badge nell'header quando la rete cade */
+.offline-badge {
+  display: none;
+  position: fixed;
+  top: calc(var(--sp-3) + var(--safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 900;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: 100px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 12px var(--color-shadow);
+}
+
+body.is-offline .offline-badge {
+  display: block;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { transform: translate(-50%, -50%); opacity: 0; }
+  to   { transform: translate(-50%, 0); opacity: 1; }
+}
+
+/* Install app section: coerente col tema del progetto */
+.install-app-section {
+  margin: var(--sp-6) auto;
+  padding: var(--sp-5);
+  max-width: 640px;
+  background: var(--color-paper-dark);
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.install-app-section__title {
+  font-family: var(--font-display, serif);
+  color: var(--color-burgundy);
+  font-size: 1.3rem;
+  margin: 0 0 var(--sp-3);
+}
+
+.install-app-section__desc {
+  color: var(--color-ink-soft);
+  font-size: var(--fs-sm);
+  margin: 0 0 var(--sp-4);
+  line-height: 1.5;
+}
+
+.install-app-section__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 48px;
+  padding: var(--sp-3) var(--sp-5);
+}
+
+.install-app-section__cta::before {
+  content: "📲";
+  font-size: 1.2em;
+}
+
+/* Nascondi la sezione se l'app e' gia' installata (standalone mode) */
+@media (display-mode: standalone) {
+  .install-app-section { display: none; }
+}
+
+/* Instructions iOS (visibili solo su iOS + non installato) */
+.install-ios-help {
+  display: none;
+  margin-top: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--color-paper);
+  border-radius: 6px;
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+  text-align: left;
+}
+
+.install-ios-help.is-visible {
+  display: block;
+}
+
+.install-ios-help strong {
+  color: var(--color-burgundy);
+}
+
+/* Menu hamburger: focus trap accessibility */
+.site-nav.open {
+  /* Full-screen overlay su mobile per meglio focus e leggibilita' */
+}
+
+@media (max-width: 900px) {
+  .site-nav.open {
+    padding-top: calc(var(--sp-4) + var(--safe-area-inset-top));
+  }
+
+  .site-nav.open a {
+    min-height: 48px;
+    padding: var(--sp-3) var(--sp-4);
+    font-size: 1rem; /* Prevent iOS Safari zoom */
+  }
+}

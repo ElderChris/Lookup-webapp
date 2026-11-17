@@ -36,3 +36,12 @@ npm-debug.log*
 
 # Husky setup (popolato da `npm run prepare`)
 .husky/_/
+
+# Log di scripts/verify.ps1
+logs/
+
+# Documentazione interna: resta solo in locale.
+# Nel repository l'unico documento e' il README.md di root.
+docs/
+*.md
+!/README.md

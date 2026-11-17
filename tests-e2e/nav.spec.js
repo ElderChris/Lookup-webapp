@@ -18,7 +18,7 @@ const NAV_HTML_PAGES = [
   'login.html',
   'register.html',
   'privacy.html',
-  'terms.html'
+  'terms.html',
 ];
 
 test.describe('nav: auth-toggle rimosso', () => {
@@ -46,9 +46,7 @@ test.describe('nav: solo icone, no label visibili', () => {
 
     const visibleLabels = await page.evaluate(() => {
       const labels = document.querySelectorAll('header .site-nav .nav-icon__label');
-      return Array.from(labels).filter(l =>
-        getComputedStyle(l).display !== 'none'
-      ).length;
+      return Array.from(labels).filter((l) => getComputedStyle(l).display !== 'none').length;
     });
     expect(visibleLabels).toBe(0);
   });
@@ -98,8 +96,8 @@ test.describe('nav: admin icon solo per is_admin', () => {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(500);
 
-    const adminIcon = await page.evaluate(() =>
-      !!document.querySelector('header .site-nav a.nav-admin')
+    const adminIcon = await page.evaluate(
+      () => !!document.querySelector('header .site-nav a.nav-admin')
     );
     expect(adminIcon).toBe(false);
   });

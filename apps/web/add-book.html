@@ -2,7 +2,15 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Beta 9: PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#7a1e2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lookup" />
+  <link rel="apple-touch-icon" href="/img/icon-180.png" />
+
   <title>Pubblica un libro — Lookup</title>
   <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
 </head>
@@ -174,6 +182,7 @@
     </div>
   </footer>
 
+  <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
@@ -275,7 +284,7 @@
          Marca tutti i campi come "touched" per forzare la validazione
          visibile, raccoglie eventuali errori e li mostra in un riepilogo
          globale per gli screen reader / utenti tastiera. */
-      form.addEventListener('submit', (e) => {
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         // Trigger della validazione live su tutti i campi
@@ -316,23 +325,117 @@
 
         summary.hidden = true;
 
-        // Salvataggio simulato
-        const newBook = API.addBook({
-          title: form.title.value.trim(),
-          author: form.author.value.trim(),
-          year: +form.year.value,
-          category: (catBox.getTags()[0] || ''),       // tag principale (retro-compat)
-          categories: catBox.getTags(),                // tutti i tag BISAC selezionati
-          language: form.language.value,
-          isbn: form.isbn.value.trim() || '—',
-          pages: +form.pages.value || null,
-          condition: form.condition.value,
-          description: form.description.value.trim(),
-          owner_id: me.id
-        });
+        // ============================================================
+        // Fase 2c.3: WRITE — backend PRIMARY, legacy solo se offline
+        // ============================================================
+        // Cambiamento semantico rispetto al shadow di Fase 2b.3:
+        //   PRIMA:  create legacy → shadow backend fire-and-forget
+        //   ORA:    tenta backend PRIMA. Se OK, redirect all'id vero.
+        //           Se backend giu' o errore infrastrutturale, cade sul legacy
+        //           come fallback offline (id incrementale locale).
+        //           Errori di business (4xx: validation, auth) → toast + STOP.
+        //
+        // Loading UX: bottone submit disabilitato + testo "Pubblicazione..."
+        // ============================================================
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn ? submitBtn.textContent : null;
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Pubblicazione…';
+        }
 
-        UI.toast('Volume pubblicato con successo!', 'info');
-        setTimeout(() => location.href = `book-detail.html?id=${newBook.id}`, 1500);
+        try {
+          let created; // shape legacy: {id, title, ...}
+          let source;
+
+          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+            // ----- Path backend primary ---------------------------
+            const cats = window.LB_API.cache.get('categories:list') || [];
+            const selectedSlugs = catBox.getTags();
+            const categoryIds = window.LB_API.categories.slugsToIds(cats, selectedSlugs);
+
+            const body = window.LB_API.bookToApi({
+              title: form.title.value.trim(),
+              author: form.author.value.trim(),
+              year: +form.year.value || undefined,
+              language: form.language.value || undefined,
+              isbn: form.isbn.value.trim() || undefined,
+              pages: +form.pages.value || undefined,
+              description: form.description.value.trim() || undefined,
+              condition: form.condition.value || undefined,
+            }, categoryIds);
+
+            try {
+              const apiBook = await window.LB_API.books.create(body);
+              // Backend riuscito: converti a shape legacy per il redirect + Storage
+              created = window.LB_API.bookToLegacy(apiBook);
+              source = 'backend';
+
+              // Salva anche in legacy Storage con l'id BACKEND (non incrementale
+              // locale). Serve per: (a) fallback offline futuro, (b) altre pagine
+              // che leggono ancora da Storage (loans, ecc.) trovano il libro.
+              const books = Storage.get('books', []);
+              // Rimuovi eventuale duplicato con stesso id (raro edge case)
+              const filtered = books.filter(b => b.id !== created.id);
+              filtered.push({
+                ...created,
+                // Campi che il legacy attende ma il backend non ha
+                loan_requests: 0,
+                added: created.added || new Date().toISOString().slice(0, 10),
+                owner_id: me.id, // guarantee consistency
+              });
+              Storage.set('books', filtered);
+
+              // Invalida cache liste
+              window.LB_API.cache.invalidate('books:');
+              console.debug(`[add-book] created on backend, id=${created.id}, ` +
+                `categoryIds=[${categoryIds.join(',')}]`);
+            } catch (err) {
+              // Errori 4xx = business, fermati e mostra all'utente
+              if (err.status >= 400 && err.status < 500) {
+                UI.toast(`Errore pubblicazione: ${err.message || err.code}`, 'error');
+                if (submitBtn) {
+                  submitBtn.disabled = false;
+                  submitBtn.textContent = originalBtnText;
+                }
+                return;
+              }
+              // 5xx / NETWORK / TIMEOUT → fallback silenzioso al legacy
+              console.debug(`[add-book] backend fail, fallback legacy: ${err.code}`);
+              created = null;
+            }
+          }
+
+          // ----- Fallback path legacy (offline o backend 5xx) -------
+          if (!created) {
+            created = API.addBook({
+              title: form.title.value.trim(),
+              author: form.author.value.trim(),
+              year: +form.year.value,
+              category: (catBox.getTags()[0] || ''),
+              categories: catBox.getTags(),
+              language: form.language.value,
+              isbn: form.isbn.value.trim() || '—',
+              pages: +form.pages.value || null,
+              condition: form.condition.value,
+              description: form.description.value.trim(),
+              owner_id: me.id,
+            });
+            source = 'legacy';
+          }
+
+          console.debug(`[add-book] source: ${source}, redirect to id=${created.id}`);
+          UI.toast('Volume pubblicato con successo!', 'info');
+          setTimeout(() => location.href = `book-detail.html?id=${created.id}`, 1500);
+        } catch (err) {
+          // Ultimo salvagente: errore inatteso (non ApiError, non validation)
+          console.error('[add-book] errore inatteso:', err);
+          UI.toast('Errore imprevisto durante la pubblicazione.', 'error');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
+          }
+        }
       });
     });
   </script>

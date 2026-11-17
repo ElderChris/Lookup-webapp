@@ -2,7 +2,15 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Beta 9: PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#7a1e2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lookup" />
+  <link rel="apple-touch-icon" href="/img/icon-180.png" />
+
   <meta name="description" content="La libreria di un membro della comunità Lookup: i suoi volumi disponibili al prestito." />
   <title>Libreria — Lookup</title>
   <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
@@ -83,15 +91,17 @@
     </div>
   </footer>
 
+  <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
 
       const root = document.getElementById('library-root');
 
       /* ----- Lettura del parametro ?id= ----- */
       const params = new URLSearchParams(location.search);
-      const libId = parseInt(params.get('id'), 10);
+      // Beta 3: libId puo' essere CUID string (backend) o int legacy
+      const libId = params.get('id');
 
       if (!libId) {
         root.innerHTML = errorBlock('Libreria non specificata',
@@ -99,13 +109,93 @@
         return;
       }
 
-      const data = API.getLibraryData(libId);
+      // ============================================================
+      // Beta 3: load iniziale dal backend aggregato /api/users/:id/library
+      // ============================================================
+      let data = null;
+      let source = 'legacy';
+      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+        try {
+          const agg = await window.LB_API.library.getByUser(libId);
+          // Adapter shape backend → shape legacy library-page atteso
+          const beUser = agg.user;
+          const legacyUser = {
+            id: beUser.id,
+            username: beUser.username,
+            display_name: beUser.displayName,
+            bio: beUser.bio,
+            city: beUser.city,
+            lat: beUser.lat,
+            lng: beUser.lng,
+            avatar_url: beUser.avatarUrl,
+            account_type: beUser.accountType,
+            library_role: 'curator',   // fallback: assumiamo curator (backend non ha library_role field)
+            joined: beUser.createdAt,
+          };
+          // Fetch libri via /api/books?ownerId=
+          const booksRes = await window.LB_API.books.list({
+            ownerId: libId,
+            limit: 200,
+          }, {
+            cache: { ttlMs: window.LB_API.CACHE_TTL.BOOKS_LIST, key: `books:owner=${libId}` },
+          });
+          const books = booksRes.data.map(window.LB_API.bookToLegacy);
 
+          const me = window.LB_UI.currentUser();
+          data = {
+            user: legacyUser,
+            prefs: agg.prefs ? {
+              motto: agg.prefs.motto,
+              theme: agg.prefs.theme,
+              cover_design: agg.prefs.coverDesign,
+              avatar_style: agg.prefs.avatarStyle,
+              avatar_symbol: agg.prefs.avatarSymbol,
+            } : {},
+            books,
+            stats: {
+              total: agg.stats.booksCount,
+              available: agg.stats.booksAvailable,
+              on_loan: agg.stats.booksCount - agg.stats.booksAvailable,
+              followers: agg.stats.followersCount,
+              completed_loans: agg.stats.completedLoansCount,
+              review_average: agg.stats.avgRatingReceived,
+              review_count: agg.stats.reviewsReceivedCount,
+            },
+            org_profile: agg.orgProfile ? {
+              legal_name: agg.orgProfile.legalName,
+              org_category: agg.orgProfile.orgCategory,
+              contact_person: agg.orgProfile.contactPerson,
+              website: agg.orgProfile.website,
+              public_email: agg.orgProfile.publicEmail,
+              public_phone: agg.orgProfile.publicPhone,
+              public_address: agg.orgProfile.publicAddress,
+              opening_hours: agg.orgProfile.openingHours,
+            } : null,
+            is_organization: beUser.accountType === 'organization',
+            distance_km: null,   // TODO: computable da user.lat/lng + me.lat/lng
+            can_edit: me && me.id === beUser.id,
+            is_following: agg.isFollowing,
+          };
+          source = `backend (${books.length} libri)`;
+        } catch (err) {
+          console.debug(`[library] fallback legacy: ${err.code || err.message}`);
+        }
+      }
+      if (!data) {
+        // Fallback legacy: parseInt per compat con id numerici storici
+        const numericId = parseInt(libId, 10);
+        data = API.getLibraryData(Number.isFinite(numericId) ? numericId : libId);
+      }
       if (!data) {
         root.innerHTML = errorBlock('Libreria non trovata',
           'Nessuna libreria corrisponde a questo identificativo. Potrebbe essere stata rimossa.');
         return;
       }
+      console.debug(`[library] source: ${source}`);
+      if (source.startsWith('backend') && window.LB_markLive) {
+        window.LB_markLive('library', `GET /api/users/${libId}/library + /api/books?ownerId=`);
+      }
+      // -----------------------------------------------------------------
 
       renderLibrary(data);
 
@@ -125,13 +215,13 @@
         document.getElementById('crumb-name').textContent = user.display_name;
         document.title = `${user.display_name} — Lookup`;
 
-        const { themeClass, glyph } = API.libraryCoverData(user, prefs);
+        const { themeClass, glyph } = window.LB_UI.libraryCoverData(user, prefs);
 
         /* Etichetta tipo libreria: per i lettori senza volumi mostriamo
            "Lettore" invece di "Libreria personale". */
-        const borrowerNoBooks = API.isBorrower(user.id) && books.length === 0;
+        const borrowerNoBooks = window.LB_UI.isBorrower(user.id) && books.length === 0;
         const typeLabel = is_organization
-          ? API.orgCategoryLabel(org_profile && org_profile.org_category)
+          ? window.LB_UI.orgCategoryLabel(org_profile && org_profile.org_category)
           : (borrowerNoBooks ? 'Lettore' : 'Libreria personale');
         const typeClass = is_organization ? 'library-hero__type--org' : '';
 
@@ -158,7 +248,7 @@
         /* Azioni: il proprietario gestisce, il visitatore esplora i volumi
            e — se autenticato — può seguire la libreria. */
         const followerCount = API.getFollowerCount(user.id);
-        const me = API.getCurrentUser();
+        const me = window.LB_UI.currentUser();
         const followBtn = (!can_edit && me)
           ? renderFollowButton(user.id)
           : '';
@@ -181,7 +271,7 @@
         /* Suggerimento per i lettori: se il proprietario è iscritto come
            "lettore" e non ha ancora pubblicato volumi, lo invitiamo ad
            aprire la propria libreria aggiungendo il primo libro. */
-        const isBorrower = API.isBorrower(user.id);
+        const isBorrower = window.LB_UI.isBorrower(user.id);
         const borrowerCta = (can_edit && isBorrower && stats.total === 0)
           ? `<div class="borrower-cta">
                <div class="borrower-cta__text">
@@ -399,7 +489,7 @@
             maxZoom: 19, attribution: '© OpenStreetMap'
           }).addTo(map);
           // pin coerente con il tipo libreria
-          const isOrg = API.isOrganization(user);
+          const isOrg = window.LB_UI.isOrganization(user);
           const pin = L.divIcon({
             className: 'lib-map-pin ' + (isOrg ? 'lib-map-pin--org' : 'lib-map-pin--person'),
             html: `<span>${isOrg ? '🏛' : '📖'}</span>`,
@@ -455,7 +545,7 @@
 
       /* Genera il markup del pulsante segui/seguito in base allo stato */
       function renderFollowButton(targetId) {
-        const following = API.isFollowing((API.getCurrentUser() || {}).id, targetId);
+        const following = API.isFollowing((window.LB_UI.currentUser() || {}).id, targetId);
         return following
           ? `<button type="button" class="btn btn--follow btn--following" id="follow-btn" data-target="${targetId}" aria-pressed="true">
                <span class="btn--following__on">✓ Segui già</span>
@@ -509,7 +599,7 @@
           <section class="org-panel" aria-labelledby="org-title">
             <h2 id="org-title">Informazioni sull'ente</h2>
             <div class="org-panel__grid">
-              ${field('Categoria', API.orgCategoryLabel(org.org_category))}
+              ${field('Categoria', window.LB_UI.orgCategoryLabel(org.org_category))}
               ${field('Referente', org.contact_person)}
               ${field('Indirizzo', org.public_address)}
               ${field('Orari di apertura', org.opening_hours)}

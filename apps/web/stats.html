@@ -2,10 +2,19 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Beta 9: PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#7a1e2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lookup" />
+  <link rel="apple-touch-icon" href="/img/icon-180.png" />
+
   <title>Statistiche — Lookup</title>
   <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+  <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
 </head>
 <body>
@@ -156,7 +165,7 @@
   </footer>
 
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
 
       // ============= 1. KPI REALI =============
       const real = API.getRealStats();
@@ -540,7 +549,45 @@
       function renderTopUsersRidgeline() {
         const wrap = document.getElementById('ridgeline-canvas-wrap');
         if (!wrap) return;
-        const data = API.getUserActivityRidgeline(10, 26);
+        return renderTopUsersRidgelineAsync(wrap);
+      }
+
+      async function renderTopUsersRidgelineAsync(wrap) {
+        // Fase 2c.4: fetch dal backend (/api/stats/ridgeline) con fallback legacy.
+        // Adapter di shape: backend usa userId/displayName/weeks:[{week,count}],
+        // legacy usa id/name/weeks:[n]. Conversione inline sotto.
+        let data;
+        let source = 'legacy';
+        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+          try {
+            const res = await window.LB_API.stats.ridgeline({ users: 10, weeks: 26 }, {
+              cache: {
+                ttlMs: window.LB_API.CACHE_TTL.STATS,
+                key: 'stats:ridgeline:10:26',
+              },
+            });
+            data = {
+              users: res.data.map(u => ({
+                id: u.userId,
+                name: u.displayName || u.username,
+                username: u.username,
+                city: null, // backend non espone city qui
+                weeks: u.weeks.map(w => w.count),
+                total: u.total,
+              })),
+              labels: res.weekLabels || res.data[0]?.weeks.map(w => w.week) || [],
+            };
+            source = `backend (${data.users.length} users × ${data.labels.length} weeks)`;
+          } catch (err) {
+            console.debug(`[stats] ridgeline fallback legacy: ${err.code || err.message}`);
+          }
+        }
+        if (!data) data = API.getUserActivityRidgeline(10, 26);
+        console.debug(`[stats] ridgeline source: ${source}`);
+        if (source.startsWith('backend') && window.LB_markLive) {
+          window.LB_markLive('stats', 'GET /api/stats/ridgeline (cache 5min)');
+        }
+
         if (data.users.length === 0) {
           wrap.innerHTML = '<p style="color: var(--color-ink-soft); padding: var(--sp-4);">Nessun utente con attività registrata.</p>';
           return;

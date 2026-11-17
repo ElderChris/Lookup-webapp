@@ -63,6 +63,8 @@ export default [
       sourceType: 'module',
       globals: {
         ...globals.node,
+        // Il codice dentro page.evaluate() gira nel browser
+        ...globals.browser,
         API: 'readonly',
         UI: 'readonly',
         Storage: 'readonly'
@@ -70,7 +72,8 @@ export default [
     },
     rules: {
       ...js.configs.recommended.rules,
-      'no-empty-pattern': 'off'
+      'no-empty-pattern': 'off',
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }]
     }
   },
   {
@@ -91,7 +94,9 @@ export default [
       'dist/**',
       'test-results/**',
       'playwright-report/**',
-      '.husky/**'
+      '.husky/**',
+      // Archivio storico del vecchio frontend: conservato invariato
+      'apps/web/js/legacy/**'
     ]
   }
 ];

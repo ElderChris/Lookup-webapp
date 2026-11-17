@@ -22,7 +22,7 @@ import {
   SAMPLE_FOLLOWS, SAMPLE_LIKES,
   SAMPLE_PROFILE_PREFS, SAMPLE_ORG_PROFILES,
   daysAgo
-} from './data.js';
+} from '../data.js';
 
 export const Storage = {
   /* Versione del set di dati di esempio. Quando questa stringa cambia
