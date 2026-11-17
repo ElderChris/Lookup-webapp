@@ -17,6 +17,12 @@
 
 import { defineConfig } from 'vitest/config';
 
+// Variabili d'ambiente dei test (database lookup_test, Redis db 1, ...).
+// Caricate qui invece che con `node --env-file` nello script npm: cosi' il
+// comando non dipende da dove npm installa vitest (root del monorepo).
+// Le variabili gia' presenti nell'ambiente non vengono sovrascritte.
+process.loadEnvFile(new URL('./.env.test', import.meta.url));
+
 export default defineConfig({
   test: {
     globals: false, // import esplicito di describe/it/expect — piu' verboso ma piu' chiaro
