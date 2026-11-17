@@ -12,6 +12,7 @@
 #   .\scripts\verify.ps1 -SkipPull -SkipBuild riusa immagini gia' presenti
 #   .\scripts\verify.ps1 -SkipTests           salta Vitest
 #   .\scripts\verify.ps1 -Down                ferma i container alla fine
+#   .\scripts\verify.ps1 -Reseed              ricarica i dati di prova (AZZERA il DB)
 #
 # Output (cartella logs/, ignorata da git):
 #   logs/verify-<timestamp>.log   log completo: ogni comando e il suo output
@@ -34,6 +35,7 @@ param(
     [switch]$SkipTests,
     [switch]$SkipSmoke,
     [switch]$Down,
+    [switch]$Reseed,
     [int]$HealthTimeoutSec = 180,
     [string]$ApiUrl = 'http://localhost:3000',
     [string]$WebUrl = 'http://localhost:8080',
@@ -258,10 +260,10 @@ Invoke-Step 'Database: migrazioni + dati di prova' $false {
 
     # Dati di prova solo se il database e' vuoto: il seed azzera le tabelle
     $count = (Invoke-Native 'echo SELECT count(*) FROM users; | docker exec -i lookup-postgres psql -U lookup -d lookup -tA').Output.Trim()
-    if ($count -eq '0') {
+    if ($count -eq '0' -or $Reseed) {
         $seed = Invoke-Native 'npm run db:seed -w apps/api'
         if ($seed.Code -ne 0) { return @{ Status = 'FAIL'; Detail = 'seed fallito, vedi log' } }
-        return @{ Status = 'PASS'; Detail = "$($sql.Count) migrazioni, database vuoto popolato con i dati di prova" }
+        return @{ Status = 'PASS'; Detail = "$($sql.Count) migrazioni, dati di prova caricati" }
     }
     return @{ Status = 'PASS'; Detail = "$($sql.Count) migrazioni, $count utenti gia' presenti (seed non rieseguito)" }
 }
