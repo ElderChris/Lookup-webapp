@@ -100,9 +100,13 @@ export const auth = betterAuth({
   // createdAt, updatedAt. Il resto va in additionalFields con mapping esplicito.
   user: {
     modelName: 'user',
+    // Con l'adapter Prisma la mappatura usa i nomi dei CAMPI del modello
+    // Prisma, non delle colonne: e' Prisma a tradurli in display_name e
+    // avatar_url tramite @map. Better Auth 1.7 verifica lo schema e rifiuta
+    // i nomi di colonna (SchemaMismatchError).
     fields: {
-      name: 'display_name', // Better Auth `name` → colonna display_name
-      image: 'avatar_url', // Better Auth `image` → colonna avatar_url
+      name: 'displayName', // Better Auth `name` → User.displayName (colonna display_name)
+      image: 'avatarUrl', // Better Auth `image` → User.avatarUrl (colonna avatar_url)
     },
     additionalFields: {
       username: {
