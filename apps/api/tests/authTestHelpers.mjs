@@ -23,7 +23,7 @@
 // dovrebbero preferire signInAs per essere piu' realistici.
 // =============================================================================
 
-import { SEED } from './helpers.mjs';
+import { SEED } from './seedIds.mjs';
 
 /** Password comune per tutti i seed users (vedi seed.mjs). */
 const DEFAULT_SEED_PASSWORD = 'Lookup2026!';
