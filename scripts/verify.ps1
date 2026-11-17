@@ -323,7 +323,13 @@ Invoke-Step 'Smoke applicativo (login, prestiti, SSE)' $SkipSmoke.IsPresent {
         $code = 0
         if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
         Write-Log "<<< $code $($_.Exception.Message)"
-        return @{ Status = 'FAIL'; Detail = "login $code - se l utente seed manca: npm run db:seed -w apps/api" }
+        # Il corpo della risposta e i log dell'API servono a capire la causa
+        try {
+            $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+            Write-Log ('<<< corpo: ' + $reader.ReadToEnd())
+        } catch { }
+        [void](Invoke-Native 'docker logs --tail 80 lookup-api')
+        return @{ Status = 'FAIL'; Detail = "login $code - dettagli e log dell API nel file di log" }
     }
 
     $issues = @()
@@ -352,7 +358,10 @@ Invoke-Step 'Smoke applicativo (login, prestiti, SSE)' $SkipSmoke.IsPresent {
         $issues += 'sse non raggiungibile'
     }
 
-    if ($issues.Count -gt 0) { return @{ Status = 'FAIL'; Detail = $issues -join '; ' } }
+    if ($issues.Count -gt 0) {
+        [void](Invoke-Native 'docker logs --tail 80 lookup-api')
+        return @{ Status = 'FAIL'; Detail = $issues -join '; ' }
+    }
     return @{ Status = 'PASS'; Detail = "login $SeedEmail, users/me, prestiti inviati/ricevuti, stream SSE aperto" }
 }
 
