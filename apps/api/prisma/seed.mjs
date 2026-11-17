@@ -21,7 +21,7 @@
 // =============================================================================
 
 import { PrismaClient } from '@prisma/client';
-import { scryptSync, randomBytes } from 'node:crypto';
+import { hashPassword } from 'better-auth/crypto';
 
 const prisma = new PrismaClient();
 
@@ -32,26 +32,22 @@ const prisma = new PrismaClient();
 // permette di fare login vero via Better Auth durante lo sviluppo e i test
 // end-to-end (curl, browser reali).
 //
-// L'algoritmo di hashing replica esattamente quello di Better Auth v1.x:
-//   salt = 16 bytes random hex
-//   key  = scrypt(password.normalize('NFKC'), salt, 64 bytes) hex
-//   storage format: `${salt}:${key}` (colon-separated hex)
+// L'hash della password e' calcolato con la funzione di Better Auth stessa
+// (`hashPassword` da 'better-auth/crypto'), cosi' resta compatibile con la
+// versione installata. La versione precedente reimplementava scrypt con i
+// parametri di default di Node (r=8), diversi da quelli di Better Auth
+// (r=16): gli hash non venivano mai verificati.
 //
 // Il record Account creato ha:
-//   providerId = 'credential'      (il provider email/password di Better Auth)
-//   accountId  = email dell'utente (Better Auth usa email come accountId qui)
-//   password   = hash calcolato sopra
+//   providerId = 'credential'  (il provider email/password di Better Auth)
+//   accountId  = id dell'utente (Better Auth >= 1.7 lo richiede: cerca
+//                l'account credential con accountId === user.id)
+//   password   = hash calcolato da Better Auth
 //
 // In produzione: OGNI utente ha la sua password + emailVerified via link email.
 // =============================================================================
 
 const DEFAULT_SEED_PASSWORD = 'Lookup2026!';
-
-function hashPasswordForBetterAuth(password) {
-  const salt = randomBytes(16).toString('hex');
-  const key = scryptSync(password.normalize('NFKC'), salt, 64);
-  return `${salt}:${key.toString('hex')}`;
-}
 
 // =============================================================================
 // 1. UTENTI (11)
@@ -638,9 +634,9 @@ async function main() {
       data: {
         id: `acc_${u.id}`, // deterministic per seed
         userId: u.id,
-        accountId: u.email, // Better Auth per 'credential' usa email
+        accountId: u.id, // Better Auth: per 'credential' accountId === user.id
         providerId: 'credential',
-        password: hashPasswordForBetterAuth(DEFAULT_SEED_PASSWORD),
+        password: await hashPassword(DEFAULT_SEED_PASSWORD),
         createdAt: now,
         updatedAt: now,
       },
