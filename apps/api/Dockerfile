@@ -3,7 +3,7 @@
 # =============================================================================
 # Multi-stage build:
 #   - builder: dipendenze (anche dev) dal lockfile + generazione Prisma Client
-#   - runtime: Node 24 alpine, solo dipendenze di produzione + codice
+#   - runtime: Node 26 alpine, solo dipendenze di produzione + codice
 #
 # Il contesto di build e' la ROOT del monorepo (vedi docker-compose.yml):
 # serve per leggere package-lock.json e risolvere il workspace @lookup/shared,
@@ -18,7 +18,7 @@
 # -----------------------------------------------------------------------------
 # Stage 1: builder
 # -----------------------------------------------------------------------------
-FROM node:24-alpine AS builder
+FROM node:26-alpine AS builder
 
 # openssl: richiesto da Prisma su Alpine
 RUN apk add --no-cache openssl
@@ -47,7 +47,7 @@ COPY apps/api/src ./apps/api/src
 # -----------------------------------------------------------------------------
 # Stage 2: runtime
 # -----------------------------------------------------------------------------
-FROM node:24-alpine AS runtime
+FROM node:26-alpine AS runtime
 
 # wget: healthcheck Docker
 # dumb-init: gestione corretta dei segnali (PID 1)
