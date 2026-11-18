@@ -4,7 +4,7 @@
 // Configurazione centrale di Better Auth con:
 //   - Prisma adapter (Postgres)
 //   - Email/password provider abilitato
-//   - Verifica email e reset password (via SMTP / MailHog in dev)
+//   - Verifica email e reset password (via SMTP / Mailpit in dev)
 //   - Session cookie httpOnly (sliding window 7 giorni)
 //   - Additional fields per il nostro schema User custom
 //     (username, displayName, bio, city, lat, lng, accountType, ecc.)
@@ -29,7 +29,7 @@ async function sendMail({ to, subject, text, html }) {
   } catch (err) {
     console.error(`[auth] errore invio email a ${to}:`, err.message);
     // In dev NON facciamo throw — il flow di verify/reset resta usable
-    // controllando MailHog manualmente. In prod si preferirebbe fallire.
+    // controllando Mailpit manualmente. In prod si preferirebbe fallire.
   }
 }
 
@@ -156,7 +156,7 @@ export const auth = betterAuth({
     customRules: {
       '/sign-in/email': { window: 60, max: 5 }, // login piu' stretto
       '/sign-up/email': { window: 300, max: 3 }, // signup ancora piu'
-      '/forget-password': { window: 300, max: 3 },
+      '/request-password-reset': { window: 300, max: 3 },
     },
   },
 
