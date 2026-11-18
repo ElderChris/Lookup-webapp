@@ -9,6 +9,6 @@
     "dev:win": "python no-cache-server.py 8765"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=26"
   }
 }

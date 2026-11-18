@@ -97,7 +97,9 @@ if (!hasMigrations) {
   process.exit(1);
 }
 
-const migrateRes = spawnSync('npx', ['prisma', 'migrate', 'deploy'], {
+// Comando come stringa unica: con `shell: true` Node non accetta piu' un array
+// di argomenti senza avvisare (DEP0190). La shell serve per npx su Windows.
+const migrateRes = spawnSync('npx prisma migrate deploy', {
   cwd: API_ROOT,
   env: { ...process.env, DATABASE_URL: TEST_URL },
   stdio: 'inherit',
@@ -110,7 +112,7 @@ if (migrateRes.status !== 0) {
 
 // --- 5. Seed ---
 log('Esecuzione seed...');
-const seedRes = spawnSync('node', ['prisma/seed.mjs'], {
+const seedRes = spawnSync('node prisma/seed.mjs', {
   cwd: API_ROOT,
   env: { ...process.env, DATABASE_URL: TEST_URL },
   stdio: 'inherit',

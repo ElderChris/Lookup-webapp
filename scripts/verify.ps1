@@ -209,7 +209,7 @@ Invoke-Step 'Prerequisiti' $false {
     if ($g.Code -eq 0) { $detail += ", git $($g.Output)@$($h.Output)" }
     $major = 0
     if ($n.Output -match '^v(\d+)\.') { $major = [int]$Matches[1] }
-    if ($major -lt 24) { return @{ Status = 'FAIL'; Detail = "$detail - serve Node 24 o superiore" } }
+    if ($major -lt 26) { return @{ Status = 'FAIL'; Detail = "$detail - serve Node 26 o superiore" } }
     return @{ Status = 'PASS'; Detail = $detail }
 }
 if ($Results[-1].status -eq 'FAIL') { Write-Summary }
@@ -285,7 +285,7 @@ Invoke-Step 'Versioni nei container' $false {
 
     $detail = "postgres $pgVer, postgis $gisVer, redis $redisVer, node $node, nginx $nginxVer"
     $issues = @()
-    if ($node -notmatch '^v24\.')        { $issues += 'node atteso 24.x' }
+    if ($node -notmatch '^v26\.')        { $issues += 'node atteso 26.x' }
     if ($nginxVer -notmatch '^1\.30\.')  { $issues += 'nginx atteso 1.30.x' }
     if ($pgVer -notmatch '^16\.')        { $issues += 'postgres atteso 16.x' }
     if ($gis -match 'need upgrade')      { $issues += 'postgis segnala need upgrade: eseguire ALTER EXTENSION postgis UPDATE' }
