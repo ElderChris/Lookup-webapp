@@ -12,14 +12,16 @@
    - Init: initMobileNav, highlightActiveNav, initAuthToggle, etc.
    ============================================================================= */
 
-import { API } from './api.js';
+import { API } from './legacy/api.js';
 import {
-  LIBRARY_COVER_DESIGNS, LIBRARY_COVER_DESIGN_MAP,
-  LOAN_STATUS_LABEL, LOAN_STATUS_HINT, LOAN_STATUS_ORDER
+  LIBRARY_COVER_DESIGNS,
+  LIBRARY_COVER_DESIGN_MAP,
+  LOAN_STATUS_LABEL,
+  LOAN_STATUS_HINT,
+  LOAN_STATUS_ORDER,
 } from './data.js';
 
 export const UI = {
-
   /* =============================================================
      v2.5 — Icone SVG inline minimali.
      Generate da Claude (Anthropic) per Lookup.
@@ -27,15 +29,22 @@ export const UI = {
      Pensate per essere coerenti come "tratto" — la stessa mano grafica.
      ============================================================= */
   ICON: {
-    explore: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 L9 4 L15 6.5 L21 4 V17.5 L15 20 L9 17.5 L3 20 Z"/><path d="M9 4 V17.5 M15 6.5 V20"/><circle cx="17" cy="14" r="2.4"/><path d="M18.8 15.8 L21 18"/></svg>',
-    stats:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 V10"/><path d="M10 20 V4"/><path d="M16 20 V13"/><path d="M22 20 V7"/><path d="M3 20 H23"/></svg>',
-    loans:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5 H17 A2 2 0 0 1 19 7 V13 A2 2 0 0 1 17 15 H10 L6 19 V15 H5 A2 2 0 0 1 3 13 Z"/><path d="M7 9 H15"/><path d="M7 12 H12"/></svg>',
-    publish: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4 H14 L19 9 V20 A1 1 0 0 1 18 21 H5 A1 1 0 0 1 4 20 V5 A1 1 0 0 1 5 4 Z"/><path d="M14 4 V9 H19"/><path d="M11.5 12 V17.5 M8.75 14.75 H14.25"/></svg>',
-    admin:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 L20 6 V12 C20 16.5 16.5 19.5 12 21 C7.5 19.5 4 16.5 4 12 V6 Z"/><path d="M9 12 L11 14 L15 10"/></svg>'
+    explore:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5 L9 4 L15 6.5 L21 4 V17.5 L15 20 L9 17.5 L3 20 Z"/><path d="M9 4 V17.5 M15 6.5 V20"/><circle cx="17" cy="14" r="2.4"/><path d="M18.8 15.8 L21 18"/></svg>',
+    stats:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20 V10"/><path d="M10 20 V4"/><path d="M16 20 V13"/><path d="M22 20 V7"/><path d="M3 20 H23"/></svg>',
+    loans:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5 H17 A2 2 0 0 1 19 7 V13 A2 2 0 0 1 17 15 H10 L6 19 V15 H5 A2 2 0 0 1 3 13 Z"/><path d="M7 9 H15"/><path d="M7 12 H12"/></svg>',
+    publish:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4 H14 L19 9 V20 A1 1 0 0 1 18 21 H5 A1 1 0 0 1 4 20 V5 A1 1 0 0 1 5 4 Z"/><path d="M14 4 V9 H19"/><path d="M11.5 12 V17.5 M8.75 14.75 H14.25"/></svg>',
+    admin:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 L20 6 V12 C20 16.5 16.5 19.5 12 21 C7.5 19.5 4 16.5 4 12 V6 Z"/><path d="M9 12 L11 14 L15 10"/></svg>',
   },
 
   /** Helper: ritorna l'SVG inline per la chiave richiesta. */
-  icon(key) { return this.ICON[key] || ''; },
+  icon(key) {
+    return this.ICON[key] || '';
+  },
 
   /** Render scheda libro */
   /* =============================================================
@@ -67,14 +76,15 @@ export const UI = {
       else state = 'empty';
       stars.push(this._starSVG(state, i));
     }
-    const avgLbl = showAverage && r > 0
-      ? `<span class="stars__avg">${r.toFixed(1)}</span>`
-      : '';
-    const countLbl = (count !== undefined && count !== null)
-      ? `<span class="stars__count">${count === 0
-          ? 'Nessuna recensione'
-          : `${count} ${count === 1 ? 'recensione' : 'recensioni'}`}</span>`
-      : '';
+    const avgLbl = showAverage && r > 0 ? `<span class="stars__avg">${r.toFixed(1)}</span>` : '';
+    const countLbl =
+      count !== undefined && count !== null
+        ? `<span class="stars__count">${
+            count === 0
+              ? 'Nessuna recensione'
+              : `${count} ${count === 1 ? 'recensione' : 'recensioni'}`
+          }</span>`
+        : '';
     const inner = stars.join('') + avgLbl + countLbl;
     const cls = `stars stars--${size}` + (asLink ? ' stars--link' : '');
     return asLink
@@ -112,19 +122,23 @@ export const UI = {
       </p>`;
       return;
     }
-    container.innerHTML = reviews.map(r => {
-      const reviewer = API.getUser(r.reviewer_id);
-      if (!reviewer) return '';
-      const prefs = API.getProfilePrefs(reviewer.id) || {};
-      const themeClass = `cover--${prefs.theme || 'classic'}`;
-      const symbol = prefs.avatar_style === 'symbol' && prefs.avatar_symbol
-        ? prefs.avatar_symbol
-        : (reviewer.display_name || reviewer.username || '?').trim()[0].toUpperCase();
-      const dateLabel = new Date(r.created_at).toLocaleDateString('it-IT', {
-        day: '2-digit', month: 'short', year: 'numeric'
-      });
-      const relative = UI.timeAgo(r.created_at);
-      return `
+    container.innerHTML = reviews
+      .map((r) => {
+        const reviewer = API.getUser(r.reviewer_id);
+        if (!reviewer) return '';
+        const prefs = API.getProfilePrefs(reviewer.id) || {};
+        const themeClass = `cover--${prefs.theme || 'classic'}`;
+        const symbol =
+          prefs.avatar_style === 'symbol' && prefs.avatar_symbol
+            ? prefs.avatar_symbol
+            : (reviewer.display_name || reviewer.username || '?').trim()[0].toUpperCase();
+        const dateLabel = new Date(r.created_at).toLocaleDateString('it-IT', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        });
+        const relative = UI.timeAgo(r.created_at);
+        return `
         <article class="review-card">
           <div class="review-card__head">
             <a href="library.html?id=${reviewer.id}" class="review-card__author">
@@ -144,7 +158,8 @@ export const UI = {
           </div>
           <p class="review-card__text">${this._escapeHtml(r.text)}</p>
         </article>`;
-    }).join('');
+      })
+      .join('');
   },
 
   /** v1.6: lista delle recensioni SCRITTE da un utente. Stesso layout
@@ -160,19 +175,23 @@ export const UI = {
       </p>`;
       return;
     }
-    container.innerHTML = reviews.map(r => {
-      const target = API.getUser(r.target_user_id);
-      if (!target) return '';
-      const prefs = API.getProfilePrefs(target.id) || {};
-      const themeClass = `cover--${prefs.theme || 'classic'}`;
-      const symbol = prefs.avatar_style === 'symbol' && prefs.avatar_symbol
-        ? prefs.avatar_symbol
-        : (target.display_name || target.username || '?').trim()[0].toUpperCase();
-      const dateLabel = new Date(r.created_at).toLocaleDateString('it-IT', {
-        day: '2-digit', month: 'short', year: 'numeric'
-      });
-      const relative = UI.timeAgo(r.created_at);
-      return `
+    container.innerHTML = reviews
+      .map((r) => {
+        const target = API.getUser(r.target_user_id);
+        if (!target) return '';
+        const prefs = API.getProfilePrefs(target.id) || {};
+        const themeClass = `cover--${prefs.theme || 'classic'}`;
+        const symbol =
+          prefs.avatar_style === 'symbol' && prefs.avatar_symbol
+            ? prefs.avatar_symbol
+            : (target.display_name || target.username || '?').trim()[0].toUpperCase();
+        const dateLabel = new Date(r.created_at).toLocaleDateString('it-IT', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        });
+        const relative = UI.timeAgo(r.created_at);
+        return `
         <article class="review-card review-card--written">
           <div class="review-card__head">
             <a href="library.html?id=${target.id}#recensioni" class="review-card__author">
@@ -202,10 +221,11 @@ export const UI = {
             </button>
           </div>
         </article>`;
-    }).join('');
+      })
+      .join('');
 
     // Wiring del bottone cancella
-    container.addEventListener('click', e => {
+    container.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-review-delete]');
       if (!btn) return;
       if (!confirm('Cancellare definitivamente questa recensione?')) return;
@@ -249,7 +269,7 @@ export const UI = {
       return;
     }
 
-    const me = API.getCurrentUser();
+    const me = window.LB_UI.currentUser();
     const existing = API.getReviewByPair(targetUserId, me.id);
     const initialRating = existing ? existing.rating : 0;
     const initialText = existing ? existing.text : '';
@@ -264,13 +284,17 @@ export const UI = {
           Bastano <strong>20 caratteri</strong>.
         </p>
         <div class="review-form__stars" role="radiogroup" aria-label="Valutazione da 1 a 5 stelle">
-          ${[1,2,3,4,5].map(n => `
+          ${[1, 2, 3, 4, 5]
+            .map(
+              (n) => `
             <button type="button" class="review-form__star" data-value="${n}"
-                    role="radio" aria-checked="false" aria-label="${n} ${n===1?'stella':'stelle'}">
+                    role="radio" aria-checked="false" aria-label="${n} ${n === 1 ? 'stella' : 'stelle'}">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 2 L14.5 9 L22 9 L16 13.5 L18.2 21 L12 16.5 L5.8 21 L8 13.5 L2 9 L9.5 9 Z"/>
               </svg>
-            </button>`).join('')}
+            </button>`
+            )
+            .join('')}
           <span class="review-form__rating-label">Seleziona un voto</span>
         </div>
         <div class="form__group">
@@ -314,7 +338,10 @@ export const UI = {
 
     starBtns.forEach((btn, i) => {
       const n = i + 1;
-      btn.addEventListener('click', () => { currentRating = n; paintStars(currentRating); });
+      btn.addEventListener('click', () => {
+        currentRating = n;
+        paintStars(currentRating);
+      });
       btn.addEventListener('mouseenter', () => paintStars(n, true));
       btn.addEventListener('mouseleave', () => paintStars(currentRating));
       btn.addEventListener('focus', () => paintStars(n, true));
@@ -325,7 +352,7 @@ export const UI = {
       charCount.textContent = textArea.value.length;
     });
 
-    form.addEventListener('submit', e => {
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
       errBox.hidden = true;
       if (currentRating === 0) {
@@ -344,7 +371,10 @@ export const UI = {
         errBox.textContent = 'Errore: ' + result.reason;
         return;
       }
-      UI.toast(result.updated ? 'Recensione aggiornata.' : 'Recensione pubblicata. Grazie!', 'success');
+      UI.toast(
+        result.updated ? 'Recensione aggiornata.' : 'Recensione pubblicata. Grazie!',
+        'success'
+      );
       if (typeof onSubmit === 'function') onSubmit(result);
     });
 
@@ -365,8 +395,11 @@ export const UI = {
   /** Escape minimo per inserire testo utente in HTML senza problemi. */
   _escapeHtml(s) {
     return String(s || '')
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   },
 
   /** Formato leggibile "X tempo fa" — versione completa (settimane,
@@ -376,17 +409,17 @@ export const UI = {
     const diff = Date.now() - new Date(iso).getTime();
     const sec = Math.round(diff / 1000);
     const min = Math.round(diff / 60000);
-    const h   = Math.round(diff / 3600000);
-    const d   = Math.round(diff / 86400000);
-    const w   = Math.round(diff / (7 * 86400000));
-    const mo  = Math.round(diff / (30 * 86400000));
-    const y   = Math.round(diff / (365 * 86400000));
-    if (sec < 60)  return 'pochi secondi fa';
-    if (min < 60)  return min === 1 ? 'un minuto fa' : `${min} minuti fa`;
-    if (h < 24)    return h === 1 ? "un'ora fa" : `${h} ore fa`;
-    if (d < 7)     return d === 1 ? 'un giorno fa' : `${d} giorni fa`;
-    if (w < 5)     return w === 1 ? 'una settimana fa' : `${w} settimane fa`;
-    if (mo < 12)   return mo === 1 ? 'un mese fa' : `${mo} mesi fa`;
+    const h = Math.round(diff / 3600000);
+    const d = Math.round(diff / 86400000);
+    const w = Math.round(diff / (7 * 86400000));
+    const mo = Math.round(diff / (30 * 86400000));
+    const y = Math.round(diff / (365 * 86400000));
+    if (sec < 60) return 'pochi secondi fa';
+    if (min < 60) return min === 1 ? 'un minuto fa' : `${min} minuti fa`;
+    if (h < 24) return h === 1 ? "un'ora fa" : `${h} ore fa`;
+    if (d < 7) return d === 1 ? 'un giorno fa' : `${d} giorni fa`;
+    if (w < 5) return w === 1 ? 'una settimana fa' : `${w} settimane fa`;
+    if (mo < 12) return mo === 1 ? 'un mese fa' : `${mo} mesi fa`;
     return y === 1 ? 'un anno fa' : `${y} anni fa`;
   },
 
@@ -399,42 +432,47 @@ export const UI = {
       "Prestato" (3° su 5 = posizione centrale per disegno). */
   renderLoanTimeline(loan, opts = {}) {
     const { compact = false } = opts;
-    const states = LOAN_STATUS_ORDER;        // ['requested', ..., 'returned']
+    const states = LOAN_STATUS_ORDER; // ['requested', ..., 'returned']
     const currentIdx = states.indexOf(loan.status);
 
     // Mappa: stato → timestamp di transizione (se presente)
     const tsMap = {
-      requested:  loan.requested_at,
-      confirmed:  loan.confirmed_at,
-      borrowed:   loan.borrowed_at,
-      returning:  loan.returning_at,
-      returned:   loan.returned_at
+      requested: loan.requested_at,
+      confirmed: loan.confirmed_at,
+      borrowed: loan.borrowed_at,
+      returning: loan.returning_at,
+      returned: loan.returned_at,
     };
 
-    const nodes = states.map((st, i) => {
-      const reached = i <= currentIdx;
-      const isCurrent = i === currentIdx;
-      const ts = tsMap[st];
-      const cls = ['loan-timeline__node'];
-      if (reached) cls.push('is-reached');
-      if (isCurrent) cls.push('is-current');
-      const tsLabel = ts ? `<span class="loan-timeline__date">${UI.timeAgo(ts)}</span>` : '';
-      // Linea connettrice (tranne dopo l'ultimo)
-      const connector = i < states.length - 1
-        ? `<span class="loan-timeline__connector ${i < currentIdx ? 'is-reached' : ''}"></span>`
-        : '';
-      return `
+    const nodes = states
+      .map((st, i) => {
+        const reached = i <= currentIdx;
+        const isCurrent = i === currentIdx;
+        const ts = tsMap[st];
+        const cls = ['loan-timeline__node'];
+        if (reached) cls.push('is-reached');
+        if (isCurrent) cls.push('is-current');
+        const tsLabel = ts ? `<span class="loan-timeline__date">${UI.timeAgo(ts)}</span>` : '';
+        // Linea connettrice (tranne dopo l'ultimo)
+        const connector =
+          i < states.length - 1
+            ? `<span class="loan-timeline__connector ${i < currentIdx ? 'is-reached' : ''}"></span>`
+            : '';
+        return `
         <li class="${cls.join(' ')}">
           <span class="loan-timeline__dot" aria-hidden="true">
-            ${reached
-              ? `<svg viewBox="0 0 24 24" width="14" height="14"><path d="M5 12 L10 17 L19 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-              : `<span class="loan-timeline__index">${i + 1}</span>`}
+            ${
+              reached
+                ? `<svg viewBox="0 0 24 24" width="14" height="14"><path d="M5 12 L10 17 L19 8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+                : `<span class="loan-timeline__index">${i + 1}</span>`
+            }
           </span>
           <span class="loan-timeline__label">${LOAN_STATUS_LABEL[st]}</span>
           ${tsLabel}
           ${connector}
         </li>`;
-    }).join('');
+      })
+      .join('');
 
     return `
       <div class="loan-timeline${compact ? ' loan-timeline--compact' : ''}">
@@ -454,10 +492,16 @@ export const UI = {
       `onUpdate` viene chiamata dopo ogni invio (utile per ridipingere
       la card contenitore se serve aggiornare contatori esterni). */
   renderLoanChat(container, loan, opts = {}) {
-    const me = API.getCurrentUser();
-    if (!me) { container.innerHTML = ''; return; }
+    const me = window.LB_UI.currentUser();
+    if (!me) {
+      container.innerHTML = '';
+      return;
+    }
     const isParticipant = +me.id === +loan.requester_id || +me.id === +loan.lender_id;
-    if (!isParticipant) { container.innerHTML = ''; return; }
+    if (!isParticipant) {
+      container.innerHTML = '';
+      return;
+    }
 
     const messages = API.getMessagesForLoan(loan.id);
     const unread = API.getUnreadMessageCount(loan.id, me.id);
@@ -465,20 +509,27 @@ export const UI = {
     const other = API.getUser(otherId);
     const otherPrefs = API.getProfilePrefs(otherId) || {};
     const otherTheme = `cover--${otherPrefs.theme || 'classic'}`;
-    const otherSymbol = otherPrefs.avatar_style === 'symbol' && otherPrefs.avatar_symbol
-      ? otherPrefs.avatar_symbol
-      : (other ? other.display_name : '?').trim()[0].toUpperCase();
+    const otherSymbol =
+      otherPrefs.avatar_style === 'symbol' && otherPrefs.avatar_symbol
+        ? otherPrefs.avatar_symbol
+        : (other ? other.display_name : '?').trim()[0].toUpperCase();
     const mePrefs = API.getProfilePrefs(me.id) || {};
     const meTheme = `cover--${mePrefs.theme || 'classic'}`;
-    const meSymbol = mePrefs.avatar_style === 'symbol' && mePrefs.avatar_symbol
-      ? mePrefs.avatar_symbol
-      : (me.display_name || '?').trim()[0].toUpperCase();
+    const meSymbol =
+      mePrefs.avatar_style === 'symbol' && mePrefs.avatar_symbol
+        ? mePrefs.avatar_symbol
+        : (me.display_name || '?').trim()[0].toUpperCase();
 
     // Etichette icone per i messaggi di sistema
     const sysIcon = {
-      requested: '📨', confirmed: '✓', borrowed: '↦',
-      returning: '↩', returned: '✓✓',
-      rejected: '✕', cancelled: '⊘', overdue_reminder: '⏰'
+      requested: '📨',
+      confirmed: '✓',
+      borrowed: '↦',
+      returning: '↩',
+      returned: '✓✓',
+      rejected: '✕',
+      cancelled: '⊘',
+      overdue_reminder: '⏰',
     };
 
     const startOpen = opts.startOpen || unread > 0;
@@ -488,15 +539,29 @@ export const UI = {
         <button type="button" class="loan-chat__toggle" aria-expanded="${startOpen ? 'true' : 'false'}">
           <span aria-hidden="true">💬</span>
           <span class="loan-chat__toggle-label">Chat con ${other ? other.display_name : 'utente'}</span>
-          ${unread > 0
-            ? `<span class="loan-chat__unread-badge">${unread} nuov${unread === 1 ? 'o' : 'i'}</span>`
-            : ''}
+          ${
+            unread > 0
+              ? `<span class="loan-chat__unread-badge">${unread} nuov${unread === 1 ? 'o' : 'i'}</span>`
+              : ''
+          }
           <span class="loan-chat__caret" aria-hidden="true">▾</span>
         </button>
         <div class="loan-chat__panel" ${startOpen ? '' : 'hidden'}>
           <div class="loan-chat__messages" role="log" aria-live="polite">
-            ${messages.map(m => this._renderChatMessage(m, me, other,
-              meTheme, meSymbol, otherTheme, otherSymbol, sysIcon)).join('')}
+            ${messages
+              .map((m) =>
+                this._renderChatMessage(
+                  m,
+                  me,
+                  other,
+                  meTheme,
+                  meSymbol,
+                  otherTheme,
+                  otherSymbol,
+                  sysIcon
+                )
+              )
+              .join('')}
           </div>
           <form class="loan-chat__form" novalidate>
             <textarea class="loan-chat__input" rows="2"
@@ -537,35 +602,51 @@ export const UI = {
       API.markLoanMessagesRead(loan.id, me.id);
       const badge = toggle.querySelector('.loan-chat__unread-badge');
       if (badge) badge.remove();
-      setTimeout(() => { messagesEl.scrollTop = messagesEl.scrollHeight; }, 30);
+      setTimeout(() => {
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }, 30);
     }
 
     toggle.addEventListener('click', () => {
-      if (root.classList.contains('is-open')) close(); else open();
+      if (root.classList.contains('is-open')) close();
+      else open();
     });
 
     // Enter (senza Shift) invia; Shift+Enter va a capo
-    input.addEventListener('keydown', e => {
+    input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         form.requestSubmit();
       }
     });
 
-    form.addEventListener('submit', e => {
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
       const text = input.value;
       const r = API.sendMessage(loan.id, text);
       if (!r.ok) {
-        if (r.reason === 'empty') { input.focus(); return; }
+        if (r.reason === 'empty') {
+          input.focus();
+          return;
+        }
         UI.toast('Errore: ' + r.reason, 'error');
         return;
       }
       input.value = '';
       // Append del nuovo messaggio senza re-render completo
-      messagesEl.insertAdjacentHTML('beforeend',
-        UI._renderChatMessage(r.message, me, other,
-          meTheme, meSymbol, otherTheme, otherSymbol, sysIcon));
+      messagesEl.insertAdjacentHTML(
+        'beforeend',
+        UI._renderChatMessage(
+          r.message,
+          me,
+          other,
+          meTheme,
+          meSymbol,
+          otherTheme,
+          otherSymbol,
+          sysIcon
+        )
+      );
       messagesEl.scrollTop = messagesEl.scrollHeight;
       input.focus();
       if (typeof opts.onUpdate === 'function') opts.onUpdate();
@@ -600,11 +681,12 @@ export const UI = {
   renderBookCard(book, user, options = {}) {
     const owner = user || API.getUser(book.owner_id);
     const coverStyle = `style="background: ${book.cover_gradient};"`;
-    const me = API.getCurrentUser();
+    const me = window.LB_UI.currentUser();
     const liked = me && API.isLiked(me.id, book.id);
     const isOwn = me && +book.owner_id === +me.id;
-    const likeChip = me && !isOwn
-      ? `<button type="button" class="like-chip auth-only ${liked ? 'is-liked' : ''}"
+    const likeChip =
+      me && !isOwn
+        ? `<button type="button" class="like-chip auth-only ${liked ? 'is-liked' : ''}"
                  data-book-id="${book.id}" aria-pressed="${!!liked}"
                  aria-label="${liked ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}">
            <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -612,7 +694,7 @@ export const UI = {
                    fill="${liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
            </svg>
          </button>`
-      : '';
+        : '';
     const isbnClean = (book.isbn || '').replace(/[^\d]/g, '');
     const coverImg = isbnClean
       ? `<img class="book-card__cover-img" loading="lazy" alt=""
@@ -666,12 +748,12 @@ export const UI = {
       initial = [],
       onChange = () => {},
       maxTags = 8,
-      hiddenName = null     // se valorizzato, scrive un input nascosto con valori CSV per i form classici
+      hiddenName = null, // se valorizzato, scrive un input nascosto con valori CSV per i form classici
     } = opts;
 
     const allTags = API.getAllCategoryTags();
     let selected = [...initial];
-    let activeIdx = -1;        // riga evidenziata nel dropdown
+    let activeIdx = -1; // riga evidenziata nel dropdown
 
     container.classList.add('tag-input');
     container.innerHTML = `
@@ -680,83 +762,122 @@ export const UI = {
       <div class="tag-input__dropdown" role="listbox" hidden></div>
       ${hiddenName ? `<input type="hidden" name="${hiddenName}" class="tag-input__hidden" />` : ''}`;
     const chipsBox = container.querySelector('.tag-input__chips');
-    const input    = container.querySelector('.tag-input__field');
+    const input = container.querySelector('.tag-input__field');
     const dropdown = container.querySelector('.tag-input__dropdown');
-    const hidden   = container.querySelector('.tag-input__hidden');
+    const hidden = container.querySelector('.tag-input__hidden');
 
     function commit() {
       onChange(selected.slice());
       if (hidden) hidden.value = selected.join(',');
     }
     function paintChips() {
-      chipsBox.innerHTML = selected.map((t, i) =>
-        `<span class="tag-chip">
+      chipsBox.innerHTML = selected
+        .map(
+          (t, i) =>
+            `<span class="tag-chip">
            <span class="tag-chip__label">${t}</span>
            <button type="button" class="tag-chip__x" data-i="${i}" aria-label="Rimuovi ${t}">×</button>
-         </span>`).join('');
-      chipsBox.querySelectorAll('.tag-chip__x').forEach(btn =>
+         </span>`
+        )
+        .join('');
+      chipsBox.querySelectorAll('.tag-chip__x').forEach((btn) =>
         btn.addEventListener('click', () => {
           selected.splice(+btn.dataset.i, 1);
-          paintChips(); commit(); input.focus();
-        }));
+          paintChips();
+          commit();
+          input.focus();
+        })
+      );
     }
     function addTag(tag) {
       if (!tag || selected.includes(tag) || selected.length >= maxTags) return false;
       if (!allTags.includes(tag)) return false;
       selected.push(tag);
-      paintChips(); commit();
+      paintChips();
+      commit();
       input.value = '';
       closeDropdown();
       return true;
     }
     function openDropdown(items) {
-      if (!items.length) { closeDropdown(); return; }
-      dropdown.innerHTML = items.map((t, i) => {
-        const parent = API.getCategoryParent(t);
-        // evidenzia la parte di testo che combacia con la query
-        const q = input.value.trim();
-        const re = q ? new RegExp('(' + q.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') + ')', 'i') : null;
-        const labelHtml = re ? t.replace(re, '<mark>$1</mark>') : t;
-        return `<div class="tag-opt ${i === activeIdx ? 'is-active' : ''}" role="option" data-tag="${t}">
+      if (!items.length) {
+        closeDropdown();
+        return;
+      }
+      dropdown.innerHTML = items
+        .map((t, i) => {
+          const parent = API.getCategoryParent(t);
+          // evidenzia la parte di testo che combacia con la query
+          const q = input.value.trim();
+          const re = q
+            ? new RegExp('(' + q.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') + ')', 'i')
+            : null;
+          const labelHtml = re ? t.replace(re, '<mark>$1</mark>') : t;
+          return `<div class="tag-opt ${i === activeIdx ? 'is-active' : ''}" role="option" data-tag="${t}">
                   <span>${labelHtml}</span>
                   ${parent ? `<span class="tag-opt__parent">${parent}</span>` : ''}
                 </div>`;
-      }).join('');
+        })
+        .join('');
       dropdown.hidden = false;
-      dropdown.querySelectorAll('.tag-opt').forEach(el =>
-        el.addEventListener('mousedown', (e) => { e.preventDefault(); addTag(el.dataset.tag); }));
+      dropdown.querySelectorAll('.tag-opt').forEach((el) =>
+        el.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          addTag(el.dataset.tag);
+        })
+      );
     }
-    function closeDropdown() { dropdown.hidden = true; activeIdx = -1; }
+    function closeDropdown() {
+      dropdown.hidden = true;
+      activeIdx = -1;
+    }
     function recompute() {
       const q = input.value.trim().toLowerCase();
-      const items = allTags.filter(t => !selected.includes(t) && (!q || t.toLowerCase().includes(q))).slice(0, 12);
+      const items = allTags
+        .filter((t) => !selected.includes(t) && (!q || t.toLowerCase().includes(q)))
+        .slice(0, 12);
       openDropdown(items);
     }
 
-    input.addEventListener('focus',  recompute);
-    input.addEventListener('input',  () => { activeIdx = -1; recompute(); });
+    input.addEventListener('focus', recompute);
+    input.addEventListener('input', () => {
+      activeIdx = -1;
+      recompute();
+    });
     input.addEventListener('keydown', (e) => {
       const opts = [...dropdown.querySelectorAll('.tag-opt')];
-      if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(opts.length - 1, activeIdx + 1); recompute(); }
-      else if (e.key === 'ArrowUp')   { e.preventDefault(); activeIdx = Math.max(0, activeIdx - 1); recompute(); }
-      else if (e.key === 'Enter') {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIdx = Math.min(opts.length - 1, activeIdx + 1);
+        recompute();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIdx = Math.max(0, activeIdx - 1);
+        recompute();
+      } else if (e.key === 'Enter') {
         e.preventDefault();
         if (opts[activeIdx]) addTag(opts[activeIdx].dataset.tag);
         else if (opts.length === 1) addTag(opts[0].dataset.tag);
-      }
-      else if (e.key === 'Backspace' && !input.value && selected.length) {
-        selected.pop(); paintChips(); commit();
-      }
-      else if (e.key === 'Escape') closeDropdown();
+      } else if (e.key === 'Backspace' && !input.value && selected.length) {
+        selected.pop();
+        paintChips();
+        commit();
+      } else if (e.key === 'Escape') closeDropdown();
     });
-    document.addEventListener('click', (e) => { if (!container.contains(e.target)) closeDropdown(); });
+    document.addEventListener('click', (e) => {
+      if (!container.contains(e.target)) closeDropdown();
+    });
 
     paintChips();
     if (hidden) hidden.value = selected.join(',');
 
     // API esposta sul container per chiamanti esterni
     container.getTags = () => selected.slice();
-    container.setTags = (arr) => { selected = arr.slice(); paintChips(); commit(); };
+    container.setTags = (arr) => {
+      selected = arr.slice();
+      paintChips();
+      commit();
+    };
     return container;
   },
 
@@ -769,7 +890,8 @@ export const UI = {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = size; canvas.height = size;
+        canvas.width = size;
+        canvas.height = size;
         const ctx = canvas.getContext('2d');
         // Crop quadrato centrato
         const src = Math.min(img.width, img.height);
@@ -793,7 +915,7 @@ export const UI = {
   wireAvatarMenu(avatarEl, onChange) {
     if (!avatarEl || avatarEl.dataset.wired === '1') return;
     avatarEl.dataset.wired = '1';
-    const me = API.getCurrentUser();
+    const me = window.LB_UI.currentUser();
     if (!me) return;
     const hasPhoto = !!me.avatar_data_url;
 
@@ -806,15 +928,19 @@ export const UI = {
         <button type="button" class="avatar-menu__item" data-action="upload" role="menuitem">
           <span aria-hidden="true">📷</span> ${hasPhoto ? 'Cambia foto…' : 'Carica foto…'}
         </button>
-        ${hasPhoto ? `
+        ${
+          hasPhoto
+            ? `
         <button type="button" class="avatar-menu__item avatar-menu__item--danger"
                 data-action="remove" role="menuitem">
           <span aria-hidden="true">✕</span> Rimuovi foto
-        </button>` : ''}`;
+        </button>`
+            : ''
+        }`;
       // Posiziona il menu sotto l'avatar
       const rect = avatarEl.getBoundingClientRect();
       menu.style.position = 'fixed';
-      menu.style.top = (rect.bottom + 8) + 'px';
+      menu.style.top = rect.bottom + 8 + 'px';
       menu.style.left = rect.left + 'px';
       document.body.appendChild(menu);
       return menu;
@@ -827,7 +953,10 @@ export const UI = {
     avatarEl.addEventListener('click', (e) => {
       e.stopPropagation();
       const existing = document.querySelector('.avatar-menu');
-      if (existing) { closeMenu(); return; }
+      if (existing) {
+        closeMenu();
+        return;
+      }
       const menu = buildMenu();
       menu.addEventListener('click', (ev) => {
         const action = ev.target.closest('[data-action]')?.dataset.action;
@@ -864,7 +993,7 @@ export const UI = {
                   UI.toast('Errore: ' + r.reason, 'error');
                 }
               } catch (err) {
-                UI.toast('Impossibile elaborare l\'immagine.', 'error');
+                UI.toast("Impossibile elaborare l'immagine.", 'error');
               }
             };
             reader.readAsDataURL(file);
@@ -883,14 +1012,16 @@ export const UI = {
     });
 
     document.addEventListener('click', () => closeMenu());
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeMenu();
+    });
   },
 
   /** v2.2: Inietta un link "Admin" nella nav header solo per utenti
       con is_admin=true. Inserito dopo "Profilo" se presente.
       v2.5: icona SVG inline coerente con le altre nav icons. */
   initAdminLink() {
-    const me = API.getCurrentUser();
+    const me = window.LB_UI.currentUser();
     if (!me || !me.is_admin) return;
     const nav = document.querySelector('header .site-nav');
     if (!nav) return;
@@ -917,8 +1048,11 @@ export const UI = {
      profilo pubblico), index.html (aggiornamenti recenti). */
 
   renderPostComposer(container, options = {}) {
-    const me = API.getCurrentUser();
-    if (!me) { container.innerHTML = ''; return; }
+    const me = window.LB_UI.currentUser();
+    if (!me) {
+      container.innerHTML = '';
+      return;
+    }
     if (!API.canPublishPosts(me.id)) {
       container.innerHTML = `
         <div class="post-composer post-composer--locked">
@@ -930,9 +1064,16 @@ export const UI = {
     container.innerHTML = `
       <form class="post-composer" id="post-composer-form">
         <div class="post-composer__avatar" aria-hidden="true">
-          ${me.avatar_data_url
-            ? `<img class="post-composer__avatar-img" src="${me.avatar_data_url}" alt="">`
-            : (me.display_name || '?').split(' ').map(s => s[0]).join('').slice(0,2).toUpperCase()}
+          ${
+            me.avatar_data_url
+              ? `<img class="post-composer__avatar-img" src="${me.avatar_data_url}" alt="">`
+              : (me.display_name || '?')
+                  .split(' ')
+                  .map((s) => s[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase()
+          }
         </div>
         <div class="post-composer__body">
           <textarea name="content" class="post-composer__textarea" rows="3"
@@ -951,7 +1092,7 @@ export const UI = {
       counter.textContent = `${ta.value.length} / ${API.POST_MAX_LENGTH}`;
       counter.classList.toggle('is-near-limit', ta.value.length > API.POST_MAX_LENGTH * 0.85);
     });
-    form.addEventListener('submit', e => {
+    form.addEventListener('submit', (e) => {
       e.preventDefault();
       const r = API.createPost(ta.value);
       if (r.ok) {
@@ -962,8 +1103,8 @@ export const UI = {
       } else {
         const msgs = {
           'no-books': 'Per pubblicare un post devi prima aggiungere almeno un volume.',
-          'empty': 'Il post non può essere vuoto.',
-          'too-long': `Massimo ${API.POST_MAX_LENGTH} caratteri.`
+          empty: 'Il post non può essere vuoto.',
+          'too-long': `Massimo ${API.POST_MAX_LENGTH} caratteri.`,
         };
         UI.toast(msgs[r.reason] || 'Errore: ' + r.reason, 'error');
       }
@@ -971,29 +1112,36 @@ export const UI = {
   },
 
   renderPostsFeed(container, posts, options = {}) {
-    const me = API.getCurrentUser();
+    const me = window.LB_UI.currentUser();
     if (posts.length === 0) {
       container.innerHTML = `<p class="posts-empty">${options.emptyMessage || 'Nessun post ancora.'}</p>`;
       return;
     }
-    container.innerHTML = posts.map(p => UI._renderPostCard(p, me, options)).join('');
+    container.innerHTML = posts.map((p) => UI._renderPostCard(p, me, options)).join('');
     UI._wirePostsFeed(container, options);
   },
 
   _renderPostCard(post, me, options) {
     const author = API.getUser(post.author_id) || { display_name: 'Sconosciuto', username: '?' };
     const myReaction = me ? API.getUserReaction(post.id, me.id) : null;
-    const totalReactions = Object.values(post.reactions || {})
-      .reduce((s, arr) => s + (arr || []).length, 0);
-    const hasReported = me && (post.reports || []).some(r => +r.reporter_id === +me.id);
+    const totalReactions = Object.values(post.reactions || {}).reduce(
+      (s, arr) => s + (arr || []).length,
+      0
+    );
+    const hasReported = me && (post.reports || []).some((r) => +r.reporter_id === +me.id);
     const showAuthor = options.showAuthor !== false;
     const canDelete = me && (+post.author_id === +me.id || me.is_admin);
     // v2.5: avatar dell'autore — foto se presente, altrimenti iniziali
     const authorAvatarInner = author.avatar_data_url
       ? `<img class="post-card__avatar-img" src="${author.avatar_data_url}" alt="">`
-      : (author.display_name || '?').split(' ').map(s => s[0]).join('').slice(0,2).toUpperCase();
+      : (author.display_name || '?')
+          .split(' ')
+          .map((s) => s[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase();
 
-    const reactionsHtml = API.REACTION_EMOJI.map(em => {
+    const reactionsHtml = API.REACTION_EMOJI.map((em) => {
       const count = (post.reactions?.[em] || []).length;
       const isMine = myReaction === em;
       return `<button type="button" class="post-reaction ${isMine ? 'is-mine' : ''} ${count > 0 ? 'has-count' : ''}"
@@ -1006,7 +1154,9 @@ export const UI = {
 
     return `
       <article class="post-card" data-post-id="${post.id}">
-        ${showAuthor ? `
+        ${
+          showAuthor
+            ? `
         <header class="post-card__head">
           <a href="library.html?id=${author.id}" class="post-card__avatar" aria-hidden="true">
             ${authorAvatarInner}
@@ -1015,32 +1165,46 @@ export const UI = {
             <a href="library.html?id=${author.id}" class="post-card__name">${author.display_name}</a>
             <span class="post-card__time">${UI.timeAgo(post.created_at)}</span>
           </div>
-          ${canDelete ? `
+          ${
+            canDelete
+              ? `
             <button type="button" class="post-card__delete" data-post-delete="${post.id}"
                     title="Elimina post" aria-label="Elimina post">🗑</button>
-          ` : ''}
+          `
+              : ''
+          }
         </header>
-        ` : `
+        `
+            : `
         <header class="post-card__head post-card__head--anon">
           <span class="post-card__time">${UI.timeAgo(post.created_at)}</span>
-          ${canDelete ? `
+          ${
+            canDelete
+              ? `
             <button type="button" class="post-card__delete" data-post-delete="${post.id}"
                     title="Elimina post" aria-label="Elimina post">🗑</button>
-          ` : ''}
-        </header>`}
+          `
+              : ''
+          }
+        </header>`
+        }
         <p class="post-card__content">${UI._escapePostContent(post.content)}</p>
         <footer class="post-card__foot">
           <div class="post-card__reactions" role="group" aria-label="Reazioni">
             ${reactionsHtml}
           </div>
-          ${me && +post.author_id !== +me.id ? `
+          ${
+            me && +post.author_id !== +me.id
+              ? `
             <button type="button" class="post-card__report ${hasReported ? 'is-reported' : ''}"
                     data-post-report="${post.id}"
                     title="${hasReported ? 'Già segnalato' : 'Segnala come inappropriato'}"
                     ${hasReported ? 'disabled' : ''}>
               ${hasReported ? '⚐ Segnalato' : '⚐ Segnala'}
             </button>
-          ` : ''}
+          `
+              : ''
+          }
         </footer>
       </article>`;
   },
@@ -1054,20 +1218,26 @@ export const UI = {
 
   _wirePostsFeed(container, options = {}) {
     // Reactions
-    container.addEventListener('click', e => {
+    container.addEventListener('click', (e) => {
       const reactBtn = e.target.closest('[data-post-react]');
       const reportBtn = e.target.closest('[data-post-report]');
       const deleteBtn = e.target.closest('[data-post-delete]');
 
       if (reactBtn) {
-        const me = API.getCurrentUser();
-        if (!me) { UI.toast('Accedi per reagire ai post.', 'info'); return; }
+        const me = window.LB_UI.currentUser();
+        if (!me) {
+          UI.toast('Accedi per reagire ai post.', 'info');
+          return;
+        }
         const r = API.togglePostReaction(reactBtn.dataset.postReact, reactBtn.dataset.emoji);
         if (r.ok && options.onChange) options.onChange();
       }
       if (reportBtn) {
-        const me = API.getCurrentUser();
-        if (!me) { UI.toast('Accedi per segnalare un post.', 'info'); return; }
+        const me = window.LB_UI.currentUser();
+        if (!me) {
+          UI.toast('Accedi per segnalare un post.', 'info');
+          return;
+        }
         UI._openReportModal(reportBtn.dataset.postReport, options.onChange);
       }
       if (deleteBtn) {
@@ -1115,9 +1285,10 @@ export const UI = {
         </form>
       </div>`;
     document.body.appendChild(modal);
-    modal.querySelectorAll('[data-modal-close]').forEach(el =>
-      el.addEventListener('click', () => modal.remove()));
-    modal.querySelector('#report-post-form').addEventListener('submit', e => {
+    modal
+      .querySelectorAll('[data-modal-close]')
+      .forEach((el) => el.addEventListener('click', () => modal.remove()));
+    modal.querySelector('#report-post-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const reason = modal.querySelector('#report-reason').value;
       const note = modal.querySelector('#report-note').value;
@@ -1141,7 +1312,7 @@ export const UI = {
       if (!chip) return;
       e.preventDefault();
       e.stopPropagation();
-      const me = API.getCurrentUser();
+      const me = window.LB_UI.currentUser();
       if (!me) return;
       const bookId = +chip.dataset.bookId;
       const nowLiked = API.toggleLike(bookId);
@@ -1159,7 +1330,7 @@ export const UI = {
       container.innerHTML = `<p class="alert alert--info">Nessun libro trovato con i filtri correnti.</p>`;
       return;
     }
-    container.innerHTML = books.map(b => this.renderBookCard(b, null, options)).join('');
+    container.innerHTML = books.map((b) => this.renderBookCard(b, null, options)).join('');
     container.classList.add('stagger');
   },
 
@@ -1175,18 +1346,19 @@ export const UI = {
       container.innerHTML = `<p class="alert alert--info">Nessun libro trovato con i filtri correnti. Prova ad allargare il raggio o a cambiare categoria.</p>`;
       return;
     }
-    container.innerHTML = books.map((b, i) => {
-      const owner = API.getUser(b.owner_id);
-      const isOrg = owner && API.isOrganization(owner);
-      const ownerLabel = owner ? owner.display_name : 'Sconosciuto';
-      const place = owner ? (owner.city || '—') : '—';
-      const availBadge = b.available
-        ? `<span class="result-badge result-badge--available">
+    container.innerHTML = books
+      .map((b, i) => {
+        const owner = API.getUser(b.owner_id);
+        const isOrg = owner && window.LB_UI.isOrganization(owner);
+        const ownerLabel = owner ? owner.display_name : 'Sconosciuto';
+        const place = owner ? owner.city || '—' : '—';
+        const availBadge = b.available
+          ? `<span class="result-badge result-badge--available">
              <span class="result-badge__dot" aria-hidden="true"></span>Disponibile
            </span>`
-        : `<span class="result-badge result-badge--loaned">In prestito</span>`;
+          : `<span class="result-badge result-badge--loaned">In prestito</span>`;
 
-      return `
+        return `
         <a href="book-detail.html?id=${b.id}" class="result-item" style="--i: ${i};">
           <div class="result-item__cover" style="background: ${b.cover_gradient};" aria-hidden="true">
             <span>${b.title.split(' ').slice(0, 3).join(' ')}</span>
@@ -1212,27 +1384,94 @@ export const UI = {
             <span class="result-item__cta" aria-hidden="true">vedi dettagli →</span>
           </div>
         </a>`;
-    }).join('');
+      })
+      .join('');
   },
 
   /** Gestione navigazione mobile */
   initMobileNav() {
     const toggle = document.querySelector('.nav-toggle');
     const nav = document.querySelector('.site-nav');
-    if (toggle && nav) {
-      toggle.addEventListener('click', () => {
-        const isOpen = nav.classList.toggle('open');
-        toggle.setAttribute('aria-expanded', isOpen);
-      });
-    }
+    if (!toggle || !nav) return;
+
+    // Beta 9: focus trap + ESC close per accessibilita' mobile
+    const openMenu = () => {
+      nav.classList.add('open');
+      toggle.setAttribute('aria-expanded', 'true');
+      // Focus sul primo link del menu per screen reader + tastiera
+      const firstLink = nav.querySelector('a');
+      if (firstLink) firstLink.focus();
+      document.body.style.overflow = 'hidden'; // previene scroll pagina
+    };
+    const closeMenu = () => {
+      nav.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+      toggle.focus(); // ridà focus al toggle per continuita' tastiera
+    };
+    const toggleMenu = () => {
+      if (nav.classList.contains('open')) closeMenu();
+      else openMenu();
+    };
+
+    toggle.addEventListener('click', toggleMenu);
+
+    // ESC per chiudere (accessibilita' keyboard)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && nav.classList.contains('open')) {
+        closeMenu();
+      }
+    });
+
+    // Focus trap: TAB dall'ultimo link torna al primo, SHIFT+TAB dal primo va all'ultimo
+    nav.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab' || !nav.classList.contains('open')) return;
+      const links = nav.querySelectorAll('a, button');
+      if (links.length === 0) return;
+      const first = links[0];
+      const last = links[links.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
   },
 
   /** Evidenzia voce di menu attiva */
   highlightActiveNav() {
     const current = location.pathname.split('/').pop() || 'index.html';
-    document.querySelectorAll('.site-nav a').forEach(link => {
+    document.querySelectorAll('.site-nav a').forEach((link) => {
       if (link.getAttribute('href') === current) link.classList.add('active');
     });
+  },
+
+  /**
+   * Beta 9: Feedback offline. Aggiunge un badge fisso in alto se navigator.onLine
+   * ritorna false, e lo rimuove quando torna online.
+   */
+  initOfflineBadge() {
+    // Crea il badge se non esiste
+    if (!document.querySelector('.offline-badge')) {
+      const badge = document.createElement('div');
+      badge.className = 'offline-badge';
+      badge.textContent = '⚠️ Sei offline';
+      badge.setAttribute('role', 'status');
+      badge.setAttribute('aria-live', 'polite');
+      document.body.appendChild(badge);
+    }
+    const update = () => {
+      if (navigator.onLine) {
+        document.body.classList.remove('is-offline');
+      } else {
+        document.body.classList.add('is-offline');
+      }
+    };
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    update();
   },
 
   /** Notifiche toast */
@@ -1241,9 +1480,10 @@ export const UI = {
     t.className = `alert alert--${type}`;
     t.setAttribute('role', 'status');
     t.textContent = message;
-    t.style.cssText = 'position:fixed;top:5rem;right:1.5rem;z-index:1000;max-width:360px;box-shadow:0 8px 24px rgba(0,0,0,.15);';
+    t.style.cssText =
+      'position:fixed;top:5rem;right:1.5rem;z-index:1000;max-width:360px;box-shadow:0 8px 24px rgba(0,0,0,.15);';
     document.body.appendChild(t);
-    setTimeout(() => t.style.opacity = '0', 3000);
+    setTimeout(() => (t.style.opacity = '0'), 3000);
     setTimeout(() => t.remove(), 3500);
   },
 
@@ -1252,12 +1492,11 @@ export const UI = {
      Distingue visivamente le librerie-ente dalle librerie-persona.
      ------------------------------------------------------------- */
   renderLibraryCard(user) {
-    const initial = (user.display_name || user.username || '?')
-      .trim()[0].toUpperCase();
+    const initial = (user.display_name || user.username || '?').trim()[0].toUpperCase();
     const bookLabel = user.book_count === 1 ? 'volume' : 'volumi';
-    const isOrg = API.isOrganization(user);
+    const isOrg = window.LB_UI.isOrganization(user);
     const typeBadge = isOrg
-      ? `<span class="library-card__type library-card__type--org">${API.orgCategoryLabel((API.getOrgProfile(user.id) || {}).org_category)}</span>`
+      ? `<span class="library-card__type library-card__type--org">${window.LB_UI.orgCategoryLabel((API.getOrgProfile(user.id) || {}).org_category)}</span>`
       : '<span class="library-card__type">Libreria personale</span>';
     return `
       <a href="library.html?id=${user.id}" class="library-card">
@@ -1283,26 +1522,31 @@ export const UI = {
      di volumi disponibili al prestito messo graficamente in risalto.
      ------------------------------------------------------------- */
   renderNearbyLibraryCard(lib) {
-    const { themeClass, design, letter } = API.libraryCoverData(lib, lib.prefs);
-    const isOrg = API.isOrganization(lib);
+    const { themeClass, design, letter } = window.LB_UI.libraryCoverData(lib, lib.prefs);
+    const isOrg = window.LB_UI.isOrganization(lib);
 
     /* Distanza in linguaggio naturale */
     const dist = lib.distance_km;
-    const distLabel = dist < 1
-      ? `a ${Math.round(dist * 1000)} m da te`
-      : `a ${dist.toFixed(1).replace('.', ',')} km da te`;
+    const distLabel =
+      dist < 1
+        ? `a ${Math.round(dist * 1000)} m da te`
+        : `a ${dist.toFixed(1).replace('.', ',')} km da te`;
 
     /* Descrizione breve: il motto personalizzato se presente,
        altrimenti la biografia, altrimenti un testo neutro. */
-    const shortDesc = lib.prefs && lib.prefs.motto
-      ? `«${lib.prefs.motto}»`
-      : (lib.bio || (isOrg ? 'Libreria di comunità aperta al prestito.' : 'Collezione privata condivisa con la comunità.'));
+    const shortDesc =
+      lib.prefs && lib.prefs.motto
+        ? `«${lib.prefs.motto}»`
+        : lib.bio ||
+          (isOrg
+            ? 'Libreria di comunità aperta al prestito.'
+            : 'Collezione privata condivisa con la comunità.');
 
     /* Tipo: badge in alto a sinistra con icona dedicata. */
     const typeLabel = isOrg
-      ? API.orgCategoryLabel((API.getOrgProfile(lib.id) || {}).org_category)
+      ? window.LB_UI.orgCategoryLabel((API.getOrgProfile(lib.id) || {}).org_category)
       : 'Libreria personale';
-    const typeIcon  = isOrg ? '🏛' : '📖';
+    const typeIcon = isOrg ? '🏛' : '📖';
     const typeClass = isOrg ? 'nearby-card--org' : 'nearby-card--person';
 
     /* Avviso visivo "pochi volumi disponibili": quando la libreria ha
@@ -1310,10 +1554,11 @@ export const UI = {
        bordo arancione che attira l'attenzione (caso 0 = grigio). */
     const lowStock = lib.available_count > 0 && lib.available_count <= 2;
     const emptyStock = lib.available_count === 0;
-    const availClass = (emptyStock ? ' nearby-card__avail-num--zero' : '')
-                     + (lowStock   ? ' nearby-card__avail-num--low'  : '');
+    const availClass =
+      (emptyStock ? ' nearby-card__avail-num--zero' : '') +
+      (lowStock ? ' nearby-card__avail-num--low' : '');
     const blockClass = lowStock ? ' nearby-card__avail-block--low' : '';
-    const availLbl   = lib.available_count === 1 ? 'libro disponibile' : 'libri disponibili';
+    const availLbl = lib.available_count === 1 ? 'libro disponibile' : 'libri disponibili';
 
     return `
       <a href="library.html?id=${lib.id}" class="nearby-card ${typeClass}">
@@ -1326,10 +1571,14 @@ export const UI = {
             <span class="nearby-card__type-ico" aria-hidden="true">${typeIcon}</span>
             ${typeLabel}
           </span>
-          ${API.isLibraryFresh(lib) ? `
+          ${
+            API.isLibraryFresh(lib)
+              ? `
             <span class="nearby-card__fresh" title="Libreria aperta da poco">
               <span aria-hidden="true">✦</span> Appena aperta
-            </span>` : ''}
+            </span>`
+              : ''
+          }
         </div>
         <div class="nearby-card__body">
           <h3 class="nearby-card__name">${lib.display_name}</h3>
@@ -1386,7 +1635,9 @@ export const UI = {
     switch (mode) {
       case 'list':
         container.innerHTML = `<div class="books-list">
-          ${books.map(b => `
+          ${books
+            .map(
+              (b) => `
             <a href="book-detail.html?id=${b.id}" class="books-list__item">
               <div class="books-list__cover" style="background: ${b.cover_gradient || grad};">
                 ${b.title.split(' ').slice(0, 2).join(' ')}
@@ -1399,27 +1650,38 @@ export const UI = {
                 ${b.available ? 'disponibile' : 'in prestito'}<br/>
                 <small>${b.condition}</small>
               </div>
-            </a>`).join('')}
+            </a>`
+            )
+            .join('')}
         </div>`;
         break;
 
       case 'shelf':
         container.innerHTML = `<div class="books-shelf">
-          ${books.map(b => `
+          ${books
+            .map(
+              (b) => `
             <a href="book-detail.html?id=${b.id}" class="books-shelf__book"
                style="background: ${b.cover_gradient || grad};"
-               title="${b.title} — ${b.author}">${b.title}</a>`).join('')}
+               title="${b.title} — ${b.author}">${b.title}</a>`
+            )
+            .join('')}
         </div>`;
         break;
 
       case 'timeline':
         container.innerHTML = `<div class="books-timeline">
-          ${[...books].sort((a, b) => a.year - b.year).map(b => `
+          ${[...books]
+            .sort((a, b) => a.year - b.year)
+            .map(
+              (b) => `
             <a href="book-detail.html?id=${b.id}" class="books-timeline__item" style="text-decoration:none;display:block;">
               <div class="books-timeline__year">${b.year}</div>
               <div class="books-timeline__title">${b.title}</div>
               <div class="books-timeline__author">${b.author} — ${b.category}</div>
-            </a>`).join('')}
+            </a>`
+            )
+            .join('')}
         </div>`;
         break;
 
@@ -1431,7 +1693,7 @@ export const UI = {
            la classe di griglia le card si impilerebbero a tutta
            larghezza. */
         container.innerHTML = `<div class="books-grid">
-          ${books.map(b => this.renderBookCard(b)).join('')}
+          ${books.map((b) => this.renderBookCard(b)).join('')}
         </div>`;
         break;
     }
@@ -1445,7 +1707,7 @@ export const UI = {
   attachLiveValidation(form, customRules = {}) {
     const fields = form.querySelectorAll('input, select, textarea');
 
-    fields.forEach(field => {
+    fields.forEach((field) => {
       // Salta i checkbox/radio: la loro UX è diversa
       if (['checkbox', 'radio', 'file', 'hidden'].includes(field.type)) return;
 
@@ -1465,7 +1727,10 @@ export const UI = {
         if (!field.value && !field.required) {
           // Campo facoltativo lasciato vuoto: stato neutro
           group?.classList.remove('is-valid', 'is-invalid');
-          if (feedback) { feedback.textContent = ''; feedback.className = 'form__feedback'; }
+          if (feedback) {
+            feedback.textContent = '';
+            feedback.className = 'form__feedback';
+          }
           return;
         }
 
@@ -1475,33 +1740,39 @@ export const UI = {
         // Regola personalizzata aggiuntiva (es. minLen descrizione)
         if (ok && customRules[field.name]) {
           const result = customRules[field.name](field.value, field);
-          if (result !== true) { ok = false; msg = result; }
+          if (result !== true) {
+            ok = false;
+            msg = result;
+          }
         }
 
         // Messaggi italianizzati per i validity state nativi
         if (!ok && !msg) {
-          if (field.validity.valueMissing)        msg = 'Campo obbligatorio.';
-          else if (field.validity.typeMismatch)   msg = 'Formato non valido.';
-          else if (field.validity.patternMismatch)msg = 'Formato non valido.';
-          else if (field.validity.tooShort)       msg = `Minimo ${field.minLength} caratteri.`;
-          else if (field.validity.tooLong)        msg = `Massimo ${field.maxLength} caratteri.`;
+          if (field.validity.valueMissing) msg = 'Campo obbligatorio.';
+          else if (field.validity.typeMismatch) msg = 'Formato non valido.';
+          else if (field.validity.patternMismatch) msg = 'Formato non valido.';
+          else if (field.validity.tooShort) msg = `Minimo ${field.minLength} caratteri.`;
+          else if (field.validity.tooLong) msg = `Massimo ${field.maxLength} caratteri.`;
           else if (field.validity.rangeUnderflow) msg = `Valore minimo: ${field.min}.`;
-          else if (field.validity.rangeOverflow)  msg = `Valore massimo: ${field.max}.`;
-          else                                    msg = 'Valore non valido.';
+          else if (field.validity.rangeOverflow) msg = `Valore massimo: ${field.max}.`;
+          else msg = 'Valore non valido.';
         }
 
         group?.classList.toggle('is-valid', ok);
         group?.classList.toggle('is-invalid', !ok);
         if (feedback) {
           feedback.textContent = ok ? '✓ Campo valido.' : msg;
-          feedback.className = 'form__feedback ' +
-            (ok ? 'form__feedback--ok' : 'form__feedback--error');
+          feedback.className =
+            'form__feedback ' + (ok ? 'form__feedback--ok' : 'form__feedback--error');
         }
       };
 
       // Marca come "toccato" al primo blur (per evitare di mostrare
       // errori prima ancora che l'utente abbia interagito col campo)
-      field.addEventListener('blur',  () => { field.classList.add('touched'); validate(); });
+      field.addEventListener('blur', () => {
+        field.classList.add('touched');
+        validate();
+      });
       field.addEventListener('input', () => {
         if (field.classList.contains('touched')) validate();
       });
@@ -1568,14 +1839,14 @@ export const UI = {
     nav.appendChild(wrap);
 
     const button = wrap.querySelector('.nav-avatar');
-    const menu   = wrap.querySelector('.nav-avatar__menu');
-    const glyph  = wrap.querySelector('.nav-avatar__glyph');
+    const menu = wrap.querySelector('.nav-avatar__menu');
+    const glyph = wrap.querySelector('.nav-avatar__glyph');
     const nameEl = wrap.querySelector('.nav-avatar__menu-name');
     const userEl = wrap.querySelector('.nav-avatar__menu-user');
     const logoutBtn = wrap.querySelector('#nav-logout-btn');
 
     function paint() {
-      const me = API.getCurrentUser();
+      const me = window.LB_UI.currentUser();
       if (!me) return;
       const prefs = API.getProfilePrefs(me.id) || {};
       const themeClass = `cover--${prefs.theme || 'classic'}`;
@@ -1585,9 +1856,10 @@ export const UI = {
         button.className = `nav-avatar nav-avatar--photo ${themeClass}`;
         glyph.innerHTML = `<img class="nav-avatar__img" src="${me.avatar_data_url}" alt="">`;
       } else {
-        const symbol = prefs.avatar_style === 'symbol' && prefs.avatar_symbol
-          ? prefs.avatar_symbol
-          : (me.display_name || me.username || '?').trim()[0].toUpperCase();
+        const symbol =
+          prefs.avatar_style === 'symbol' && prefs.avatar_symbol
+            ? prefs.avatar_symbol
+            : (me.display_name || me.username || '?').trim()[0].toUpperCase();
         button.className = `nav-avatar ${themeClass}`;
         glyph.textContent = symbol;
       }
@@ -1596,26 +1868,55 @@ export const UI = {
       userEl.textContent = '@' + (me.username || '');
     }
 
-    function openMenu()  { menu.hidden = false; button.setAttribute('aria-expanded', 'true');  }
-    function closeMenu() { menu.hidden = true;  button.setAttribute('aria-expanded', 'false'); }
+    function openMenu() {
+      menu.hidden = false;
+      button.setAttribute('aria-expanded', 'true');
+    }
+    function closeMenu() {
+      menu.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+    }
 
     button.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (menu.hidden) openMenu(); else closeMenu();
+      if (menu.hidden) openMenu();
+      else closeMenu();
     });
     document.addEventListener('click', (e) => {
       if (!menu.hidden && !wrap.contains(e.target)) closeMenu();
     });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeMenu();
+    });
 
     /* Logout: pulisce lo stato di autenticazione e torna alla homepage.
        Lasciamo intatti like/follow/notifiche/preferenze (sono attribuiti
        all'utente per ID, riappaiono al login successivo). */
-    logoutBtn.addEventListener('click', () => {
+    logoutBtn.addEventListener('click', async () => {
+      // Beta 8: chiude la connessione SSE prima del signOut
+      if (window.LB_EVENTS) window.LB_EVENTS.stop();
+
+      // Fase 3.2: logout via Better Auth (distrugge cookie session)
+      // + reset legacy Storage per pagine ancora non migrate
+      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+        try {
+          await window.LB_API.authClient.signOut();
+        } catch (err) {
+          console.debug('[logout] Better Auth skip:', err.code || err.message);
+        }
+      }
+      try {
+        // Beta 2: current_user_id non piu' in localStorage — rimuovo solo auth_state
+        localStorage.removeItem('auth_state');
+      } catch (_) {
+        /* ignora */
+      }
       API.setAuthState('guest');
       // feedback breve e poi via
       UI.toast('Sei uscito. A presto su Lookup.', 'info');
-      setTimeout(() => { location.href = 'index.html'; }, 600);
+      setTimeout(() => {
+        location.href = 'index.html';
+      }, 600);
     });
 
     paint();
@@ -1668,31 +1969,46 @@ export const UI = {
     // alla sinistra dell'avatar, anch'esso appended in coda).
     nav.appendChild(wrap);
 
-    const bell   = wrap.querySelector('.notif__bell');
-    const badge  = wrap.querySelector('.notif__badge');
-    const panel  = wrap.querySelector('.notif__panel');
-    const list   = wrap.querySelector('.notif__list');
+    const bell = wrap.querySelector('.notif__bell');
+    const badge = wrap.querySelector('.notif__badge');
+    const panel = wrap.querySelector('.notif__panel');
+    const list = wrap.querySelector('.notif__list');
     const readAll = wrap.querySelector('.notif__readall');
 
     const timeAgo = (iso) => {
       const diff = Date.now() - new Date(iso).getTime();
-      const m = Math.round(diff / 60000), h = Math.round(diff / 3600000), d = Math.round(diff / 86400000);
+      const m = Math.round(diff / 60000),
+        h = Math.round(diff / 3600000),
+        d = Math.round(diff / 86400000);
       if (m < 60) return m <= 1 ? 'ora' : `${m} min fa`;
       if (h < 24) return `${h} h fa`;
       if (d < 30) return `${d} g fa`;
       return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
     };
-    const icon = (t) => t === 'new_book' ? '📚' : t === 'book_available' ? '✅'
-                       : t === 'onboarding' ? '👋'
-                       : t === 'loan_request' ? '📨'
-                       : t === 'loan_confirmed' ? '✓'
-                       : t === 'loan_rejected' ? '✕'
-                       : t === 'loan_cancelled' ? '⊘'
-                       : t === 'loan_overdue' ? '⏰'
-                       : t === 'loan_message' ? '💬'
-                       : t === 'loan_returning' || t === 'loan_returned' ? '↦'
-                       : t === 'new_post' ? '📝'
-                       : 'ℹ️';
+    const icon = (t) =>
+      t === 'new_book'
+        ? '📚'
+        : t === 'book_available'
+          ? '✅'
+          : t === 'onboarding'
+            ? '👋'
+            : t === 'loan_request'
+              ? '📨'
+              : t === 'loan_confirmed'
+                ? '✓'
+                : t === 'loan_rejected'
+                  ? '✕'
+                  : t === 'loan_cancelled'
+                    ? '⊘'
+                    : t === 'loan_overdue'
+                      ? '⏰'
+                      : t === 'loan_message'
+                        ? '💬'
+                        : t === 'loan_returning' || t === 'loan_returned'
+                          ? '↦'
+                          : t === 'new_post'
+                            ? '📝'
+                            : 'ℹ️';
 
     // v1.7: filtro attivo (stato di UI), persiste tra le aperture del panel
     let activeFilter = 'all';
@@ -1700,17 +2016,23 @@ export const UI = {
       if (activeFilter === 'all') return true;
       if (activeFilter === 'loans') return n.type && n.type.startsWith('loan_');
       if (activeFilter === 'reviews') return n.type === 'new_review' || n.type === 'loan_returned';
-      if (activeFilter === 'social') return n.type === 'new_book' || n.type === 'book_available' || n.type === 'new_follower' || n.type === 'new_post';
+      if (activeFilter === 'social')
+        return (
+          n.type === 'new_book' ||
+          n.type === 'book_available' ||
+          n.type === 'new_follower' ||
+          n.type === 'new_post'
+        );
       if (activeFilter === 'system') return n.type === 'onboarding';
       return true;
     };
 
     const render = () => {
-      const me = API.getCurrentUser();
+      const me = window.LB_UI.currentUser();
       if (!me) return;
       const allItems = API.getNotifications(me.id);
       // Il counter sulla campanella conta SEMPRE tutto (non filtrato)
-      const unread = allItems.filter(n => !n.read).length;
+      const unread = allItems.filter((n) => !n.read).length;
       badge.textContent = unread;
       badge.hidden = unread === 0;
       bell.classList.toggle('has-unread', unread > 0);
@@ -1719,42 +2041,54 @@ export const UI = {
       const items = allItems.filter(matchesFilter);
 
       if (!items.length) {
-        list.innerHTML = activeFilter === 'all'
-          ? `<p class="notif__empty">Nessuna notifica. Segui una libreria o metti «mi piace» a un volume per ricevere aggiornamenti.</p>`
-          : `<p class="notif__empty">Nessuna notifica in questa categoria.</p>`;
+        list.innerHTML =
+          activeFilter === 'all'
+            ? `<p class="notif__empty">Nessuna notifica. Segui una libreria o metti «mi piace» a un volume per ricevere aggiornamenti.</p>`
+            : `<p class="notif__empty">Nessuna notifica in questa categoria.</p>`;
         return;
       }
-      list.innerHTML = items.map(n => {
-        // Le notifiche di onboarding (👋) puntano alle azioni d'avvio
-        let href;
-        if (n.type === 'onboarding') {
-          href = n.onboarding_action === 'personalize'
-            ? 'profile-setup.html'
-            : 'add-book.html';
-        } else if (n.type === 'loan_confirmed' || n.type === 'loan_overdue'
-                || n.type === 'loan_rejected' || n.type === 'loan_returned'
-                || n.type === 'loan_message') {
-          // Lato richiedente / partecipante chat: porta alla pagina dei
-          // propri prestiti, evidenziando quello specifico.
-          href = n.loan_id ? `loans.html?id=${n.loan_id}` : 'loans.html';
-        } else if (n.type === 'loan_request' || n.type === 'loan_cancelled'
-                || n.type === 'loan_returning' || n.type === 'loan_picked_up') {
-          // Lato prestatore: porta alla tab "Richieste ricevute".
-          href = 'profile.html#panel-requests';
-        } else if (n.type === 'new_post') {
-          href = n.actor_id ? `library.html?id=${n.actor_id}#posts` : 'index.html';
-        } else {
-          href = n.book_id   ? `book-detail.html?id=${n.book_id}`
-               : n.actor_id  ? `library.html?id=${n.actor_id}` : '#';
-        }
-        return `<a class="notif__item ${n.read ? '' : 'is-unread'}" href="${href}">
+      list.innerHTML = items
+        .map((n) => {
+          // Le notifiche di onboarding (👋) puntano alle azioni d'avvio
+          let href;
+          if (n.type === 'onboarding') {
+            href = n.onboarding_action === 'personalize' ? 'profile-setup.html' : 'add-book.html';
+          } else if (
+            n.type === 'loan_confirmed' ||
+            n.type === 'loan_overdue' ||
+            n.type === 'loan_rejected' ||
+            n.type === 'loan_returned' ||
+            n.type === 'loan_message'
+          ) {
+            // Lato richiedente / partecipante chat: porta alla pagina dei
+            // propri prestiti, evidenziando quello specifico.
+            href = n.loan_id ? `loans.html?id=${n.loan_id}` : 'loans.html';
+          } else if (
+            n.type === 'loan_request' ||
+            n.type === 'loan_cancelled' ||
+            n.type === 'loan_returning' ||
+            n.type === 'loan_picked_up'
+          ) {
+            // Lato prestatore: porta alla tab "Richieste ricevute".
+            href = 'profile.html#panel-requests';
+          } else if (n.type === 'new_post') {
+            href = n.actor_id ? `library.html?id=${n.actor_id}#posts` : 'index.html';
+          } else {
+            href = n.book_id
+              ? `book-detail.html?id=${n.book_id}`
+              : n.actor_id
+                ? `library.html?id=${n.actor_id}`
+                : '#';
+          }
+          return `<a class="notif__item ${n.read ? '' : 'is-unread'}" href="${href}">
           <span class="notif__item-icon" aria-hidden="true">${icon(n.type)}</span>
           <span class="notif__item-body">
             <span class="notif__item-msg">${n.message}</span>
             <span class="notif__item-time">${timeAgo(n.created_at)}</span>
           </span>
         </a>`;
-      }).join('');
+        })
+        .join('');
     };
 
     const closePanel = () => {
@@ -1769,17 +2103,21 @@ export const UI = {
 
     bell.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (panel.hidden) openPanel(); else closePanel();
+      if (panel.hidden) openPanel();
+      else closePanel();
     });
     readAll.addEventListener('click', () => {
-      const me = API.getCurrentUser();
-      if (me) { API.markAllNotificationsRead(me.id); render(); }
+      const me = window.LB_UI.currentUser();
+      if (me) {
+        API.markAllNotificationsRead(me.id);
+        render();
+      }
     });
 
     // v1.7: wiring chip-filtro
-    wrap.querySelectorAll('.notif__filter').forEach(btn => {
+    wrap.querySelectorAll('.notif__filter').forEach((btn) => {
       btn.addEventListener('click', () => {
-        wrap.querySelectorAll('.notif__filter').forEach(b => b.classList.remove('is-active'));
+        wrap.querySelectorAll('.notif__filter').forEach((b) => b.classList.remove('is-active'));
         btn.classList.add('is-active');
         activeFilter = btn.dataset.filter;
         render();
@@ -1789,13 +2127,19 @@ export const UI = {
     document.addEventListener('click', (e) => {
       if (!panel.hidden && !wrap.contains(e.target)) closePanel();
     });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closePanel();
+    });
 
     // Marca come lette quando il pannello viene chiuso dopo essere stato aperto
     bell.addEventListener('click', () => {
-      if (panel.hidden) {     // appena chiuso
-        const me = API.getCurrentUser();
-        if (me) { API.markAllNotificationsRead(me.id); setTimeout(render, 50); }
+      if (panel.hidden) {
+        // appena chiuso
+        const me = window.LB_UI.currentUser();
+        if (me) {
+          API.markAllNotificationsRead(me.id);
+          setTimeout(render, 50);
+        }
       }
     });
 
@@ -1804,6 +2148,28 @@ export const UI = {
     document.addEventListener('auth:change', render);
     // Espone un refresh globale per altri script (es. dopo un follow/like)
     UI._refreshNotifications = render;
-  }
-};
 
+    // Beta 8: aggiornamento realtime via SSE.
+    // Quando arriva un evento 'notification', ricalcola il badge e mostra
+    // un toast se la campanella non e' aperta (evita rumore visivo se
+    // l'utente sta gia' consultando le notifiche).
+    if (window.LB_EVENTS) {
+      window.LB_EVENTS.on('notification', (payload) => {
+        // Refresh badge (fetch nuovo count backend)
+        render();
+        // Toast solo se la lista notifiche e' chiusa
+        const panelOpen = document.querySelector('.notif-panel')?.classList.contains('is-open');
+        if (!panelOpen && payload.data?.message) {
+          const shortMsg =
+            payload.data.message.length > 90
+              ? payload.data.message.slice(0, 87) + '...'
+              : payload.data.message;
+          UI.toast(shortMsg, 'info');
+        }
+      });
+      // Riconnessione: log per debug, no UI (non vogliamo rumore)
+      window.LB_EVENTS.on('open', () => console.debug('[ui] SSE connected'));
+      window.LB_EVENTS.on('close', () => console.debug('[ui] SSE disconnected'));
+    }
+  },
+};

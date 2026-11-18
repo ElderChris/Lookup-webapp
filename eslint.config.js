@@ -57,24 +57,7 @@ export default [
     }
   },
   {
-    files: ['tests-e2e/**/*.js'],
-    languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: 'module',
-      globals: {
-        ...globals.node,
-        API: 'readonly',
-        UI: 'readonly',
-        Storage: 'readonly'
-      }
-    },
-    rules: {
-      ...js.configs.recommended.rules,
-      'no-empty-pattern': 'off'
-    }
-  },
-  {
-    // playwright.config.js, eslint.config.js, ecc.
+    // eslint.config.js e altri file di configurazione
     files: ['*.config.js', '*.config.mjs'],
     languageOptions: {
       ecmaVersion: 2022,
@@ -89,9 +72,9 @@ export default [
     ignores: [
       'node_modules/**',
       'dist/**',
-      'test-results/**',
-      'playwright-report/**',
-      '.husky/**'
+      '.husky/**',
+      // Archivio storico del vecchio frontend: conservato invariato
+      'apps/web/js/legacy/**'
     ]
   }
 ];

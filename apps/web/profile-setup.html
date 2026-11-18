@@ -2,7 +2,15 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Beta 9: PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#7a1e2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lookup" />
+  <link rel="apple-touch-icon" href="/img/icon-180.png" />
+
   <title>Personalizza il tuo profilo — Lookup</title>
   <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
 </head>
@@ -324,7 +332,80 @@
             </p>
           </section>
 
+          <!-- Beta 5: Sicurezza (sessioni attive + cambio password) -->
+          <section class="builder-section" aria-labelledby="sec-security">
+            <h3 id="sec-security">Sicurezza dell'account</h3>
+            <p class="form__help" style="margin-bottom: var(--sp-4);">
+              Gestisci le sessioni attive e la password del tuo account.
+              Se hai un dubbio sulla sicurezza (es. accesso da dispositivo
+              non riconosciuto), termina la sessione o cambia password.
+            </p>
+
+            <div style="margin-bottom: var(--sp-6);">
+              <h4 style="margin-top: 0;">Sessioni attive</h4>
+              <div id="sessions-list" style="border: 1px solid var(--color-line, #e5e0d8); border-radius: 4px;">
+                <p style="padding: var(--sp-3); margin: 0; color: var(--color-ink-soft);">
+                  <em>Caricamento sessioni...</em>
+                </p>
+              </div>
+              <div style="margin-top: var(--sp-3);">
+                <button type="button" class="btn btn--ghost btn--small" id="revoke-all-btn"
+                        style="color: var(--color-danger, #a4293c);">
+                  Termina tutte le altre sessioni
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <h4 style="margin-top: 0;">Cambio password</h4>
+              <form class="form" id="change-password-form" novalidate style="max-width: 480px;">
+                <div class="form__group">
+                  <label class="form__label" for="current-password">Password attuale</label>
+                  <input type="password" id="current-password" name="currentPassword"
+                         class="form__input" required minlength="8"
+                         autocomplete="current-password" />
+                </div>
+                <div class="form__group">
+                  <label class="form__label" for="new-password">Nuova password</label>
+                  <input type="password" id="new-password" name="newPassword"
+                         class="form__input" required minlength="8"
+                         autocomplete="new-password" />
+                  <span class="form__help">Almeno 8 caratteri.</span>
+                </div>
+                <div class="form__group">
+                  <label style="display: flex; align-items: center; gap: .5rem;">
+                    <input type="checkbox" id="revoke-other-sessions" checked />
+                    <span>Termina anche tutte le altre sessioni dopo il cambio</span>
+                  </label>
+                </div>
+                <button type="submit" class="btn btn--primary btn--small">
+                  Cambia password
+                </button>
+                <div class="alert alert--error" id="pw-change-error" hidden></div>
+              </form>
+            </div>
+          </section>
+
         </div>
+      </div>
+    </section>
+
+    <!-- Beta 9: sezione installazione app (PWA) -->
+    <section class="install-app-section" id="install-section-profile" aria-labelledby="install-title-profile">
+      <h2 class="install-app-section__title" id="install-title-profile">Sei da browser? Installa l'app</h2>
+      <p class="install-app-section__desc">
+        Lookup si può usare come app nativa: aggiungi l'icona alla schermata
+        Home del tuo dispositivo, riceverai le notifiche in tempo reale e
+        potrai consultare la tua libreria anche offline.
+      </p>
+      <button type="button" class="btn btn--primary install-app-section__cta" id="install-btn-profile">
+        Installa l'app
+      </button>
+      <div class="install-ios-help" id="install-ios-help-profile">
+        <strong>Come installare su iPhone/iPad:</strong>
+        tocca l'icona di <strong>Condivisione</strong> nella barra in basso
+        di Safari (il quadrato con la freccia verso l'alto), poi seleziona
+        <strong>"Aggiungi a schermata Home"</strong>.
       </div>
     </section>
 
@@ -340,19 +421,52 @@
     </div>
   </footer>
 
+  <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
 
       /* PROTEZIONE PROPRIETÀ — questa pagina modifica SOLO la libreria
          dell'utente loggato. Un visitatore anonimo viene rimandato al
          login; non è possibile personalizzare la libreria di altri.
          La pagina non accetta parametri ?user= proprio per evitare
-         che qualcuno tenti di editare un profilo altrui. */
+         che qualcuno tenti di editare un profilo altrui.
+
+         Fase 3.2: aspetto il session lookup di bootstrap. Se non c'e'
+         sessione valida (nessun cookie Better Auth + nessun current_user_id
+         legacy), redirect al login. Altrimenti sync con LB_AUTH_USER
+         quando disponibile (backend), altrimenti fallback Storage. */
+      if (!window.LB_AUTH_READY) {
+        await new Promise((res) => window.addEventListener('lb-auth-ready', res, { once: true }));
+      }
       const currentUser = API.requireAuth('login.html');
       if (!currentUser) return;            // requireAuth ha già reindirizzato
       const userId = currentUser.id;
-      const prefs = API.getProfilePrefs(userId);
+
+      // Beta 3: prefs dal backend con fallback graceful
+      let prefs;
+      let prefsSource = 'legacy';
+      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+        try {
+          const bePrefs = await window.LB_API.prefs.getMe();
+          // Adapter backend camelCase → legacy snake_case
+          prefs = {
+            view_mode: bePrefs.viewMode,
+            theme: bePrefs.theme,
+            avatar_style: bePrefs.avatarStyle,
+            avatar_symbol: bePrefs.avatarSymbol,
+            motto: bePrefs.motto,
+            sort_by: bePrefs.sortBy,
+            cover_design: bePrefs.coverDesign,
+            show_email: bePrefs.showEmail,
+          };
+          prefsSource = 'backend';
+        } catch (err) {
+          console.debug(`[profile-setup] prefs fallback legacy: ${err.code || err.message}`);
+        }
+      }
+      if (!prefs) prefs = API.getProfilePrefs(userId);
+      console.debug(`[profile-setup] prefs source: ${prefsSource}`);
 
       /* ----- Pre-popolamento dei campi con i valori esistenti ----- */
       document.getElementById('display-name').value = currentUser.display_name || '';
@@ -377,7 +491,7 @@
          Renderizza una griglia di anteprime: ciascuna mostra il design
          in miniatura con i colori del tema scelto. Click → seleziona. */
       const picker = document.getElementById('cover-picker');
-      const defaultCover = API.isOrganization(currentUser) ? 'i-shelf' : 'g-section';
+      const defaultCover = window.LB_UI.isOrganization(currentUser) ? 'i-shelf' : 'g-section';
       let selectedCover = prefs.cover_design || defaultCover;
       const initialLetter = (currentUser.display_name || currentUser.username || 'A').trim()[0].toUpperCase();
       function paintCoverPicker() {
@@ -555,7 +669,7 @@
       updatePreview();
 
       /* ----- Salvataggio ----- */
-      document.getElementById('save-btn').addEventListener('click', (e) => {
+      document.getElementById('save-btn').addEventListener('click', async (e) => {
         e.preventDefault();
 
         const identityForm = document.getElementById('identity-form');
@@ -569,21 +683,10 @@
           return;
         }
 
-        // Aggiorna i dati dell'utente tramite il metodo protetto:
-        // updateUser verifica la proprietà e lancia un errore se si
-        // tenta di modificare la libreria di un altro utente.
-        try {
-          API.updateUser(userId, {
-            display_name: document.getElementById('display-name').value.trim(),
-            bio:          document.getElementById('bio').value.trim(),
-            city:         document.getElementById('city').value.trim()
-          });
-        } catch (err) {
-          UI.toast(err.message, 'error');
-          return;
-        }
+        const displayName = document.getElementById('display-name').value.trim();
+        const bio = document.getElementById('bio').value.trim();
+        const city = document.getElementById('city').value.trim();
 
-        // Aggiorna le preferenze
         const newPrefs = {
           view_mode: document.querySelector('input[name="view_mode"]:checked').value,
           theme:     document.querySelector('input[name="theme"]:checked').value,
@@ -595,9 +698,193 @@
           privacy_level: parseInt(document.querySelector('input[name="privacy_level"]:checked').value, 10),
           show_email: document.getElementById('email-pub').value === 'true'
         };
-        API.setProfilePrefs(userId, newPrefs);
 
-        UI.toast('Profilo aggiornato con successo.', 'info');
+        // Beta 3: salva sul backend (users.updateMe + prefs.updateMe)
+        // Fallback graceful legacy in caso di errore.
+        let savedBackend = false;
+        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+          try {
+            await window.LB_API.users.updateMe({
+              displayName,
+              bio,
+              city,
+            });
+            await window.LB_API.prefs.updateMe({
+              viewMode: newPrefs.view_mode,
+              theme: newPrefs.theme,
+              avatarStyle: newPrefs.avatar_style,
+              avatarSymbol: newPrefs.avatar_symbol,
+              motto: newPrefs.motto,
+              sortBy: newPrefs.sort_by,
+              coverDesign: newPrefs.cover_design,
+              showEmail: newPrefs.show_email,
+            });
+            savedBackend = true;
+          } catch (err) {
+            console.debug(`[profile-setup] backend save fallback legacy: ${err.code || err.message}`);
+          }
+        }
+        // Aggiorna anche il legacy Storage (per compat immediata pagine legacy)
+        try {
+          API.updateUser(userId, { display_name: displayName, bio, city });
+          API.setProfilePrefs(userId, newPrefs);
+        } catch (err) {
+          if (!savedBackend) {
+            UI.toast(err.message, 'error');
+            return;
+          }
+        }
+
+        UI.toast(savedBackend
+          ? 'Profilo salvato sul server.'
+          : 'Profilo salvato (offline).', 'info');
+      });
+
+      // =====================================================================
+      // Beta 5: Sicurezza — sessioni attive + cambio password
+      // =====================================================================
+      const sessionsList = document.getElementById('sessions-list');
+
+      /**
+       * Formatta lo user-agent in etichetta leggibile.
+       * Es. "Chrome 121 su Windows" invece di stringa piena.
+       */
+      function labelUserAgent(ua) {
+        if (!ua) return 'Dispositivo sconosciuto';
+        let browser = 'Browser';
+        if (/Firefox\//.test(ua)) browser = 'Firefox';
+        else if (/Edg\//.test(ua)) browser = 'Edge';
+        else if (/Chrome\//.test(ua)) browser = 'Chrome';
+        else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
+        let os = 'sistema sconosciuto';
+        if (/Windows/.test(ua)) os = 'Windows';
+        else if (/Mac OS X/.test(ua)) os = 'macOS';
+        else if (/Linux/.test(ua)) os = 'Linux';
+        else if (/Android/.test(ua)) os = 'Android';
+        else if (/iPhone|iPad/.test(ua)) os = 'iOS';
+        return `${browser} su ${os}`;
+      }
+
+      /**
+       * Carica e renderizza la lista sessioni attive.
+       * L'endpoint list-sessions richiede backend disponibile.
+       */
+      async function renderSessions() {
+        if (!window.LB_API || window.LB_API_AVAILABLE === false) {
+          sessionsList.innerHTML = `<p style="padding: var(--sp-3); margin: 0; color: var(--color-ink-soft);">
+            <em>Backend non raggiungibile: gestione sessioni non disponibile.</em></p>`;
+          return;
+        }
+        try {
+          const sessions = await window.LB_API.authClient.listSessions();
+          // Better Auth ritorna un array (o {sessions: [...]} in alcune versioni)
+          const list = Array.isArray(sessions) ? sessions
+            : (Array.isArray(sessions?.sessions) ? sessions.sessions : []);
+          if (list.length === 0) {
+            sessionsList.innerHTML = `<p style="padding: var(--sp-3); margin: 0; color: var(--color-ink-soft);">
+              <em>Nessuna sessione trovata.</em></p>`;
+            return;
+          }
+          sessionsList.innerHTML = list.map((s) => {
+            const label = labelUserAgent(s.userAgent);
+            const ip = s.ipAddress || '—';
+            const created = s.createdAt ? new Date(s.createdAt).toLocaleString('it-IT') : '—';
+            const expires = s.expiresAt ? new Date(s.expiresAt).toLocaleString('it-IT') : '—';
+            return `
+              <div style="padding: var(--sp-3); border-bottom: 1px solid var(--color-line, #e5e0d8); display: flex; justify-content: space-between; gap: var(--sp-3); align-items: center;">
+                <div>
+                  <div style="font-weight: 600;">${label}</div>
+                  <div style="font-size: .85rem; color: var(--color-ink-soft);">
+                    IP: <code>${ip}</code> · Creata: ${created} · Scade: ${expires}
+                  </div>
+                </div>
+                <button type="button" class="btn btn--ghost btn--small"
+                        data-revoke-session="${s.token || s.id}"
+                        style="color: var(--color-danger, #a4293c);">
+                  Termina
+                </button>
+              </div>`;
+          }).join('');
+        } catch (err) {
+          sessionsList.innerHTML = `<p style="padding: var(--sp-3); margin: 0; color: var(--color-danger);">
+            Errore caricamento sessioni: ${err.message || err.code}
+          </p>`;
+        }
+      }
+      renderSessions();
+
+      // Click su bottone "Termina" singola sessione
+      sessionsList.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-revoke-session]');
+        if (!btn) return;
+        const token = btn.dataset.revokeSession;
+        if (!confirm('Terminare questa sessione? L\'accesso verrà revocato immediatamente.')) return;
+        try {
+          await window.LB_API.authClient.revokeSession({ token });
+          UI.toast('Sessione terminata.', 'info');
+          await renderSessions();
+        } catch (err) {
+          UI.toast('Errore: ' + (err.message || err.code), 'error');
+        }
+      });
+
+      // Click su "Termina tutte le altre sessioni"
+      document.getElementById('revoke-all-btn').addEventListener('click', async () => {
+        if (!confirm('Terminare tutte le altre sessioni? Rimarrai loggato solo su questo dispositivo.')) return;
+        try {
+          await window.LB_API.authClient.revokeSessions();
+          UI.toast('Tutte le altre sessioni sono state terminate.', 'info');
+          await renderSessions();
+        } catch (err) {
+          UI.toast('Errore: ' + (err.message || err.code), 'error');
+        }
+      });
+
+      // Form cambio password
+      document.getElementById('change-password-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errBox = document.getElementById('pw-change-error');
+        errBox.hidden = true;
+        const f = e.target;
+        const currentPassword = f.currentPassword.value;
+        const newPassword = f.newPassword.value;
+        const revokeOthers = document.getElementById('revoke-other-sessions').checked;
+
+        if (newPassword.length < 8) {
+          errBox.textContent = 'La nuova password deve avere almeno 8 caratteri.';
+          errBox.hidden = false;
+          return;
+        }
+        if (currentPassword === newPassword) {
+          errBox.textContent = 'La nuova password non può essere uguale a quella attuale.';
+          errBox.hidden = false;
+          return;
+        }
+
+        if (!window.LB_API || window.LB_API_AVAILABLE === false) {
+          errBox.textContent = 'Backend non raggiungibile: cambio password non disponibile offline.';
+          errBox.hidden = false;
+          return;
+        }
+
+        try {
+          await window.LB_API.authClient.changePassword({
+            currentPassword,
+            newPassword,
+            revokeOtherSessions: revokeOthers,
+          });
+          f.reset();
+          UI.toast('Password aggiornata con successo.', 'info');
+          if (revokeOthers) await renderSessions();
+        } catch (err) {
+          const map = {
+            'INVALID_PASSWORD': 'La password attuale non è corretta.',
+            'INVALID_CURRENT_PASSWORD': 'La password attuale non è corretta.',
+            'PASSWORD_TOO_SHORT': 'La nuova password è troppo corta (minimo 8 caratteri).',
+          };
+          errBox.textContent = map[err.code] || err.message || 'Errore cambio password.';
+          errBox.hidden = false;
+        }
       });
 
     });

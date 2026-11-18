@@ -1,0 +1,20 @@
+# =============================================================================
+# docker/monitoring/grafana/provisioning/datasources/prometheus.yml
+# =============================================================================
+# Provisioning automatico: Grafana carica questo file all'avvio e connette
+# Prometheus come datasource default. Nessun setup manuale richiesto.
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    # 'prometheus' e' il nome del container nel docker-compose
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: '15s'
+      httpMethod: 'POST'

@@ -1,19 +1,54 @@
 {
   "name": "@lookup/api",
-  "version": "3.0.0-alpha.1-monorepo",
+  "version": "3.0.0-beta.10",
   "private": true,
-  "description": "Backend di Lookup — Node + Fastify + Prisma + PostgreSQL. Scaffold creato in Fase 1a, runtime aggiunto in Fase 1c.",
+  "description": "Backend di Lookup — Node + Fastify + Prisma + PostgreSQL.",
   "type": "module",
   "main": "src/server.js",
+  "prisma": {
+    "seed": "node prisma/seed.mjs"
+  },
   "scripts": {
-    "dev": "echo '[fase 1c] Backend non ancora implementato. Verrà aggiunto in 1c con: fastify dev'",
-    "build": "echo '[fase 1c] Build non ancora implementato'",
-    "start": "echo '[fase 1c] Start non ancora implementato'",
-    "test": "echo '[fase 1h] Test backend non ancora implementati'",
-    "db:migrate": "echo '[fase 1b] Prisma migrate verrà aggiunto in 1b'",
-    "db:seed": "echo '[fase 1b] Prisma seed verrà aggiunto in 1b'"
+    "postinstall": "prisma generate && node scripts/setup-env.mjs",
+    "dev": "node --watch --env-file-if-exists=.env src/server.js",
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "start:prod": "node src/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:setup-db": "node tests/setup-test-db.mjs",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:baseline": "node scripts/create-baseline-migration.mjs",
+    "db:migrate:reset": "prisma migrate reset",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "db:format": "prisma format"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.1",
+    "@fastify/helmet": "^12.0.1",
+    "@fastify/rate-limit": "^10.1.1",
+    "@fastify/swagger": "^9.4.0",
+    "@fastify/swagger-ui": "^5.2.0",
+    "@lookup/shared": "*",
+    "@prisma/client": "^5.22.0",
+    "better-auth": "^1.7.0",
+    "bullmq": "^5.80.0",
+    "fastify": "^5.12.0",
+    "fastify-plugin": "^5.0.1",
+    "ioredis": "^5.11.0",
+    "nodemailer": "^6.9.16",
+    "prom-client": "^15.1.3"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.5",
+    "pino-pretty": "^11.3.0",
+    "prisma": "^5.22.0",
+    "vitest": "^2.1.5"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=24"
   }
 }

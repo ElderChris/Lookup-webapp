@@ -3,13 +3,14 @@ node_modules/
 apps/*/node_modules/
 dist/
 build/
-test-results/
-playwright-report/
 *.zip
 
 # Per Fase 1a esclude HTML/CSS (verranno formattati in fase dedicata).
 *.html
 apps/web/css/
+
+# Archivio storico del vecchio frontend: conservato invariato
+apps/web/js/legacy/
 
 # Prisma generated
 apps/api/prisma/migrations/

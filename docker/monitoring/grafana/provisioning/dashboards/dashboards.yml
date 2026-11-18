@@ -1,0 +1,21 @@
+# =============================================================================
+# docker/monitoring/grafana/provisioning/dashboards/dashboards.yml
+# =============================================================================
+# Provisioning: Grafana carica automaticamente i JSON in
+# /var/lib/grafana/dashboards (mount da docker/monitoring/grafana/dashboards/).
+# Ogni file JSON diventa una dashboard visibile nella UI Grafana.
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: 'Lookup Dashboards'
+    orgId: 1
+    folder: 'Lookup'
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

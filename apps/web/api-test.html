@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Beta 9: PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#7a1e2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lookup" />
+  <link rel="apple-touch-icon" href="/img/icon-180.png" />
+
+<title>Lookup — Test integrazione API</title>
+<style>
+  :root {
+    --paper: #f4efe6;
+    --ink: #1a1512;
+    --burgundy: #7a1e2b;
+    --gold: #b08840;
+    --sage: #6e7a5a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    background: var(--paper);
+    color: var(--ink);
+    margin: 0;
+    padding: 2rem;
+    line-height: 1.6;
+  }
+  h1, h2 { font-family: 'Fraunces', Georgia, serif; color: var(--burgundy); }
+  h1 { font-size: 2.2rem; margin-top: 0; }
+  h2 { font-size: 1.4rem; border-bottom: 2px solid var(--gold); padding-bottom: 0.3rem; margin-top: 2rem; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  .config {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .config label { display: inline-block; margin-right: 1.5rem; font-weight: 600; }
+  .config input, .config select {
+    font-family: 'JetBrains Mono', monospace;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.95rem;
+  }
+  .panel {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  button {
+    background: var(--burgundy);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+    margin: 0.2rem 0.5rem 0.2rem 0;
+  }
+  button:hover { background: #5a161f; }
+  button.secondary { background: var(--sage); }
+  button.secondary:hover { background: #525a44; }
+  pre {
+    background: #1a1512;
+    color: #f4efe6;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .status {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-left: 1rem;
+  }
+  .status.ok { background: #d4edda; color: #155724; }
+  .status.err { background: #f8d7da; color: #721c24; }
+  .status.pending { background: #fff3cd; color: #856404; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  .badge {
+    display: inline-block;
+    background: var(--gold);
+    color: white;
+    padding: 0.1rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+  }
+  small { color: #666; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>🧪 Test integrazione API <span class="badge">Fase 2a</span></h1>
+
+  <p>
+    Pagina di smoke test per verificare che <code>apiClient</code> riesca a
+    parlare con il backend <code>apps/api</code>. Usa <code>fetch()</code>
+    nativo del browser → backend Fastify → PostgreSQL+PostGIS reale.
+  </p>
+
+  <div class="config">
+    <h2>Configurazione</h2>
+    <label>Backend URL:
+      <input id="baseUrl" type="text" value="http://localhost:3000" size="40">
+    </label>
+    <label>Utente loggato (ID):
+      <select id="userId">
+        <option value="">(nessuno)</option>
+        <option value="1">1 — Chiara Morandi</option>
+        <option value="2" selected>2 — Marco Esposito</option>
+        <option value="3">3 — Anna Russo</option>
+        <option value="11">11 — Admin</option>
+      </select>
+    </label>
+    <button onclick="applyConfig()">Applica</button>
+  </div>
+
+  <div class="grid">
+
+    <div class="panel">
+      <h2>1. Healthcheck</h2>
+      <button onclick="runHealth()">GET /api/health</button>
+      <span id="healthStatus" class="status">—</span>
+      <pre id="healthOut">// click sul bottone</pre>
+    </div>
+
+    <div class="panel">
+      <h2>2. Lista libri</h2>
+      <button onclick="runList()">books.list({limit: 5})</button>
+      <button class="secondary" onclick="runListFiltered()">filtra category=5 (gialli)</button>
+      <span id="listStatus" class="status">—</span>
+      <pre id="listOut">// click sul bottone</pre>
+    </div>
+
+    <div class="panel">
+      <h2>3. Dettaglio libro</h2>
+      <button onclick="runDetail(1)">books.getById(1) — Gattopardo</button>
+      <button class="secondary" onclick="runDetail(999)">books.getById(999) — 404</button>
+      <span id="detailStatus" class="status">—</span>
+      <pre id="detailOut">// click sul bottone</pre>
+    </div>
+
+    <div class="panel">
+      <h2>4. Geo nearby (PostGIS)</h2>
+      <button onclick="runNearby()">books.nearby() — Chiaia 2km</button>
+      <span id="nearbyStatus" class="status">—</span>
+      <pre id="nearbyOut">// click sul bottone</pre>
+    </div>
+
+    <div class="panel">
+      <h2>5. Like (richiede auth)</h2>
+      <button onclick="runLike()">books.like(3)</button>
+      <button class="secondary" onclick="runUnlike()">books.unlike(3)</button>
+      <span id="likeStatus" class="status">—</span>
+      <pre id="likeOut">// richiede currentUserId settato</pre>
+    </div>
+
+    <div class="panel">
+      <h2>6. Crea libro (richiede auth)</h2>
+      <button onclick="runCreate()">books.create(...)</button>
+      <span id="createStatus" class="status">—</span>
+      <pre id="createOut">// crea poi lo elimina (cleanup)</pre>
+    </div>
+
+    <div class="panel">
+      <h2>7. Profilo utente <span class="badge">2b</span></h2>
+      <button onclick="runGetMe()">users.getMe()</button>
+      <button class="secondary" onclick="runGetById(1)">users.getById(1)</button>
+      <span id="userStatus" class="status">—</span>
+      <pre id="userOut">// richiede currentUserId per getMe</pre>
+    </div>
+
+    <div class="panel">
+      <h2>8. Follow <span class="badge">2b</span></h2>
+      <button onclick="runFollow(3)">users.follow(3)</button>
+      <button class="secondary" onclick="runUnfollow(3)">users.unfollow(3)</button>
+      <span id="followStatus" class="status">—</span>
+      <pre id="followOut">// auth richiesto</pre>
+    </div>
+
+    <div class="panel">
+      <h2>9. Prestiti <span class="badge">2b</span></h2>
+      <button onclick="runListSent()">loans.listSent()</button>
+      <button class="secondary" onclick="runListReceived()">loans.listReceived()</button>
+      <button onclick="runRequestLoan()">loans.request(book_id)</button>
+      <span id="loansStatus" class="status">—</span>
+      <pre id="loansOut">// auth richiesto</pre>
+    </div>
+
+    <div class="panel">
+      <h2>10. Posts &amp; feed <span class="badge">2b</span></h2>
+      <button onclick="runListPosts()">posts.list()</button>
+      <button class="secondary" onclick="runFeed()">posts.feed()</button>
+      <button onclick="runCreatePost()">posts.create(...)</button>
+      <span id="postsStatus" class="status">—</span>
+      <pre id="postsOut">// auth richiesto per feed/create</pre>
+    </div>
+
+    <div class="panel">
+      <h2>11. Notifiche <span class="badge">2b</span></h2>
+      <button onclick="runListNotifications()">notifications.list()</button>
+      <button class="secondary" onclick="runMarkAllRead()">markAllRead()</button>
+      <span id="notifStatus" class="status">—</span>
+      <pre id="notifOut">// auth richiesto</pre>
+    </div>
+
+    <div class="panel">
+      <h2>12. Statistiche <span class="badge">2b</span></h2>
+      <button onclick="runFeatured()">stats.featured()</button>
+      <button class="secondary" onclick="runTopUsers()">stats.topUsers()</button>
+      <button onclick="runRidgeline()">stats.ridgeline()</button>
+      <button class="secondary" onclick="runBisac()">stats.bisacCooccurrence()</button>
+      <span id="statsStatus" class="status">—</span>
+      <pre id="statsOut">// pubblico, no auth</pre>
+    </div>
+
+    <div class="panel">
+      <h2>13. Fallback graceful <span class="badge">2b</span></h2>
+      <button onclick="runFallbackOk()">withApiFallback() con backend OK</button>
+      <button class="secondary" onclick="runFallbackKo()">simula backend giù</button>
+      <span id="fbStatus" class="status">—</span>
+      <pre id="fbOut">// dimostra resilienza</pre>
+    </div>
+
+    <div class="panel">
+      <h2>14. Shape transformer <span class="badge">2c.1</span></h2>
+      <button onclick="runTransformBook()">bookToLegacy() su libro reale</button>
+      <button class="secondary" onclick="runTransformLoan()">loanToLegacy() su prestito</button>
+      <span id="trStatus" class="status">—</span>
+      <pre id="trOut">// camelCase backend → snake_case legacy</pre>
+    </div>
+
+    <div class="panel">
+      <h2>15. Cache layer <span class="badge">2c.1</span></h2>
+      <button onclick="runCacheDemo()">2 fetch consecutive con cache</button>
+      <button class="secondary" onclick="runCacheClear()">cache.clear() + info</button>
+      <span id="cacheStatus" class="status">—</span>
+      <pre id="cacheOut">// dimostra hit/miss + invalidation</pre>
+    </div>
+
+    <div class="panel">
+      <h2>16. QueryClient (TanStack-compat) <span class="badge">2c.5</span></h2>
+      <button onclick="runQueryDedup()">dedup (3 fetch concorrenti)</button>
+      <button class="secondary" onclick="runQueryStaleFresh()">stale/fresh (2 fetch entro TTL)</button>
+      <button onclick="runQueryInvalidate()">invalidateQueries + auto-refetch</button>
+      <button class="secondary" onclick="runQuerySnapshot()">snapshot()</button>
+      <span id="qcStatus" class="status">—</span>
+      <pre id="qcOut">// dimostra dedup, invalidation, snapshot</pre>
+    </div>
+
+    <div class="panel">
+      <h2>17. Optimistic mutation <span class="badge">2c.5</span></h2>
+      <button onclick="runOptimisticOk()">mutate() con backend OK</button>
+      <button class="secondary" onclick="runOptimisticFail()">mutate() con backend fail (rollback)</button>
+      <span id="mutStatus" class="status">—</span>
+      <pre id="mutOut">// dimostra onMutate/onSuccess/onError con rollback</pre>
+    </div>
+
+  </div>
+
+  <div class="panel">
+    <h2>📖 Documentazione live</h2>
+    <p>
+      Swagger UI:
+      <a href="http://localhost:3000/api/docs" target="_blank">http://localhost:3000/api/docs</a>
+      <br>
+      OpenAPI JSON:
+      <a href="http://localhost:3000/api/docs/json" target="_blank">http://localhost:3000/api/docs/json</a>
+      <br>
+      <small>
+        (richiedono backend in esecuzione: <code>.\dev.ps1 api-dev</code> dalla root)
+      </small>
+    </p>
+  </div>
+
+</div>
+
+<script type="module">
+  import {
+    apiClient, books, users, loans, posts, notifications, stats, categories,
+    ApiError, withApiFallback, LOAN_STATUS, REPORT_REASON,
+    bookToLegacy, loanToLegacy, cache, CACHE_TTL,
+    queryClient, QueryClient,
+  } from './js/api/index.js';
+
+  // Esposizione globale per i bottoni inline
+  window.apiClient = apiClient;
+  window.books = books;
+  window.users = users;
+  window.loans = loans;
+  window.posts = posts;
+  window.notifications = notifications;
+  window.stats = stats;
+  window.categories = categories;
+  window.ApiError = ApiError;
+  window.withApiFallback = withApiFallback;
+  window.bookToLegacy = bookToLegacy;
+  window.loanToLegacy = loanToLegacy;
+  window.cache = cache;
+  window.CACHE_TTL = CACHE_TTL;
+  window.queryClient = queryClient;
+  window.QueryClient = QueryClient;
+
+  // --- Helpers ---
+
+  function setStatus(id, type, text) {
+    const el = document.getElementById(id);
+    el.className = 'status ' + type;
+    el.textContent = text;
+  }
+
+  function setOutput(id, data) {
+    document.getElementById(id).textContent = JSON.stringify(data, null, 2);
+  }
+
+  function setError(id, err) {
+    document.getElementById(id).textContent =
+      `ApiError\n  status: ${err.status}\n  code: ${err.code}\n  message: ${err.message}\n  details: ${JSON.stringify(err.details, null, 2)}`;
+  }
+
+  // --- Config ---
+
+  window.applyConfig = () => {
+    const baseUrl = document.getElementById('baseUrl').value.trim();
+    const userId = document.getElementById('userId').value || null;
+    apiClient.configure({
+      baseUrl: baseUrl,
+      currentUserId: userId ? Number(userId) : null,
+    });
+    console.log('Config applied:', apiClient.getConfig());
+  };
+
+  // applicazione iniziale
+  applyConfig();
+
+  // --- Test runners ---
+
+  window.runHealth = async () => {
+    setStatus('healthStatus', 'pending', 'in corso...');
+    try {
+      const t0 = performance.now();
+      const res = await apiClient.get('/api/health');
+      const dt = (performance.now() - t0).toFixed(0);
+      setStatus('healthStatus', 'ok', `OK ${dt}ms`);
+      setOutput('healthOut', res);
+    } catch (err) {
+      setStatus('healthStatus', 'err', err.code || 'ERR');
+      setError('healthOut', err);
+    }
+  };
+
+  window.runList = async () => {
+    setStatus('listStatus', 'pending', '...');
+    try {
+      const res = await books.list({ limit: 5 });
+      setStatus('listStatus', 'ok', `${res.data.length}/${res.pagination.total}`);
+      setOutput('listOut', res);
+    } catch (err) {
+      setStatus('listStatus', 'err', err.code);
+      setError('listOut', err);
+    }
+  };
+
+  window.runListFiltered = async () => {
+    setStatus('listStatus', 'pending', '...');
+    try {
+      const res = await books.list({ category: 5, limit: 5 });
+      setStatus('listStatus', 'ok', `gialli: ${res.pagination.total}`);
+      setOutput('listOut', res);
+    } catch (err) {
+      setStatus('listStatus', 'err', err.code);
+      setError('listOut', err);
+    }
+  };
+
+  window.runDetail = async (id) => {
+    setStatus('detailStatus', 'pending', '...');
+    try {
+      const res = await books.getById(id);
+      setStatus('detailStatus', 'ok', `id=${res.id}`);
+      setOutput('detailOut', res);
+    } catch (err) {
+      setStatus('detailStatus', 'err', err.code);
+      setError('detailOut', err);
+    }
+  };
+
+  window.runNearby = async () => {
+    setStatus('nearbyStatus', 'pending', '...');
+    try {
+      const res = await books.nearby({ lat: 40.8358, lng: 14.2351, radius: 2000 });
+      setStatus('nearbyStatus', 'ok', `${res.data.length} libri`);
+      setOutput('nearbyOut', res);
+    } catch (err) {
+      setStatus('nearbyStatus', 'err', err.code);
+      setError('nearbyOut', err);
+    }
+  };
+
+  window.runLike = async () => {
+    setStatus('likeStatus', 'pending', '...');
+    try {
+      const res = await books.like(3);
+      setStatus('likeStatus', 'ok', `liked=${res.liked}`);
+      setOutput('likeOut', res);
+    } catch (err) {
+      setStatus('likeStatus', 'err', err.code);
+      setError('likeOut', err);
+    }
+  };
+
+  window.runUnlike = async () => {
+    setStatus('likeStatus', 'pending', '...');
+    try {
+      const res = await books.unlike(3);
+      setStatus('likeStatus', 'ok', `count=${res.likesCount}`);
+      setOutput('likeOut', res);
+    } catch (err) {
+      setStatus('likeStatus', 'err', err.code);
+      setError('likeOut', err);
+    }
+  };
+
+  window.runCreate = async () => {
+    setStatus('createStatus', 'pending', '...');
+    try {
+      const created = await books.create({
+        title: `Test Book ${Date.now()}`,
+        author: 'Test Author',
+        categoryIds: [1],
+        description: 'Creato da api-test.html',
+      });
+      // cleanup immediato
+      await books.remove(created.id);
+      setStatus('createStatus', 'ok', `created+deleted id=${created.id}`);
+      setOutput('createOut', created);
+    } catch (err) {
+      setStatus('createStatus', 'err', err.code);
+      setError('createOut', err);
+    }
+  };
+
+  // === Fase 2b runners ===
+
+  window.runGetMe = async () => {
+    setStatus('userStatus', 'pending', '...');
+    try {
+      const me = await users.getMe();
+      setStatus('userStatus', 'ok', `@${me.username}`);
+      setOutput('userOut', me);
+    } catch (err) {
+      setStatus('userStatus', 'err', err.code);
+      setError('userOut', err);
+    }
+  };
+
+  window.runGetById = async (id) => {
+    setStatus('userStatus', 'pending', '...');
+    try {
+      const u = await users.getById(id);
+      setStatus('userStatus', 'ok', `@${u.username}`);
+      setOutput('userOut', u);
+    } catch (err) {
+      setStatus('userStatus', 'err', err.code);
+      setError('userOut', err);
+    }
+  };
+
+  window.runFollow = async (id) => {
+    setStatus('followStatus', 'pending', '...');
+    try {
+      await users.follow(id);
+      const target = await users.getById(id);
+      setStatus('followStatus', 'ok', `followers=${target.counts.followers}`);
+      setOutput('followOut', { followed: id, isFollowing: target.isFollowing, counts: target.counts });
+    } catch (err) {
+      setStatus('followStatus', 'err', err.code);
+      setError('followOut', err);
+    }
+  };
+
+  window.runUnfollow = async (id) => {
+    setStatus('followStatus', 'pending', '...');
+    try {
+      await users.unfollow(id);
+      const target = await users.getById(id);
+      setStatus('followStatus', 'ok', `followers=${target.counts.followers}`);
+      setOutput('followOut', { unfollowed: id, isFollowing: target.isFollowing });
+    } catch (err) {
+      setStatus('followStatus', 'err', err.code);
+      setError('followOut', err);
+    }
+  };
+
+  window.runListSent = async () => {
+    setStatus('loansStatus', 'pending', '...');
+    try {
+      const res = await loans.listSent({ limit: 10 });
+      setStatus('loansStatus', 'ok', `${res.data.length} sent`);
+      setOutput('loansOut', res);
+    } catch (err) {
+      setStatus('loansStatus', 'err', err.code);
+      setError('loansOut', err);
+    }
+  };
+
+  window.runListReceived = async () => {
+    setStatus('loansStatus', 'pending', '...');
+    try {
+      const res = await loans.listReceived({ limit: 10 });
+      setStatus('loansStatus', 'ok', `${res.data.length} received`);
+      setOutput('loansOut', res);
+    } catch (err) {
+      setStatus('loansStatus', 'err', err.code);
+      setError('loansOut', err);
+    }
+  };
+
+  window.runRequestLoan = async () => {
+    setStatus('loansStatus', 'pending', '...');
+    try {
+      // Trova un libro di cui non sono owner
+      const myId = apiClient.getConfig().currentUserId;
+      const list = await books.list({ limit: 10 });
+      const targetBook = list.data.find((b) => b.owner.id !== myId);
+      if (!targetBook) {
+        throw new Error('Nessun libro di altri proprietari trovato');
+      }
+      const loan = await loans.request(targetBook.id, { message: 'Da api-test.html' });
+      setStatus('loansStatus', 'ok', `loan #${loan.id} status=${loan.status}`);
+      setOutput('loansOut', loan);
+    } catch (err) {
+      setStatus('loansStatus', 'err', err.code || err.message);
+      if (err instanceof ApiError) setError('loansOut', err);
+      else document.getElementById('loansOut').textContent = err.message;
+    }
+  };
+
+  window.runListPosts = async () => {
+    setStatus('postsStatus', 'pending', '...');
+    try {
+      const res = await posts.list({ limit: 5 });
+      setStatus('postsStatus', 'ok', `${res.data.length} posts`);
+      setOutput('postsOut', res);
+    } catch (err) {
+      setStatus('postsStatus', 'err', err.code);
+      setError('postsOut', err);
+    }
+  };
+
+  window.runFeed = async () => {
+    setStatus('postsStatus', 'pending', '...');
+    try {
+      const res = await posts.feed({ limit: 5 });
+      setStatus('postsStatus', 'ok', `feed: ${res.data.length}`);
+      setOutput('postsOut', res);
+    } catch (err) {
+      setStatus('postsStatus', 'err', err.code);
+      setError('postsOut', err);
+    }
+  };
+
+  window.runCreatePost = async () => {
+    setStatus('postsStatus', 'pending', '...');
+    try {
+      const p = await posts.create({ content: `Post da api-test.html — ${new Date().toLocaleTimeString()}` });
+      setStatus('postsStatus', 'ok', `created ${p.id}`);
+      setOutput('postsOut', p);
+    } catch (err) {
+      setStatus('postsStatus', 'err', err.code);
+      setError('postsOut', err);
+    }
+  };
+
+  window.runListNotifications = async () => {
+    setStatus('notifStatus', 'pending', '...');
+    try {
+      const res = await notifications.list({ limit: 10 });
+      setStatus('notifStatus', 'ok', `${res.data.length} (unread: ${res.unreadCount})`);
+      setOutput('notifOut', res);
+    } catch (err) {
+      setStatus('notifStatus', 'err', err.code);
+      setError('notifOut', err);
+    }
+  };
+
+  window.runMarkAllRead = async () => {
+    setStatus('notifStatus', 'pending', '...');
+    try {
+      const res = await notifications.markAllRead();
+      setStatus('notifStatus', 'ok', `marked=${res.markedAsRead}`);
+      setOutput('notifOut', res);
+    } catch (err) {
+      setStatus('notifStatus', 'err', err.code);
+      setError('notifOut', err);
+    }
+  };
+
+  window.runFeatured = async () => {
+    setStatus('statsStatus', 'pending', '...');
+    try {
+      const res = await stats.featured({ limit: 5 });
+      setStatus('statsStatus', 'ok', `featured ${res.data.length}`);
+      setOutput('statsOut', res);
+    } catch (err) {
+      setStatus('statsStatus', 'err', err.code);
+      setError('statsOut', err);
+    }
+  };
+
+  window.runTopUsers = async () => {
+    setStatus('statsStatus', 'pending', '...');
+    try {
+      const res = await stats.topUsers({ limit: 5 });
+      setStatus('statsStatus', 'ok', `top-users ${res.data.length}`);
+      setOutput('statsOut', res);
+    } catch (err) {
+      setStatus('statsStatus', 'err', err.code);
+      setError('statsOut', err);
+    }
+  };
+
+  window.runRidgeline = async () => {
+    setStatus('statsStatus', 'pending', '...');
+    try {
+      const res = await stats.ridgeline({ users: 5, weeks: 4 });
+      setStatus('statsStatus', 'ok', `ridge ${res.data.length}u × ${res.weekLabels.length}w`);
+      setOutput('statsOut', res);
+    } catch (err) {
+      setStatus('statsStatus', 'err', err.code);
+      setError('statsOut', err);
+    }
+  };
+
+  window.runBisac = async () => {
+    setStatus('statsStatus', 'pending', '...');
+    try {
+      const res = await stats.bisacCooccurrence({ limit: 10 });
+      setStatus('statsStatus', 'ok', `${res.data.length} pairs`);
+      setOutput('statsOut', res);
+    } catch (err) {
+      setStatus('statsStatus', 'err', err.code);
+      setError('statsOut', err);
+    }
+  };
+
+  // Fallback graceful
+  window.runFallbackOk = async () => {
+    setStatus('fbStatus', 'pending', '...');
+    try {
+      const res = await withApiFallback(
+        () => books.list({ limit: 3 }),
+        () => ({ data: [{ id: 0, title: 'MOCK FALLBACK' }], pagination: { total: 1 } }),
+        { onFallback: (err) => console.warn('fallback used:', err) },
+      );
+      setStatus('fbStatus', 'ok', `from API (${res.data.length})`);
+      setOutput('fbOut', { source: 'api', data: res.data });
+    } catch (err) {
+      setStatus('fbStatus', 'err', err.code);
+      setError('fbOut', err);
+    }
+  };
+
+  window.runFallbackKo = async () => {
+    setStatus('fbStatus', 'pending', '...');
+    try {
+      const res = await withApiFallback(
+        () => apiClient.get('/api/no-such-path-should-404-but-we-simulate-network'),
+        () => ({ data: [{ id: 0, title: 'OFFLINE MOCK BOOK' }], pagination: { total: 1 } }),
+      );
+      setStatus('fbStatus', 'ok', `fallback used`);
+      setOutput('fbOut', { source: 'fallback', data: res.data });
+    } catch (err) {
+      // 404 NON triggera fallback (è errore "di business"), quindi vediamo l'errore
+      setStatus('fbStatus', 'ok', `404 NOT fallback (corretto)`);
+      setError('fbOut', err);
+    }
+  };
+
+  // === Fase 2c.1 runners ===
+
+  window.runTransformBook = async () => {
+    setStatus('trStatus', 'pending', '...');
+    try {
+      const apiBook = await books.getById(1);
+      const legacyBook = bookToLegacy(apiBook);
+      setStatus('trStatus', 'ok', 'mostra prima e dopo');
+      setOutput('trOut', {
+        '--- BACKEND (camelCase) ---': null,
+        backend: apiBook,
+        '--- LEGACY (snake_case) ---': null,
+        legacy: legacyBook,
+        '--- DIFF ---': null,
+        coverUrl_vs_cover_url: [apiBook.coverUrl, legacyBook.cover_url],
+        ownerId_vs_owner_id:   [apiBook.ownerId,  legacyBook.owner_id],
+        viewCount_vs_views:    [apiBook.viewCount, legacyBook.views],
+        category_obj_vs_slug:  [apiBook.primaryCategory, legacyBook.category],
+      });
+    } catch (err) {
+      setStatus('trStatus', 'err', err.code);
+      setError('trOut', err);
+    }
+  };
+
+  window.runTransformLoan = async () => {
+    setStatus('trStatus', 'pending', '...');
+    try {
+      const res = await loans.listSent({ limit: 1 });
+      if (!res.data.length) {
+        setStatus('trStatus', 'ok', 'nessun prestito attivo, crea uno prima');
+        setOutput('trOut', { hint: 'usa pannello 9 per creare un prestito' });
+        return;
+      }
+      const apiLoan = res.data[0];
+      const legacyLoan = loanToLegacy(apiLoan);
+      setStatus('trStatus', 'ok', 'mostra timestamps flat vs annidati');
+      setOutput('trOut', {
+        '--- BACKEND (timestamps annidati) ---': null,
+        timestamps_in_object: apiLoan.timestamps || 'campo timestamp diretto',
+        '--- LEGACY (timestamps sparsi) ---': null,
+        requested_at: legacyLoan.requested_at,
+        confirmed_at: legacyLoan.confirmed_at,
+        '--- ID refs ---': null,
+        book_id: legacyLoan.book_id,
+        requester_id: legacyLoan.requester_id,
+        lender_id: legacyLoan.lender_id,
+      });
+    } catch (err) {
+      setStatus('trStatus', 'err', err.code);
+      setError('trOut', err);
+    }
+  };
+
+  window.runCacheDemo = async () => {
+    setStatus('cacheStatus', 'pending', '...');
+    try {
+      // 1° fetch: dovrebbe colpire il backend
+      cache.invalidate('categories:list'); // assicura miss iniziale
+      const t1 = performance.now();
+      const r1 = await apiClient.get('/api/categories', {
+        cache: { ttlMs: CACHE_TTL.CATEGORIES, key: 'categories:list' },
+      });
+      const dt1 = (performance.now() - t1).toFixed(1);
+
+      // 2° fetch: dovrebbe essere cache hit (ms vicino allo 0)
+      const t2 = performance.now();
+      const r2 = await apiClient.get('/api/categories', {
+        cache: { ttlMs: CACHE_TTL.CATEGORIES, key: 'categories:list' },
+      });
+      const dt2 = (performance.now() - t2).toFixed(1);
+
+      setStatus('cacheStatus', 'ok', `1ª: ${dt1}ms · 2ª: ${dt2}ms (hit)`);
+      setOutput('cacheOut', {
+        firstFetch_ms: +dt1,
+        secondFetch_ms: +dt2,
+        speedup: `${(dt1 / Math.max(dt2, 0.01)).toFixed(0)}×`,
+        sameReference: r1 === r2,
+        items: r1.data.length,
+        cacheKeys: cache.keys(),
+      });
+    } catch (err) {
+      setStatus('cacheStatus', 'err', err.code);
+      setError('cacheOut', err);
+    }
+  };
+
+  window.runCacheClear = () => {
+    const beforeSize = cache.size();
+    const beforeKeys = cache.keys();
+    const deleted = cache.clear();
+    setStatus('cacheStatus', 'ok', `cleared ${deleted}`);
+    setOutput('cacheOut', {
+      beforeSize,
+      beforeKeys,
+      cleared: deleted,
+      afterSize: cache.size(),
+    });
+  };
+
+  // === Fase 2c.5 runners ===
+
+  window.runQueryDedup = async () => {
+    setStatus('qcStatus', 'pending', '3 fetch concorrenti...');
+    // Clear per test pulito
+    queryClient.removeQueries({ queryKey: ['dedup-test'] });
+    let fetchCount = 0;
+    const slowFetch = () => new Promise((r) => setTimeout(() => {
+      fetchCount++;
+      r({ counter: fetchCount, ts: Date.now() });
+    }, 500));
+    try {
+      const t0 = performance.now();
+      // 3 chiamate concorrenti alla stessa queryKey
+      const [a, b, c] = await Promise.all([
+        queryClient.fetchQuery({ queryKey: ['dedup-test'], queryFn: slowFetch }),
+        queryClient.fetchQuery({ queryKey: ['dedup-test'], queryFn: slowFetch }),
+        queryClient.fetchQuery({ queryKey: ['dedup-test'], queryFn: slowFetch }),
+      ]);
+      const dt = (performance.now() - t0).toFixed(0);
+      setStatus('qcStatus', 'ok', `dedup: ${fetchCount} fetch reale/i su 3 richieste`);
+      setOutput('qcOut', {
+        elapsedMs: +dt,
+        actualFetches: fetchCount,
+        allSameRef: a === b && b === c,
+        result: a,
+      });
+    } catch (err) {
+      setStatus('qcStatus', 'err', err.code);
+      setError('qcOut', err);
+    }
+  };
+
+  window.runQueryStaleFresh = async () => {
+    setStatus('qcStatus', 'pending', '...');
+    queryClient.removeQueries({ queryKey: ['stale-test'] });
+    try {
+      const t1 = performance.now();
+      const r1 = await queryClient.fetchQuery({
+        queryKey: ['stale-test'],
+        queryFn: () => apiClient.get('/api/health'),
+        staleTime: 10_000, // 10s fresh
+      });
+      const dt1 = (performance.now() - t1).toFixed(1);
+      // 2ª chiamata subito: dovrebbe essere cached (fresh)
+      const t2 = performance.now();
+      const r2 = await queryClient.fetchQuery({
+        queryKey: ['stale-test'],
+        queryFn: () => apiClient.get('/api/health'),
+        staleTime: 10_000,
+      });
+      const dt2 = (performance.now() - t2).toFixed(1);
+      setStatus('qcStatus', 'ok', `1ª: ${dt1}ms · 2ª: ${dt2}ms`);
+      setOutput('qcOut', {
+        firstMs: +dt1,
+        secondMs_fromCache: +dt2,
+        sameRef: r1 === r2,
+        staleTimeMs: 10_000,
+      });
+    } catch (err) {
+      setStatus('qcStatus', 'err', err.code);
+      setError('qcOut', err);
+    }
+  };
+
+  window.runQueryInvalidate = async () => {
+    setStatus('qcStatus', 'pending', '...');
+    try {
+      queryClient.removeQueries({ queryKey: ['inv-test'] });
+      // 1° fetch
+      let counter = 0;
+      const qf = () => Promise.resolve({ v: ++counter, ts: Date.now() });
+      const r1 = await queryClient.fetchQuery({ queryKey: ['inv-test'], queryFn: qf, staleTime: 60_000 });
+      // 2° fetch = cache
+      const r2 = await queryClient.fetchQuery({ queryKey: ['inv-test'], queryFn: qf, staleTime: 60_000 });
+      // Invalida → refetch automatico (fire-and-forget)
+      await queryClient.invalidateQueries({ queryKey: ['inv-test'] });
+      // Attende un breve tempo per lasciare completare il refetch background
+      await new Promise((r) => setTimeout(r, 100));
+      const r3 = queryClient.getQueryData(['inv-test']);
+      setStatus('qcStatus', 'ok', `counter: ${r1.v} → ${r2.v} → ${r3.v}`);
+      setOutput('qcOut', {
+        firstFetch: r1,
+        cachedHit: r2,
+        afterInvalidate: r3,
+        note: '3° valore diverso perche invalidate ha triggered refetch',
+      });
+    } catch (err) {
+      setStatus('qcStatus', 'err', err.code);
+      setError('qcOut', err);
+    }
+  };
+
+  window.runQuerySnapshot = () => {
+    const snap = queryClient.snapshot();
+    setStatus('qcStatus', 'ok', `${Object.keys(snap).length} queries cached`);
+    setOutput('qcOut', snap);
+  };
+
+  window.runOptimisticOk = async () => {
+    setStatus('mutStatus', 'pending', '...');
+    const log = [];
+    try {
+      await queryClient.mutate({
+        mutationFn: async () => {
+          log.push('2. mutationFn: chiama backend');
+          await new Promise((r) => setTimeout(r, 300));
+          return { status: 'ok', likesCount: 42 };
+        },
+        onMutate: () => {
+          log.push('1. onMutate: UI aggiornata OTTICMENTE (subito)');
+          return { previousCount: 41 };
+        },
+        onSuccess: (data) => {
+          log.push(`3. onSuccess: backend ha confermato, count=${data.likesCount}`);
+        },
+        onError: (err) => {
+          log.push(`3. onError: ROLLBACK — errore ${err.code || err.message}`);
+        },
+        onSettled: () => {
+          log.push('4. onSettled: cleanup finale');
+        },
+      });
+      setStatus('mutStatus', 'ok', 'mutation OK, no rollback');
+      setOutput('mutOut', { flow: log });
+    } catch (err) {
+      setError('mutOut', err);
+    }
+  };
+
+  window.runOptimisticFail = async () => {
+    setStatus('mutStatus', 'pending', '...');
+    const log = [];
+    try {
+      await queryClient.mutate({
+        mutationFn: async () => {
+          log.push('2. mutationFn: chiama backend...');
+          await new Promise((r) => setTimeout(r, 300));
+          throw new ApiError('NETWORK_ERROR', 'Simulated failure');
+        },
+        onMutate: () => {
+          log.push('1. onMutate: UI aggiornata OTTICAMENTE (subito)');
+          return { previousCount: 41 };
+        },
+        onSuccess: (data) => {
+          log.push(`3. onSuccess: (non chiamata)`);
+        },
+        onError: (err, _vars, ctx) => {
+          log.push(`3. onError: rollback → previousCount=${ctx.previousCount}`);
+          log.push(`   errore: ${err.code}`);
+        },
+        onSettled: (data, err) => {
+          log.push(`4. onSettled: data=${data} err=${err?.code || 'null'}`);
+        },
+      });
+    } catch (err) {
+      setStatus('mutStatus', 'ok', 'mutation FAILED come atteso');
+    }
+    setOutput('mutOut', { flow: log, note: 'onError ha ricevuto context per rollback' });
+  };
+</script>
+
+</body>
+</html>

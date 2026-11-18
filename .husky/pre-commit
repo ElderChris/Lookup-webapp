@@ -1,5 +1,9 @@
 #!/usr/bin/env sh
-# Pre-commit hook: esegue lint + prettier sui file staged.
-# Attivato automaticamente da `npm install` (script `prepare` in package.json).
-# Bypassabile con `git commit --no-verify` in casi eccezionali.
-npx lint-staged
+# =============================================================================
+# Pre-commit hook — DISATTIVATO
+# =============================================================================
+# Husky e' disabilitato (vedi scripts/setup-husky.mjs per il motivo).
+# Questo file resta come stub: se invocato per qualsiasi motivo, esce 0.
+# Per riattivare i pre-commit hook, ripristina anche `npx lint-staged` qui.
+# =============================================================================
+exit 0

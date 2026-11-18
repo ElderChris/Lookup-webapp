@@ -2,7 +2,15 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Beta 9: PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#7a1e2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lookup" />
+  <link rel="apple-touch-icon" href="/img/icon-180.png" />
+
   <title>Profilo — Lookup</title>
   <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
 </head>
@@ -216,6 +224,7 @@
     </div>
   </footer>
 
+  <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
 
@@ -233,7 +242,11 @@
     `;
     document.head.appendChild(style);
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Beta 3: aspetta session lookup di api-bootstrap prima di procedere
+      if (!window.LB_AUTH_READY) {
+        await new Promise((res) => window.addEventListener('lb-auth-ready', res, { once: true }));
+      }
 
       /* PROTEZIONE PROPRIETÀ — profile.html è l'AREA PERSONALE
          dell'utente loggato: mostra e gestisce solo la propria
@@ -245,17 +258,70 @@
       if (!me) return;
 
       const requestedId = new URLSearchParams(location.search).get('id');
-      if (requestedId && +requestedId !== me.id) {
+      if (requestedId && requestedId !== me.id) {
         location.href = `library.html?id=${requestedId}`;
         return;
       }
 
-      const user = me;
+      // ============================================================
+      // Beta 3: load iniziale dal backend aggregato /api/users/:id/library
+      // ============================================================
+      // Ritorna user + orgProfile + prefs + stats in una sola request.
+      // Fallback graceful se il backend e' irraggiungibile.
+      let user = me;
+      let reviewSummary = { average: 0, count: 0 };
+      let completedLoans = 0;
+      let books = [];
+      let source = 'legacy';
+
+      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+        try {
+          const agg = await window.LB_API.library.getByUser(me.id);
+          // Merge: preservo id/username/display_name da session (LB_AUTH_USER),
+          // aggiungo bio/city/lat/lng/created_at dal backend
+          user = {
+            ...me,
+            id: agg.user.id,
+            username: agg.user.username,
+            display_name: agg.user.displayName,
+            bio: agg.user.bio,
+            city: agg.user.city,
+            lat: agg.user.lat,
+            lng: agg.user.lng,
+            avatar_url: agg.user.avatarUrl,
+            account_type: agg.user.accountType,
+            joined: agg.user.createdAt,
+          };
+          reviewSummary = {
+            average: agg.stats.avgRatingReceived || 0,
+            count: agg.stats.reviewsReceivedCount,
+          };
+          completedLoans = agg.stats.completedLoansCount;
+          // Fetch libri via /api/books?ownerId=
+          const booksRes = await window.LB_API.books.list({ ownerId: me.id, limit: 200 });
+          books = booksRes.data.map(window.LB_API.bookToLegacy);
+          source = `backend (${books.length} libri)`;
+        } catch (err) {
+          console.debug(`[profile] fallback legacy: ${err.code || err.message}`);
+        }
+      }
+      if (source === 'legacy') {
+        // Legacy: leggo tutto da localStorage come prima
+        reviewSummary = API.getReviewSummary(me.id);
+        completedLoans = API.getCompletedLoansCount(me.id);
+        books = API.getBooksByOwner(me.id);
+        // user resta = me (LB_AUTH_USER, tramite shim in app.js)
+      }
+      console.debug(`[profile] source: ${source}`);
+      if (source.startsWith('backend') && window.LB_markLive) {
+        window.LB_markLive('profile', 'GET /api/users/:id/library + /api/books?ownerId=');
+      }
+
+      // Ora `user`, `reviewSummary`, `completedLoans`, `books` sono definiti.
+      // Il resto del codice sotto continua invariato.
 
       // Render header profilo
       const initials = user.display_name.split(' ').map(w => w[0]).join('').slice(0, 2);
-      const reviewSummary = API.getReviewSummary(user.id);
-      const completedLoans = API.getCompletedLoansCount(user.id);
       // v2.5: avatar cliccabile con menu per cambiare/rimuovere foto
       const avatarInner = user.avatar_data_url
         ? `<img class="profile-avatar__img" src="${user.avatar_data_url}" alt="">`
@@ -303,8 +369,7 @@
         location.reload();
       });
 
-      // Render libri dell'utente
-      const books = API.getBooksByOwner(user.id);
+      // Render libri dell'utente (books gia' caricati sopra da backend o fallback)
       document.getElementById('books-count').textContent =
         `${books.length} volum${books.length === 1 ? 'e' : 'i'} pubblicat${books.length === 1 ? 'o' : 'i'}`;
 
@@ -628,16 +693,35 @@
       });
 
       /* v2.4: rendering della tab Post — composer in cima per chi può
-         pubblicare (cioè ha almeno un volume), cronologia sotto. */
+         pubblicare (cioè ha almeno un volume), cronologia sotto.
+         Beta 3 (Opzione W): backend-first con fallback legacy. */
       function renderPostsTab(userId) {
         const composer = document.getElementById('post-composer');
         const list = document.getElementById('my-posts-list');
-        function paint() {
+
+        async function paint() {
           UI.renderPostComposer(composer, { onPublished: paint });
-          const myPosts = API.getPostsByAuthor(userId);
+
+          let myPosts = [];
+          let canPublish = books.length > 0;   // Beta 3: derivo da books gia' caricati
+
+          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+            try {
+              const res = await window.LB_API.posts.list({ authorId: userId, limit: 100 });
+              myPosts = res.data.map((p) => window.LB_API.postToLegacy(p));
+            } catch (err) {
+              console.debug(`[profile posts] fallback legacy: ${err.code || err.message}`);
+              myPosts = API.getPostsByAuthor(userId);
+              canPublish = API.canPublishPosts(userId);
+            }
+          } else {
+            myPosts = API.getPostsByAuthor(userId);
+            canPublish = API.canPublishPosts(userId);
+          }
+
           UI.renderPostsFeed(list, myPosts, {
             showAuthor: false,
-            emptyMessage: API.canPublishPosts(userId)
+            emptyMessage: canPublish
               ? 'Non hai ancora pubblicato nessun aggiornamento. Scrivi il tuo primo post qui sopra.'
               : 'Pubblica almeno un volume per iniziare a scrivere aggiornamenti.',
             onChange: paint
@@ -647,6 +731,9 @@
       }
 
       /* Render dinamico delle richieste ricevute (v1.5).
+         Beta 3 (Opzione W): backend-first via loans.list({role:'lender'})
+         con include=book,requester → NO more N+1 su getBooks/getUser.
+
          Mostra ogni prestito come una piccola card con timeline compatta
          e i pulsanti azione adatti allo stato corrente:
          - requested → "Conferma" / "Rifiuta"
@@ -656,8 +743,29 @@
          - returned  → chiuso */
       function renderLenderLoansTab(userId) {
         const container = document.getElementById('lender-loans-list');
-        function paint() {
-          const loans = API.getLoansByLender(userId);
+
+        async function paint() {
+          let loans = [];
+          let source = 'legacy';
+
+          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+            try {
+              // Backend: ottengo loans con book + requester embed
+              const res = await window.LB_API.loans.list({
+                role: 'lender',
+                limit: 100,
+              });
+              loans = res.data.map((l) => window.LB_API.loanToLegacy(l));
+              source = `backend (${loans.length})`;
+            } catch (err) {
+              console.debug(`[profile loans] fallback legacy: ${err.code || err.message}`);
+            }
+          }
+          if (source === 'legacy') {
+            loans = API.getLoansByLender(userId);
+          }
+          console.debug(`[profile loans] source: ${source}`);
+
           if (loans.length === 0) {
             container.innerHTML = `<p class="alert alert--info">
               Nessuna richiesta di prestito ricevuta. Pubblica più volumi per
@@ -665,13 +773,37 @@
             </p>`;
             return;
           }
+
+          // Beta 3 (Opzione W): preload prefs dei requester in parallelo
+          // (per theme card). Se source è backend, uso /api/users/:id/prefs.
+          // Cache 5min per evitare rifetch tra ripitture.
+          const requesterPrefs = new Map();
+          if (source.startsWith('backend') && window.LB_API) {
+            const uniqueRequesters = [...new Set(loans.map(l => l.requester_id).filter(Boolean))];
+            await Promise.all(uniqueRequesters.map(async (rid) => {
+              try {
+                const p = await window.LB_API.prefs.getPublic(rid, {
+                  cache: { ttlMs: 5 * 60_000, key: `prefs:pub:${rid}` },
+                });
+                requesterPrefs.set(rid, p);
+              } catch (_) {
+                requesterPrefs.set(rid, { theme: 'classic' });
+              }
+            }));
+          }
+
           container.innerHTML = loans.map(loan => {
-            const book = API.getBooks().find(b => b.id === loan.book_id) || {};
-            const requester = API.getUser(loan.requester_id) || {};
-            const reqPrefs = API.getProfilePrefs(loan.requester_id) || {};
+            // Beta 3: usa dati embedded dal backend (loanToLegacy include _book, _requester)
+            // per evitare N+1 su localStorage. Fallback a lookup legacy se manca.
+            const book = loan._book || API.getBooks().find(b => b.id === loan.book_id) || {};
+            const requester = loan._requester || API.getUser(loan.requester_id) || {};
+            const reqPrefs = requesterPrefs.get(loan.requester_id) || API.getProfilePrefs(loan.requester_id) || {};
             const themeClass = `cover--${reqPrefs.theme || 'classic'}`;
-            const symbol = reqPrefs.avatar_style === 'symbol' && reqPrefs.avatar_symbol
-              ? reqPrefs.avatar_symbol
+            // Support both camelCase (backend prefs) and snake_case (legacy prefs)
+            const avatarStyle = reqPrefs.avatarStyle || reqPrefs.avatar_style;
+            const avatarSymbol = reqPrefs.avatarSymbol || reqPrefs.avatar_symbol;
+            const symbol = avatarStyle === 'symbol' && avatarSymbol
+              ? avatarSymbol
               : (requester.display_name || '?').trim()[0].toUpperCase();
             let actions = '';
             if (loan.status === LOAN_STATUS.REQUESTED) {
@@ -726,23 +858,52 @@
           });
         }
         // Wiring azioni (delega)
-        container.addEventListener('click', e => {
+        container.addEventListener('click', async e => {
           const btn = e.target.closest('[data-loan-action]');
           if (!btn) return;
           const loanId = +btn.dataset.loanId;
           const action = btn.dataset.loanAction;
+
+          // ----- Fase 2c.3: WRITE con backend primary + fallback legacy -----
+          const transitionLoan = async (apiMethod, legacyFn, extraArg) => {
+            if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+              try {
+                const fn = window.LB_API.loans[apiMethod];
+                const res = extraArg !== undefined
+                  ? await fn(loanId, extraArg)
+                  : await fn(loanId);
+                console.debug(`[profile WRITE] backend ${apiMethod}(${loanId}) OK, status=${res?.status}`);
+                window.LB_API.cache.invalidate('loans:');
+                try { legacyFn(); } catch (_) { /* consistency, non-critico */ }
+                return { ok: true, source: 'backend' };
+              } catch (err) {
+                if (err.status >= 400 && err.status < 500) {
+                  return { ok: false, source: 'backend', reason: err.message || err.code };
+                }
+                console.debug(`[profile WRITE] backend fail, legacy: ${err.code}`);
+              }
+            }
+            const r = legacyFn();
+            return { ok: !!r?.ok, source: 'legacy', reason: r?.reason };
+          };
+          // ------------------------------------------------------------------
+
           if (action === 'confirm') {
-            const r = API.confirmLoan(loanId);
-            if (r.ok) { UI.toast('Richiesta confermata.', 'success'); paint(); }
-            else UI.toast('Errore: ' + r.reason, 'error');
+            const r = await transitionLoan('accept', () => API.confirmLoan(loanId));
+            if (r.ok) {
+              UI.toast(`Richiesta confermata. (${r.source})`, 'success');
+              paint();
+            } else UI.toast('Errore: ' + r.reason, 'error');
           }
           if (action === 'reject') {
             openRejectModal(loanId, paint);
           }
           if (action === 'confirm-return') {
-            const r = API.confirmReturn(loanId);
-            if (r.ok) { UI.toast('Restituzione confermata. Prestito chiuso.', 'success'); paint(); }
-            else UI.toast('Errore: ' + r.reason, 'error');
+            const r = await transitionLoan('markReturned', () => API.confirmReturn(loanId));
+            if (r.ok) {
+              UI.toast(`Restituzione confermata. Prestito chiuso. (${r.source})`, 'success');
+              paint();
+            } else UI.toast('Errore: ' + r.reason, 'error');
           }
         });
         paint();
@@ -750,11 +911,27 @@
 
       /* v1.6: modale "Rifiuta richiesta" — richiede una motivazione
          testuale (min 10 caratteri), così il richiedente capisce il
-         perché. Costruisce il modale al volo, non richiede HTML extra. */
-      function openRejectModal(loanId, onDone) {
-        const loan = API.getLoan(loanId);
-        const book = API.getBooks().find(b => b.id === loan.book_id) || {};
-        const requester = API.getUser(loan.requester_id) || {};
+         perché. Costruisce il modale al volo, non richiede HTML extra.
+
+         Beta 3 (Opzione W): backend-first per fetch loan + book + requester
+         (con include). Fallback legacy per demo offline. */
+      async function openRejectModal(loanId, onDone) {
+        let loan, book, requester;
+        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+          try {
+            const res = await window.LB_API.loans.getById(loanId);
+            loan = window.LB_API.loanToLegacy(res);
+            book = loan._book || {};
+            requester = loan._requester || {};
+          } catch (err) {
+            console.debug(`[profile reject-modal] fallback legacy: ${err.code || err.message}`);
+          }
+        }
+        if (!loan) {
+          loan = API.getLoan(loanId);
+          book = API.getBooks().find(b => b.id === loan.book_id) || {};
+          requester = API.getUser(loan.requester_id) || {};
+        }
 
         // Costruzione modale
         const modal = document.createElement('div');
@@ -795,16 +972,56 @@
         document.addEventListener('keydown', function esc(e) {
           if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); }
         });
-        modal.querySelector('#reject-confirm').addEventListener('click', () => {
+        modal.querySelector('#reject-confirm').addEventListener('click', async () => {
           const reason = modal.querySelector('#reject-reason').value;
-          const r = API.rejectLoan(loanId, reason);
-          if (!r.ok) {
-            UI.toast(r.reason === 'reason-short'
-              ? 'La motivazione deve essere lunga almeno 10 caratteri.'
-              : 'Errore: ' + r.reason, 'error');
+          const trimmed = (reason || '').trim();
+          if (trimmed.length < 10) {
+            UI.toast('La motivazione deve essere lunga almeno 10 caratteri.', 'error');
             return;
           }
-          UI.toast('Richiesta rifiutata. Il richiedente è stato notificato.', 'info');
+
+          // Fase 2c.3: WRITE con backend primary
+          let source = 'legacy';
+          let ok = false;
+          let errReason = null;
+
+          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+            try {
+              const res = await window.LB_API.loans.reject(loanId, trimmed);
+              console.debug(`[profile] backend reject(${loanId}) OK, status=${res?.status}`);
+              window.LB_API.cache.invalidate('loans:');
+              // Replica in legacy per consistency locale
+              try { API.rejectLoan(loanId, trimmed); } catch (_) {}
+              ok = true;
+              source = 'backend';
+            } catch (err) {
+              if (err.status >= 400 && err.status < 500) {
+                errReason = err.message || err.code;
+              } else {
+                console.debug(`[profile] backend reject fail, legacy: ${err.code}`);
+              }
+            }
+          }
+
+          if (!ok && !errReason) {
+            // Fallback legacy (backend giu' o 5xx)
+            const r = API.rejectLoan(loanId, trimmed);
+            if (r.ok) {
+              ok = true;
+              source = 'legacy';
+            } else {
+              errReason = r.reason === 'reason-short'
+                ? 'La motivazione deve essere lunga almeno 10 caratteri.'
+                : ('Errore: ' + r.reason);
+            }
+          }
+
+          if (!ok) {
+            UI.toast(errReason || 'Errore sconosciuto', 'error');
+            return;
+          }
+
+          UI.toast(`Richiesta rifiutata. Il richiedente è stato notificato. (${source})`, 'info');
           close();
           if (typeof onDone === 'function') onDone();
         });
@@ -812,10 +1029,38 @@
       }
 
       /* Rende la tab "Recensioni" — v1.6: due sub-tabs "Ricevute" e
-         "Scritte" che condividono lo stesso pannello principale. */
-      function renderReviewsTab(userId) {
+         "Scritte" che condividono lo stesso pannello principale.
+         Beta 3 (Opzione W): backend via /api/users/:id/reviews con
+         role='received' e role='written'. Fallback graceful legacy. */
+      async function renderReviewsTab(userId) {
         // === Recensioni RICEVUTE ===
-        const s = API.getReviewSummary(userId);
+        let s;
+        let receivedList = null;
+        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+          try {
+            const res = await window.LB_API.users.listReviews(userId, {
+              role: 'received',
+              limit: 100,
+            });
+            // Calcola breakdown distribution client-side
+            const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+            res.data.forEach(r => {
+              if (r.rating >= 1 && r.rating <= 5) dist[r.rating]++;
+            });
+            s = {
+              count: res.pagination.total,
+              average: res.aggregate?.average ?? 0,
+              distribution: dist,
+            };
+            receivedList = res.data;
+          } catch (err) {
+            console.debug(`[profile reviews received] fallback legacy: ${err.code || err.message}`);
+          }
+        }
+        if (!s) {
+          s = API.getReviewSummary(userId);
+        }
+
         document.getElementById('received-count').textContent = s.count;
         document.getElementById('my-reviews-summary').innerHTML = s.count === 0
           ? `<p class="alert alert--info" style="margin: 0;">
@@ -835,7 +1080,7 @@
               </div>
               <div class="reviews-summary__breakdown" aria-label="Distribuzione delle valutazioni">
                 ${[5,4,3,2,1].map(n => {
-                  const pct = (s.distribution[n] / s.count) * 100;
+                  const pct = s.count > 0 ? (s.distribution[n] / s.count) * 100 : 0;
                   return `<div class="reviews-summary__row">
                     <span class="reviews-summary__row-num">${n} ★</span>
                     <span class="reviews-summary__row-bar">
@@ -849,8 +1094,19 @@
         UI.renderReviewsList(document.getElementById('my-reviews-list'), userId);
 
         // === Recensioni SCRITTE (v1.6) ===
-        const written = API.getReviewsByReviewer(userId);
-        document.getElementById('written-count').textContent = written.length;
+        let writtenCount = 0;
+        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+          try {
+            const res = await window.LB_API.users.listReviewsWritten(userId, { limit: 100 });
+            writtenCount = res.pagination.total;
+          } catch (err) {
+            console.debug(`[profile reviews written] fallback legacy: ${err.code || err.message}`);
+            writtenCount = API.getReviewsByReviewer(userId).length;
+          }
+        } else {
+          writtenCount = API.getReviewsByReviewer(userId).length;
+        }
+        document.getElementById('written-count').textContent = writtenCount;
         UI.renderReviewsByReviewerList(
           document.getElementById('my-written-reviews-list'), userId);
       }
@@ -877,10 +1133,22 @@
       }
 
       // v1.7: GDPR export — produce un file JSON e attiva il download
+      // Beta 3 (Opzione W): backend GET /api/me/export con fallback legacy
       const exportBtn = document.getElementById('gdpr-export-btn');
       if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
-          const data = API.exportUserData(user.id);
+        exportBtn.addEventListener('click', async () => {
+          let data;
+          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+            try {
+              data = await window.LB_API.library.exportMe();
+              console.debug('[profile export] backend OK');
+            } catch (err) {
+              console.debug(`[profile export] fallback legacy: ${err.code || err.message}`);
+            }
+          }
+          if (!data) {
+            data = API.exportUserData(user.id);
+          }
           if (!data) { UI.toast('Errore nell\'esportazione.', 'error'); return; }
           const blob = new Blob([JSON.stringify(data, null, 2)],
             { type: 'application/json' });

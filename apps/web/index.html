@@ -2,7 +2,15 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Beta 9: PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#7a1e2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lookup" />
+  <link rel="apple-touch-icon" href="/img/icon-180.png" />
+
   <meta name="description" content="Lookup — piattaforma di geolocalizzazione culturale per la condivisione di patrimoni librari privati." />
   <title>Lookup — Condividi la tua biblioteca</title>
   <!-- Il parametro ?v= serve come "cache-busting": cambiando versione,
@@ -273,6 +281,24 @@
       <div class="books-grid" id="featured-books" aria-live="polite"></div>
     </section>
 
+    <!-- Beta 9: sezione installazione app (PWA) -->
+    <section class="install-app-section" id="install-section-index" aria-labelledby="install-title-index">
+      <h2 class="install-app-section__title" id="install-title-index">Anche su Android o iOS</h2>
+      <p class="install-app-section__desc">
+        Installa Lookup sul tuo telefono per un'esperienza più fluida:
+        icona sulla home, apertura istantanea, notifiche in tempo reale
+        anche quando il browser è chiuso.
+      </p>
+      <button type="button" class="btn btn--primary install-app-section__cta" id="install-btn-index">
+        Apri l'app
+      </button>
+      <div class="install-ios-help" id="install-ios-help-index">
+        <strong>Come installare su iPhone/iPad:</strong>
+        tocca l'icona di <strong>Condivisione</strong> nella barra in basso
+        di Safari, poi <strong>"Aggiungi a schermata Home"</strong>.
+      </div>
+    </section>
+
   </main>
 
   <!-- CTA flottante per visitatori su mobile: la registrazione resta
@@ -319,22 +345,47 @@
     </div>
   </footer>
 
+  <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
     /* Popolamento dei contenuti dinamici della homepage */
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
 
       /* v2.4: Aggiornamenti recenti dai profili seguiti
          ========================================================= */
       (function renderRecentUpdates() {
-        const me = API.getCurrentUser();
+        const me = window.LB_UI.currentUser();
         const isAuth = API.getAuthState() === 'user';
         const section = document.getElementById('recent-updates-section');
         if (!section || !isAuth || !me) return;
         const feed = document.getElementById('recent-updates-feed');
-        function paint() {
-          const posts = API.getPostsFromFollowed(me.id, 10);
+        async function paint() {
+          // Fase 2c.4: feed dal backend (posts.feed richiede auth)
+          // Nota: /api/posts/feed ritorna post degli utenti seguiti +
+          // post propri. Se backend giu' o errore → fallback legacy.
+          let posts;
+          let source = 'legacy';
+          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+            try {
+              const res = await window.LB_API.posts.feed({ limit: 10 }, {
+                cache: {
+                  ttlMs: window.LB_API.CACHE_TTL.BOOKS_LIST, // 30s: freschi
+                  key: `posts:feed:${me.id}`,
+                },
+              });
+              // I post backend hanno shape diversa: trasformali
+              posts = res.data.map(window.LB_API.postToLegacy);
+              source = `backend (${posts.length})`;
+            } catch (err) {
+              console.debug(`[index] feed fallback legacy: ${err.code || err.message}`);
+            }
+          }
+          if (!posts) {
+            posts = API.getPostsFromFollowed(me.id, 10);
+          }
+          console.debug(`[index] feed source: ${source}`);
+
           if (posts.length === 0) {
             feed.innerHTML = `
               <p class="recent-updates__empty">
@@ -424,8 +475,8 @@
            rank_score (vicinanza + attività), ma forziamo almeno 2 enti
            e 3 librerie personali fra le 6 prescelte, così la vetrina
            non si appiattisce su un solo tipo di profilo. */
-        const orgs = allLibs.filter(l => API.isOrganization(l));
-        const persons = allLibs.filter(l => !API.isOrganization(l));
+        const orgs = allLibs.filter(l => window.LB_UI.isOrganization(l));
+        const persons = allLibs.filter(l => !window.LB_UI.isOrganization(l));
         const picked = [];
         const TARGET = 6, MIN_ORGS = 2, MIN_PERSONS = 3;
         // garantisce i minimi
@@ -446,17 +497,45 @@
          engagement recente (views 7d ×1 + prestiti 7d ×3 + like ×2)
          × quality multiplier (rating del proprietario)
          ÷ decay sqrt(giorni dall'aggiunta), con diversity penalty
-         per evitare la dominanza di un singolo genere. */
-      const featured = API.getFeaturedBooks(4).map(c => c.book);
+         per evitare la dominanza di un singolo genere.
+
+         Fase 2c.4: sostituito con GET /api/stats/featured. Il backend
+         calcola engagement recente + diversity penalty con la stessa
+         semantica. Fallback graceful al legacy se backend giu'. */
+      let featured;
+      let featuredSource = 'legacy';
+      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+        try {
+          const res = await window.LB_API.stats.featured({ limit: 4, days: 7 }, {
+            cache: {
+              ttlMs: window.LB_API.CACHE_TTL.STATS,
+              key: 'stats:featured:4:7',
+            },
+          });
+          featured = res.data.map(window.LB_API.bookToLegacy);
+          featuredSource = `backend (${featured.length})`;
+        } catch (err) {
+          console.debug(`[index] featured fallback legacy: ${err.code || err.message}`);
+        }
+      }
+      if (!featured) {
+        featured = API.getFeaturedBooks(4).map(c => c.book);
+      }
+      console.debug(`[index] featured source: ${featuredSource}`);
       UI.renderBooksGrid(document.getElementById('featured-books'), featured);
+
+      // Fase 2c.4: badge LIVE se almeno featured proviene dal backend
+      if (featuredSource.startsWith('backend') && window.LB_markLive) {
+        window.LB_markLive('home', `GET /api/stats/featured + /api/posts/feed`);
+      }
 
       /* ----- Saluto personalizzato (utente autenticato)
          v2.6: gender neutral, rotazione fra 17 frasi diverse a ogni login */
       function updateGreeting() {
         const greeting = document.getElementById('user-greeting');
-        const user = API.getCurrentUser();
+        const user = window.LB_UI.currentUser();
         if (user) {
-          const msg = API.getWelcomeMessage(user);
+          const msg = window.LB_UI.getWelcomeMessage(user);
           document.getElementById('user-greeting-text').textContent = msg;
           greeting.hidden = false;
         } else {
@@ -469,13 +548,13 @@
          Popola: nome di benvenuto, novità dalle librerie seguite,
          volumi preferiti. Le sezioni sono nascoste ai guest via CSS. */
       function renderPersonalizedHome() {
-        const me = API.getCurrentUser();
+        const me = window.LB_UI.currentUser();
         if (!me) return;
 
         // v2.6: titolo di benvenuto gender neutral con rotazione
         const wTitle = document.getElementById('welcome-title');
         if (wTitle) {
-          const msg = API.getWelcomeMessage(me);
+          const msg = window.LB_UI.getWelcomeMessage(me);
           // Spezza in due: prima parte normale, nome come <em>
           const first = (me.display_name || me.username).split(' ')[0];
           const html = msg.replace(first, `<em>${first}</em>`);

@@ -1,0 +1,513 @@
+// =============================================================================
+// Lookup — Schema Prisma
+// =============================================================================
+// Generato in Fase 1b. Modelli derivati da:
+//   - apps/api/prisma/_reference/schema.sql (riferimento storico, 15 tabelle)
+//   - apps/web/js/data.js (SAMPLE_* arrays — shape effettivo lato frontend)
+//
+// Convenzioni:
+//   - Field Prisma in camelCase
+//   - Colonne DB in snake_case via @map
+//   - Tabelle in snake_case plurale via @@map
+//   - ID interi (autoincrement) — match con SAMPLE_* del frontend
+//
+// PostGIS: estensioni postgis/pg_trgm/citext sono abilitate dall'init.sql
+// del container (vedi infra/postgres/init.sql), ma in Fase 1b NON usiamo
+// geography(Point) — User ha semplici lat/lng Float. PostGIS arriverà in
+// Fase 1f come migration dedicata per indici GIST e query con ST_DWithin.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// CORE — utenti, libri, categorie
+// =============================================================================
+
+model User {
+  id             String    @id @default(cuid())               // Fase 3.0: CUID string per compat Better Auth (Fase 3.1)
+  username       String    @unique @db.VarChar(30)
+  email          String    @unique @db.VarChar(255)
+  // Fase 3.1: passwordHash rimosso. Better Auth memorizza le credenziali
+  // nel modello Account (provider 'credential') con hash Argon2id gestito
+  // internamente. Sessioni HTTP → modello Session (cookie httpOnly).
+
+  // Profilo pubblico
+  displayName    String    @map("display_name") @db.VarChar(100)
+  bio            String?   @db.Text
+  avatarUrl      String?   @map("avatar_url") @db.VarChar(500)
+  avatarDataUrl  String?   @map("avatar_data_url") @db.Text // base64 inline (legacy prototype)
+  city           String?   @db.VarChar(150)
+
+  // Tipo account
+  accountType    String    @default("person") @map("account_type") @db.VarChar(20)
+  // 'person' | 'organization'
+
+  // Geolocalizzazione
+  // - lat/lng: scrittura naturale dal frontend (sempre presenti se nota la posizione)
+  // - location: PostGIS geography(Point, 4326), sincronizzata da trigger DB
+  //   (vedi seed.mjs per setup function + trigger + indice GIST). Prisma la
+  //   espone come Unsupported: per query usare $queryRaw con ST_DWithin/ST_Distance
+  lat            Float?
+  lng            Float?
+  location       Unsupported("geography(Point, 4326)")?
+
+  // Ruolo libreria (curator / co-curator / viewer — per gestione condivisa futura)
+  libraryRole    String    @default("curator") @map("library_role") @db.VarChar(20)
+
+  // Stato account
+  role           String    @default("user") @db.VarChar(20)         // user | moderator | admin
+  status         String    @default("active") @db.VarChar(20)       // active | pending | suspended | deleted
+  emailVerified  Boolean   @default(false) @map("email_verified")
+  publicProfile  Boolean   @default(true) @map("public_profile")
+
+  // Welcome message rotation (Fase 2 v2.6)
+  welcomeIndex   Int       @default(0) @map("welcome_index")
+
+  // Timestamps
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  lastLoginAt    DateTime? @map("last_login_at") @db.Timestamptz
+
+  // Relazioni
+  preferences         UserPreference?
+  organizationProfile OrganizationProfile?
+  books               Book[]            @relation("BookOwner")
+  loanRequestsSent    LoanRequest[]     @relation("LoanRequester")
+  loanRequestsRcvd    LoanRequest[]     @relation("LoanLender")
+  loanMessages        LoanMessage[]
+  reviewsAuthored     Review[]          @relation("ReviewAuthor")
+  reviewsReceived     Review[]          @relation("ReviewTarget")
+  follows             Follow[]          @relation("FollowFollower")
+  followedBy          Follow[]          @relation("FollowFollowed")
+  likes               Like[]
+  notifications       Notification[]    @relation("NotificationRecipient")
+  notificationsActor  Notification[]    @relation("NotificationActor")
+  posts               Post[]
+  postReactions       PostReaction[]
+  postReportsFiled    PostReport[]      @relation("PostReporter")
+
+  // Fase 3.1: relazioni Better Auth (sessioni + account credential/OAuth)
+  sessions            Session[]
+  accounts            Account[]
+
+  @@index([accountType])
+  @@index([status])
+  @@map("users")
+}
+
+model UserPreference {
+  userId        String   @id @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  viewMode      String   @default("grid") @map("view_mode") @db.VarChar(20)
+  theme         String   @default("classic") @db.VarChar(20)
+  avatarStyle   String   @default("initials") @map("avatar_style") @db.VarChar(20)
+  avatarSymbol  String?  @map("avatar_symbol") @db.VarChar(8)
+  motto         String?  @db.VarChar(120)
+  sortBy        String   @default("recent") @map("sort_by") @db.VarChar(20)
+  coverDesign   String?  @map("cover_design") @db.VarChar(40)
+  showEmail     Boolean  @default(false) @map("show_email")
+
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("user_preferences")
+}
+
+model OrganizationProfile {
+  userId         String   @id @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  legalName      String   @map("legal_name") @db.VarChar(200)
+  orgCategory    String   @default("altro") @map("org_category") @db.VarChar(30)
+  contactPerson  String?  @map("contact_person") @db.VarChar(120)
+  website        String?  @db.VarChar(300)
+  publicEmail    String?  @map("public_email") @db.VarChar(255)
+  publicPhone    String?  @map("public_phone") @db.VarChar(30)
+  publicAddress  String?  @map("public_address") @db.VarChar(200)
+  openingHours   String?  @map("opening_hours") @db.Text
+
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([orgCategory])
+  @@map("organization_profiles")
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(80)
+  slug        String   @unique @db.VarChar(80)
+  description String?  @db.Text
+  sortOrder   Int      @default(0) @map("sort_order") @db.SmallInt
+  isActive    Boolean  @default(true) @map("is_active")
+  bisacCode   String?  @map("bisac_code") @db.VarChar(20)
+
+  // Gerarchia BISAC: una categoria figlia punta alla macro-area
+  parentId    Int?     @map("parent_id")
+  parent      Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+
+  books       BookCategory[]
+
+  @@index([parentId])
+  @@map("categories")
+}
+
+model Book {
+  id            Int       @id @default(autoincrement())
+  ownerId       String    @map("owner_id")
+  owner         User      @relation("BookOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Metadati bibliografici
+  title         String    @db.VarChar(500)
+  author        String    @db.VarChar(300)
+  year          Int?
+  language      String    @default("Italiano") @db.VarChar(50)
+  isbn          String?   @db.VarChar(13)
+  publisher     String?   @db.VarChar(200)
+  pages         Int?
+  description   String?   @db.Text
+
+  // Tags liberi (es. "prima edizione", "dedica autografa")
+  tags          String[]
+
+  // Cover image (URL o data-URL inline per ora)
+  coverUrl      String?   @map("cover_url") @db.VarChar(500)
+  coverDataUrl  String?   @map("cover_data_url") @db.Text
+
+  // Stato fisico e logistica
+  condition     String    @default("buone condizioni") @db.VarChar(30)
+  available     Boolean   @default(true)
+  loanPolicy    String    @default("loan") @map("loan_policy") @db.VarChar(20)
+  // 'loan' | 'consult' | 'display'
+
+  // Metriche pre-calcolate
+  viewCount     Int       @default(0) @map("view_count")
+  requestCount  Int       @default(0) @map("request_count")
+
+  // Moderazione
+  status        String    @default("active") @db.VarChar(20)
+  // 'active' | 'pending_review' | 'hidden' | 'removed'
+
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  // Relazioni
+  categories    BookCategory[]
+  loanRequests  LoanRequest[]
+  likes         Like[]
+  notifications Notification[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([available])
+  @@map("books")
+}
+
+model BookCategory {
+  bookId      Int      @map("book_id")
+  categoryId  Int      @map("category_id")
+  isPrimary   Boolean  @default(false) @map("is_primary")
+
+  book        Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([bookId, categoryId])
+  @@index([categoryId])
+  @@map("book_categories")
+}
+
+// =============================================================================
+// PRESTITI
+// =============================================================================
+
+model LoanRequest {
+  id            Int       @id @default(autoincrement())
+  bookId        Int       @map("book_id")
+  requesterId   String    @map("requester_id")
+  lenderId      String    @map("lender_id")
+
+  book          Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  requester     User      @relation("LoanRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  lender        User      @relation("LoanLender", fields: [lenderId], references: [id], onDelete: Cascade)
+
+  message       String?   @db.Text
+
+  // Ciclo a 5 stati (v1.5): requested → confirmed → borrowed → returning → returned
+  // + rami terminali: rejected | cancelled
+  status        String    @default("requested") @db.VarChar(20)
+
+  // Timestamp per ciascuna transizione (NULL se non ancora raggiunta)
+  requestedAt   DateTime  @default(now()) @map("requested_at") @db.Timestamptz
+  confirmedAt   DateTime? @map("confirmed_at") @db.Timestamptz
+  borrowedAt    DateTime? @map("borrowed_at") @db.Timestamptz
+  returningAt   DateTime? @map("returning_at") @db.Timestamptz
+  returnedAt    DateTime? @map("returned_at") @db.Timestamptz
+  rejectedAt    DateTime? @map("rejected_at") @db.Timestamptz
+  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz
+
+  // Beta 7: durata prestito + deadline calcolata + flag reminder inviato.
+  // deadline = borrowedAt + daysRequested giorni (calcolata al passaggio a
+  // status='borrowed'). Il job overdue-loans usa (status, deadline, reminderSentAt)
+  // per generare solleciti automatici via email + notifica in-app.
+  daysRequested  Int?      @map("days_requested")
+  deadline       DateTime? @db.Timestamptz
+  reminderSentAt DateTime? @map("reminder_sent_at") @db.Timestamptz
+
+  // Beta 7.1: flag per il reminder PRE-scadenza (T-3 giorni). Usato dal job
+  // upcoming-deadline per notificare requester + lender qualche giorno prima
+  // del rientro. Idempotenza: un solo pre-reminder per prestito.
+  preReminderSentAt DateTime? @map("pre_reminder_sent_at") @db.Timestamptz
+
+  // Fase 1g.2: motivazione del rifiuto, richiesta dal frontend in UX
+  // (min 10 char lato client, opzionale ma raccomandato). NULL quando lo
+  // stato non e' "rejected" o quando il rifiuto e' stato fatto da
+  // un'integrazione che non ha passato reason.
+  rejectReason  String?   @map("reject_reason") @db.Text
+
+  messages      LoanMessage[]
+
+  @@index([requesterId, requestedAt(sort: Desc)])
+  @@index([lenderId, requestedAt(sort: Desc)])
+  @@index([bookId])
+  @@index([status])
+  // Beta 7: indice composito per query overdue job (WHERE status + deadline + reminderSentAt)
+  @@index([status, deadline, reminderSentAt])
+  // Beta 7.1: indice per query pre-deadline job
+  @@index([status, deadline, preReminderSentAt])
+  @@map("loan_requests")
+}
+
+model LoanMessage {
+  id         Int         @id @default(autoincrement())
+  loanId     Int         @map("loan_id")
+  senderId   String      @map("sender_id")
+  body       String      @db.Text
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz
+
+  loan       LoanRequest @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  sender     User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([loanId, createdAt])
+  @@map("loan_messages")
+}
+
+// =============================================================================
+// SOCIAL — recensioni, follow, like, notifiche
+// =============================================================================
+
+model Review {
+  id            Int      @id @default(autoincrement())
+  targetUserId  String   @map("target_user_id")
+  reviewerId    String   @map("reviewer_id")
+  rating        Int      @db.SmallInt
+  text          String   @db.Text
+
+  target        User     @relation("ReviewTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  reviewer      User     @relation("ReviewAuthor", fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp
+  updatedAt     DateTime? @updatedAt @map("updated_at") @db.Timestamp
+
+  @@unique([targetUserId, reviewerId])
+  @@index([targetUserId, createdAt(sort: Desc)])
+  @@index([reviewerId, createdAt(sort: Desc)])
+  @@map("reviews")
+}
+
+model Follow {
+  followerId  String   @map("follower_id")
+  followedId  String   @map("followed_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  follower    User     @relation("FollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
+  followed    User     @relation("FollowFollowed", fields: [followedId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followedId])
+  @@index([followedId])
+  @@map("user_follows")
+}
+
+model Like {
+  userId      String   @map("user_id")
+  bookId      Int      @map("book_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book        Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@id([userId, bookId])
+  @@index([bookId])
+  @@map("book_likes")
+}
+
+model Notification {
+  id          Int       @id @default(autoincrement())
+  userId      String    @map("user_id")        // destinatario
+  type        String    @db.VarChar(20)        // new_book | profile_update | book_available | post_reaction | ...
+  actorId     String?   @map("actor_id")       // chi ha generato l'evento
+  bookId      Int?      @map("book_id")        // volume coinvolto (opzionale)
+  message     String    @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  readAt      DateTime? @map("read_at") @db.Timestamptz
+
+  user        User      @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor       User?     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  book        Book?     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+// =============================================================================
+// POSTS — micro-blog di libreria (v2.4)
+// =============================================================================
+
+model Post {
+  id          String   @id @db.VarChar(40)     // 'p_sample_001' o ULID generato lato API
+  authorId    String   @map("author_id")
+  content     String   @db.Text                // max 500 char enforced lato API
+  status      String   @default("active") @db.VarChar(20)  // active | hidden | removed
+
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reactions   PostReaction[]
+  reports     PostReport[]
+
+  @@index([authorId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("posts")
+}
+
+model PostReaction {
+  postId      String   @map("post_id") @db.VarChar(40)
+  userId      String   @map("user_id")
+  emoji       String   @db.VarChar(16)          // 👍 ❤️ 👏 🤔 ... o alias "like", "thumbs-up"
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId, emoji])
+  @@index([postId])
+  @@map("post_reactions")
+}
+
+model PostReport {
+  id          Int      @id @default(autoincrement())
+  postId      String   @map("post_id") @db.VarChar(40)
+  reporterId  String   @map("reporter_id")
+  reason      String   @db.VarChar(40)         // off-topic | spam | harassment | other
+  note        String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reporter    User     @relation("PostReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("post_reports")
+}
+
+// =============================================================================
+// FASE 3.1 — Better Auth models (auto-generati da `npx @better-auth/cli generate`)
+// =============================================================================
+// Modelli richiesti da Better Auth v1.x. Nomi campo/tabella allineati con
+// il default della libreria per evitare custom mappings.
+//
+// - Session: cookie httpOnly (sliding window 7 giorni)
+// - Account: 1 record per provider auth (credential/google/github/...)
+//   Per email/password, "password" contiene l'hash Argon2id
+// - Verification: token temporanei per verify email + reset password
+
+model Session {
+  id             String   @id
+  userId         String   @map("user_id")
+  token          String   @unique
+  expiresAt      DateTime @map("expires_at") @db.Timestamptz
+  ipAddress      String?  @map("ip_address") @db.VarChar(45)
+  userAgent      String?  @map("user_agent") @db.Text
+  createdAt      DateTime @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  userId                String    @map("user_id")
+  accountId             String    @map("account_id")           // provider account id (per credential = email)
+  providerId            String    @map("provider_id") @db.VarChar(30) // 'credential' | 'google' | 'github' | ...
+  accessToken           String?   @map("access_token") @db.Text
+  refreshToken          String?   @map("refresh_token") @db.Text
+  idToken               String?   @map("id_token") @db.Text
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz
+  scope                 String?   @db.Text
+  password              String?   @db.Text                     // hash Argon2id per provider='credential'
+  createdAt             DateTime  @map("created_at") @db.Timestamptz
+  updatedAt             DateTime  @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String   @db.VarChar(255)         // di solito l'email
+  value      String   @db.Text                 // token opaco
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([identifier])
+  @@index([expiresAt])
+  @@map("verification")
+}
+
+// =============================================================================
+// Beta 5: Audit log azioni admin
+// =============================================================================
+// Traccia ogni operazione eseguita dagli amministratori sulla piattaforma.
+// Utile per: (a) accountability nel post-mortem incidenti, (b) rilevamento
+// abusi di privilegio, (c) reporting periodico attivita' moderation.
+//
+// Il log non ha owner-side cascade: se un utente viene cancellato, il log
+// resta (l'admin che ha fatto l'azione mantiene la sua identita' via adminId,
+// e la target reference resta anche se il record non c'e' piu').
+//
+// Retention: raccomandato periodic purge >12 mesi (a scelta operatore).
+// =============================================================================
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  adminId    String   @map("admin_id") @db.VarChar(40)          // chi ha fatto l'azione
+  action     String   @db.VarChar(60)                             // es. 'user.delete', 'post.clear_reports'
+  targetType String?  @map("target_type") @db.VarChar(30)         // 'user', 'post', 'book', ecc.
+  targetId   String?  @map("target_id") @db.VarChar(60)           // id del record impattato (string per unificare int + cuid)
+  payload    Json?    @db.JsonB                                    // dettagli del patch/parametri
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.VarChar(500)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([adminId])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("admin_audit_log")
+}

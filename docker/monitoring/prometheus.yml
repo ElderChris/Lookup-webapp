@@ -1,0 +1,45 @@
+# =============================================================================
+# docker/monitoring/prometheus.yml — Config Prometheus (Beta 10)
+# =============================================================================
+# Scrapa /metrics dal backend api ogni 15 secondi.
+# In produzione con piu' istanze backend dietro load balancer, aggiungere
+# ogni target sotto lo stesso job. Prometheus fara' l'aggregation.
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'lookup-monitoring'
+
+# Alertmanager: non implementato in Beta 10, ma pronto per Beta 11+
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# Regole di alerting: file esterni da aggiungere in Beta 11
+# rule_files:
+#   - '/etc/prometheus/alerts/*.yml'
+
+scrape_configs:
+  # ---------------------------------------------------------------------------
+  # Backend Fastify Lookup
+  # ---------------------------------------------------------------------------
+  - job_name: 'lookup-api'
+    # `api` e' il nome del container backend nel docker-compose
+    # (scarichiamo tramite network Docker interno)
+    static_configs:
+      - targets: ['api:3000']
+        labels:
+          service: 'api'
+          env: 'dev'
+    metrics_path: '/metrics'
+    scrape_timeout: 10s
+
+  # ---------------------------------------------------------------------------
+  # Prometheus stesso (self-monitoring)
+  # ---------------------------------------------------------------------------
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

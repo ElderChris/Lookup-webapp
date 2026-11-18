@@ -1,8 +1,5 @@
 # Build context Docker — riduce dimensione e velocizza build.
-node_modules/
-apps/*/node_modules/
-test-results/
-playwright-report/
+**/node_modules/
 .husky/
 .git/
 .github/
@@ -11,12 +8,18 @@ playwright-report/
 *.zip
 *.tar.gz
 *.log
-.env
-.env.local
+**/.env
+**/.env.local
 .DS_Store
 Thumbs.db
 
 # Docs e file di sviluppo non necessari nei container
 docs/
-tests-e2e/
 *.md
+
+# Non servono all'immagine dell'API (contesto di build = root del repo)
+apps/web/
+logs/
+scripts/
+infra/
+docker/

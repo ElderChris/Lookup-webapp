@@ -2,9 +2,18 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- Beta 9: PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#7a1e2b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Lookup" />
+  <link rel="apple-touch-icon" href="/img/icon-180.png" />
+
   <title>Amministrazione — Lookup</title>
   <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
 </head>
 <body>
@@ -51,6 +60,7 @@
         <button type="button" class="admin-tab" data-pane="reports" role="tab" aria-selected="false">
           Segnalazioni <span class="admin-tab__badge" id="reports-count" hidden></span>
         </button>
+        <button type="button" class="admin-tab" data-pane="auditlog" role="tab" aria-selected="false">Log</button>
         <button type="button" class="admin-tab" data-pane="system" role="tab" aria-selected="false">Sistema</button>
       </div>
 
@@ -111,6 +121,52 @@
         <div id="reports-list" aria-live="polite"></div>
       </div>
 
+      <!-- ====== PANE AUDIT LOG (Beta 6) ====== -->
+      <div class="admin-pane" id="pane-auditlog" role="tabpanel" hidden>
+        <div class="admin-pane__head">
+          <h3 style="font-family: var(--font-display); margin: 0;">Log azioni amministrative</h3>
+        </div>
+        <p style="color: var(--color-ink-soft); margin-bottom: var(--sp-4);">
+          Ogni operazione critica eseguita da un amministratore
+          (utenti/libri/post creati, modificati, eliminati; segnalazioni
+          archiviate) viene registrata qui con timestamp, IP e user agent.
+          Utile per audit di sicurezza e post-mortem.
+        </p>
+        <div class="admin-filters" style="display: flex; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-4);">
+          <input type="search" id="audit-filter-admin" class="form__input" placeholder="Filtra per admin ID" style="max-width: 200px;" />
+          <select id="audit-filter-action" class="form__input" style="max-width: 200px;">
+            <option value="">— Tutte le azioni —</option>
+            <option value="user.update">user.update</option>
+            <option value="user.delete">user.delete</option>
+            <option value="post.clear_reports">post.clear_reports</option>
+            <option value="post.delete">post.delete</option>
+            <option value="book.create">book.create</option>
+            <option value="book.update">book.update</option>
+            <option value="book.delete">book.delete</option>
+          </select>
+          <button type="button" class="btn btn--ghost btn--small" id="audit-refresh-btn">Aggiorna</button>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="audit-table">
+            <thead>
+              <tr>
+                <th style="width: 165px;">Quando</th>
+                <th>Admin</th>
+                <th>Azione</th>
+                <th>Target</th>
+                <th style="max-width: 220px;">Payload</th>
+                <th style="width: 100px;">IP</th>
+              </tr>
+            </thead>
+            <tbody id="audit-tbody">
+              <tr><td colspan="6" style="text-align: center; padding: var(--sp-4); color: var(--color-ink-soft);"><em>Caricamento log...</em></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="audit-pagination" style="color: var(--color-ink-soft); margin-top: var(--sp-3); font-size: .88rem;"></p>
+      </div>
+      <!-- fine PANE AUDIT LOG -->
+
       <!-- ====== PANE SISTEMA ====== -->
       <div class="admin-pane" id="pane-system" role="tabpanel" hidden>
         <h3 style="font-family: var(--font-display); margin-top: 0;">Azioni di sistema</h3>
@@ -135,6 +191,23 @@
           <strong>Svuota</strong> cancella tutto — anche le tue modifiche — e ricarica
           la pagina dal seed pulito.
         </p>
+
+        <!-- Beta 7: Background jobs status + trigger manuale -->
+        <hr style="margin: var(--sp-6) 0; border: none; border-top: 1px solid var(--color-line, #e5e0d8);">
+        <h3 style="font-family: var(--font-display); margin-top: 0;">Background jobs</h3>
+        <p style="color: var(--color-ink-soft); margin-bottom: var(--sp-4);">
+          Job schedulati che girano in background (BullMQ/Redis) per operazioni
+          asincrone come solleciti prestiti e purge log audit. Puoi triggerarli
+          manualmente per test.
+        </p>
+        <div id="jobs-status">
+          <p style="color: var(--color-ink-soft); padding: var(--sp-3);">
+            <em>Caricamento stato jobs...</em>
+          </p>
+        </div>
+        <button type="button" class="btn btn--ghost btn--small" id="jobs-refresh-btn" style="margin-top: var(--sp-3);">
+          Aggiorna stato
+        </button>
       </div>
 
     </section>
@@ -280,27 +353,84 @@
   </footer>
 
   <script>
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
+    // Fase 3.2: session gate — aspetta bootstrap ready per usare LB_AUTH_USER
+    if (!window.LB_AUTH_READY) {
+      await new Promise((res) => window.addEventListener('lb-auth-ready', res, { once: true }));
+    }
+    // Verifica ruolo admin da session Better Auth se disponibile
+    if (window.LB_AUTH_USER && window.LB_AUTH_USER.role !== 'admin') {
+      alert('Accesso negato: pannello admin riservato agli amministratori.');
+      location.href = 'index.html';
+      return;
+    }
+    // Fallback legacy: la funzione API.requireAdmin controlla is_admin legacy
     const me = API.requireAdmin('login.html', 'index.html');
     if (!me) return;
 
-    // ============= KPI veloci in cima =============
-    function renderKpi() {
-      const s = API.getRealStats();
+    // ============= KPI veloci in cima (Beta 3: backend /api/stats/global) =============
+    async function renderKpi() {
+      let s;
+      let source = 'legacy';
+      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+        try {
+          const gs = await window.LB_API.stats.global();
+          s = {
+            total_users: gs.totalUsers,
+            total_books: gs.totalBooks,
+            total_loans: gs.totalLoans,
+            total_reviews: gs.totalReviews,
+            total_views: 0,     // backend non ha counter cumulativo aggregato
+            total_messages: 0,  // TODO: nuovo endpoint
+          };
+          source = 'backend';
+        } catch (err) {
+          console.debug(`[admin] KPI fallback legacy: ${err.code || err.message}`);
+        }
+      }
+      if (!s) s = API.getRealStats();
+      console.debug(`[admin] KPI source: ${source}`);
       document.getElementById('admin-kpi').innerHTML = `
         <div class="admin-kpi"><strong>${s.total_users}</strong><span>utenti</span></div>
         <div class="admin-kpi"><strong>${s.total_books}</strong><span>volumi</span></div>
         <div class="admin-kpi"><strong>${s.total_loans}</strong><span>prestiti</span></div>
-        <div class="admin-kpi"><strong>${s.total_views.toLocaleString('it-IT')}</strong><span>visualizzazioni</span></div>
+        <div class="admin-kpi"><strong>${(s.total_views || 0).toLocaleString('it-IT')}</strong><span>visualizzazioni</span></div>
         <div class="admin-kpi"><strong>${s.total_reviews}</strong><span>recensioni</span></div>
-        <div class="admin-kpi"><strong>${s.total_messages}</strong><span>messaggi chat</span></div>
+        <div class="admin-kpi"><strong>${s.total_messages || 0}</strong><span>messaggi chat</span></div>
       `;
     }
     renderKpi();
 
-    // ============= REPORTS (v2.4) =============
-    function renderReports() {
-      const reported = API.getReportedPosts();
+    // ============= REPORTS (Beta 4: backend /api/admin/reports) =============
+    async function renderReports() {
+      let reported = [];
+      let source = 'legacy';
+      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+        try {
+          const res = await window.LB_API.admin.listReports({ limit: 100 });
+          // Adapter shape backend → legacy per riuso rendering
+          reported = res.data.map((item) => ({
+            id: item.post.id,
+            author_id: item.post.authorId,
+            author_username: item.post.authorUsername,
+            author_display_name: item.post.authorDisplayName,
+            content: item.post.content,
+            created_at: item.post.createdAt,
+            reports: item.reports.map((r) => ({
+              reason: r.reason,
+              note: r.note,
+              reporter_id: r.reporterId,
+              ts: r.createdAt,
+            })),
+          }));
+          source = 'backend';
+        } catch (err) {
+          console.debug(`[admin reports] fallback legacy: ${err.code || err.message}`);
+        }
+      }
+      if (source === 'legacy') reported = API.getReportedPosts();
+      console.debug(`[admin reports] source: ${source}`);
+
       const badge = document.getElementById('reports-count');
       if (reported.length > 0) {
         badge.hidden = false;
@@ -314,7 +444,11 @@
         return;
       }
       list.innerHTML = reported.map(post => {
-        const author = API.getUser(post.author_id) || {};
+        // Backend include author_display_name; legacy no → fallback getUser
+        const authorName = post.author_display_name
+          || (API.getUser(post.author_id) || {}).display_name
+          || '—';
+        const authorId = post.author_id;
         const reasonsCount = post.reports.reduce((m, r) => {
           m[r.reason] = (m[r.reason] || 0) + 1; return m;
         }, {});
@@ -331,8 +465,8 @@
         return `
           <article class="report-card">
             <header class="report-card__head">
-              <a href="library.html?id=${author.id}">
-                <strong>${author.display_name || '—'}</strong>
+              <a href="library.html?id=${authorId}">
+                <strong>${authorName}</strong>
               </a>
               <span class="report-card__meta">${new Date(post.created_at).toLocaleString('it-IT')}</span>
               <span class="report-card__counter">${post.reports.length} segnalazione/i</span>
@@ -362,8 +496,20 @@
         askConfirm(
           'Archiviare le segnalazioni?',
           'Il post resterà online. Sei sicuro che le segnalazioni non siano fondate?',
-          () => {
-            const r = API.clearPostReports(clearBtn.dataset.clearReports);
+          async () => {
+            const postId = clearBtn.dataset.clearReports;
+            // Beta 4: backend /api/admin/posts/:id/clear-reports
+            if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+              try {
+                await window.LB_API.admin.clearPostReports(postId);
+                UI.toast('Segnalazioni archiviate.', 'success');
+                await renderReports();
+                return;
+              } catch (err) {
+                console.debug(`[admin clearReports] fallback legacy: ${err.code || err.message}`);
+              }
+            }
+            const r = API.clearPostReports(postId);
             if (r.ok) { UI.toast('Segnalazioni archiviate.', 'success'); renderReports(); }
             else UI.toast('Errore: ' + r.reason, 'error');
           }
@@ -373,8 +519,20 @@
         askConfirm(
           'Eliminare il post?',
           'Il post verrà rimosso dalla piattaforma. Operazione irreversibile.',
-          () => {
-            const r = API.deletePost(delBtn.dataset.deletePost);
+          async () => {
+            const postId = delBtn.dataset.deletePost;
+            // Beta 4: backend /api/admin/posts/:id
+            if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+              try {
+                await window.LB_API.admin.deletePost(postId);
+                UI.toast('Post eliminato.', 'success');
+                await renderReports();
+                return;
+              } catch (err) {
+                console.debug(`[admin deletePost] fallback legacy: ${err.code || err.message}`);
+              }
+            }
+            const r = API.deletePost(postId);
             if (r.ok) { UI.toast('Post eliminato.', 'success'); renderReports(); }
             else UI.toast('Errore: ' + r.reason, 'error');
           }
@@ -418,18 +576,65 @@
       if (fn) fn();
     });
 
-    // ============= USERS TABLE =============
+    // ============= USERS TABLE (Beta 4: backend /api/admin/users) =============
     const usersTbody = document.getElementById('users-tbody');
-    function renderUsers(filter = '') {
+    let usersCache = [];   // cache locale per lookup senza re-fetch (edit modal)
+    async function renderUsers(filter = '') {
       const f = filter.toLowerCase().trim();
-      const users = API.getUsers().filter(u => {
-        if (!f) return true;
-        return [u.display_name, u.username, u.email, u.city]
-          .some(s => (s || '').toLowerCase().includes(f));
-      });
-      const books = API.getBooks();
+      let users = [];
+      let source = 'legacy';
+      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+        try {
+          const res = await window.LB_API.admin.listUsers({
+            q: f || undefined,
+            limit: 200,
+          });
+          // Adapter backend camelCase → legacy snake_case per riuso rendering
+          users = res.data.map((u) => ({
+            id: u.id,
+            display_name: u.displayName,
+            username: u.username,
+            email: u.email,
+            city: u.city,
+            bio: u.bio,
+            account_type: u.accountType,
+            library_role: null, // backend non ha library_role field
+            is_admin: u.role === 'admin',
+            role: u.role,
+            status: u.status,
+            email_verified: u.emailVerified,
+            created_at: u.createdAt,
+          }));
+          source = 'backend';
+        } catch (err) {
+          console.debug(`[admin users] fallback legacy: ${err.code || err.message}`);
+        }
+      }
+      if (source === 'legacy') {
+        users = API.getUsers().filter(u => {
+          if (!f) return true;
+          return [u.display_name, u.username, u.email, u.city]
+            .some(s => (s || '').toLowerCase().includes(f));
+        });
+      }
+      usersCache = users;
+      console.debug(`[admin users] source: ${source} (${users.length})`);
+
+      // Fetch books count per user (usa backend se disponibile)
+      let books = [];
+      try {
+        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+          const bres = await window.LB_API.books.list({ limit: 500 });
+          books = bres.data.map(window.LB_API.bookToLegacy);
+        } else {
+          books = API.getBooks();
+        }
+      } catch (_) {
+        books = API.getBooks();
+      }
+
       usersTbody.innerHTML = users.map(u => {
-        const myBooks = books.filter(b => +b.owner_id === u.id).length;
+        const myBooks = books.filter(b => String(b.owner_id) === String(u.id)).length;
         const isAdmin = u.is_admin;
         const isMe = u.id === me.id;
         return `
@@ -466,8 +671,9 @@
       const editBtn = e.target.closest('[data-edit-user]');
       const delBtn = e.target.closest('[data-delete-user]');
       if (editBtn) {
-        const id = +editBtn.dataset.editUser;
-        const u = API.getUser(id);
+        // Beta 4: id sono string CUID, non parseInt
+        const id = editBtn.dataset.editUser;
+        const u = usersCache.find((x) => String(x.id) === String(id)) || API.getUser(id);
         if (!u) return;
         const f = document.getElementById('user-form');
         f.id.value = u.id;
@@ -483,13 +689,25 @@
         openModal('user-modal');
       }
       if (delBtn) {
-        const id = +delBtn.dataset.deleteUser;
-        const u = API.getUser(id);
+        const id = delBtn.dataset.deleteUser;
+        const u = usersCache.find((x) => String(x.id) === String(id)) || API.getUser(id);
         if (!u) return;
         askConfirm(
           'Eliminare l\'utente?',
-          `${u.display_name} (@${u.username}) verrà cancellato insieme a tutti i suoi libri, prestiti e recensioni. Operazione irreversibile.`,
-          () => {
+          `${u.display_name} (@${u.username}) verrà marcato come cancellato. I dati sociali (recensioni, commenti) restano preservati.`,
+          async () => {
+            // Beta 4: backend /api/admin/users/:id
+            if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+              try {
+                await window.LB_API.admin.deleteUser(id);
+                UI.toast('Utente eliminato.', 'success');
+                await renderUsers();
+                await renderKpi();
+                return;
+              } catch (err) {
+                console.debug(`[admin deleteUser] fallback legacy: ${err.code || err.message}`);
+              }
+            }
             const r = API.deleteUser(id);
             if (r.ok) { UI.toast('Utente eliminato.', 'success'); renderUsers(); renderKpi(); }
             else UI.toast('Eliminazione fallita: ' + r.reason, 'error');
@@ -498,7 +716,7 @@
       }
     });
 
-    document.getElementById('user-form').addEventListener('submit', (e) => {
+    document.getElementById('user-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = e.target;
       const data = {
@@ -511,9 +729,29 @@
         bio: f.bio.value.trim()
       };
       const id = f.id.value;
+
+      // Beta 4: update via admin endpoint. Create resta legacy (signup e' via Better Auth)
+      if (id && window.LB_API && window.LB_API_AVAILABLE !== false) {
+        try {
+          await window.LB_API.admin.updateUser(id, {
+            displayName: data.display_name,
+            bio: data.bio,
+            city: data.city,
+          });
+          UI.toast('Utente aggiornato.', 'success');
+          closeModal('user-modal');
+          await renderUsers();
+          await renderKpi();
+          return;
+        } catch (err) {
+          console.debug(`[admin updateUser] fallback legacy: ${err.code || err.message}`);
+        }
+      }
+
+      // Fallback legacy (create + edit)
       let r;
       if (id) {
-        r = API.updateUser(+id, data);
+        r = API.updateUser(id, data);
       } else {
         r = API.createUser(data);
       }
@@ -531,17 +769,39 @@
       }
     });
 
-    // ============= BOOKS TABLE =============
+    // ============= BOOKS TABLE (Beta 4: backend /api/books) =============
     const booksTbody = document.getElementById('books-tbody');
-    function renderBooks(filter = '') {
+    let booksCache = [];
+    async function renderBooks(filter = '') {
       const f = filter.toLowerCase().trim();
-      const books = API.getBooks().filter(b => {
-        if (!f) return true;
-        return [b.title, b.author, b.isbn, b.category]
-          .some(s => (s || '').toLowerCase().includes(f));
-      });
+      let books = [];
+      let source = 'legacy';
+      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+        try {
+          const res = await window.LB_API.books.list({
+            q: f || undefined,
+            limit: 500,
+          });
+          books = res.data.map(window.LB_API.bookToLegacy);
+          source = 'backend';
+        } catch (err) {
+          console.debug(`[admin books] fallback legacy: ${err.code || err.message}`);
+        }
+      }
+      if (source === 'legacy') {
+        books = API.getBooks().filter(b => {
+          if (!f) return true;
+          return [b.title, b.author, b.isbn, b.category]
+            .some(s => (s || '').toLowerCase().includes(f));
+        });
+      }
+      booksCache = books;
+      console.debug(`[admin books] source: ${source} (${books.length})`);
+
+      // Owner lookup: usa la cache users se disponibile, altrimenti legacy
+      const ownerLookup = new Map(usersCache.map(u => [String(u.id), u]));
       booksTbody.innerHTML = books.map(b => {
-        const owner = API.getUser(b.owner_id);
+        const owner = ownerLookup.get(String(b.owner_id)) || API.getUser(b.owner_id);
         return `
           <tr data-book-id="${b.id}">
             <td>${b.id}</td>
@@ -564,33 +824,52 @@
     document.getElementById('search-books').addEventListener('input', (e) =>
       renderBooks(e.target.value));
 
-    // Owner dropdown for book modal
-    function populateOwnerSelect() {
+    // Owner dropdown for book modal (Beta 4: backend /api/admin/users)
+    async function populateOwnerSelect() {
       const sel = document.getElementById('b-owner_id');
-      sel.innerHTML = API.getUsers()
+      let list = usersCache;
+      if (!list || list.length === 0) {
+        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+          try {
+            const res = await window.LB_API.admin.listUsers({ limit: 200 });
+            list = res.data.map((u) => ({
+              id: u.id,
+              display_name: u.displayName,
+              username: u.username,
+              is_admin: u.role === 'admin',
+            }));
+          } catch (_) {
+            list = API.getUsers();
+          }
+        } else {
+          list = API.getUsers();
+        }
+      }
+      sel.innerHTML = list
         .filter(u => !u.is_admin)
         .map(u => `<option value="${u.id}">${u.display_name} (@${u.username})</option>`)
         .join('');
     }
 
-    document.getElementById('btn-add-book').addEventListener('click', () => {
+    document.getElementById('btn-add-book').addEventListener('click', async () => {
       const f = document.getElementById('book-form');
       f.reset();
       f.id.value = '';
-      populateOwnerSelect();
+      await populateOwnerSelect();
       f.available.checked = true;
       document.getElementById('book-modal-title').textContent = 'Nuovo volume';
       openModal('book-modal');
     });
 
-    booksTbody.addEventListener('click', (e) => {
+    booksTbody.addEventListener('click', async (e) => {
       const editBtn = e.target.closest('[data-edit-book]');
       const delBtn = e.target.closest('[data-delete-book]');
       if (editBtn) {
-        const id = +editBtn.dataset.editBook;
-        const b = API.getBook(id);
+        const id = editBtn.dataset.editBook;
+        // b.id nel backend e' int; cerca prima in cache, poi legacy
+        const b = booksCache.find(x => String(x.id) === String(id)) || API.getBook(+id);
         if (!b) return;
-        populateOwnerSelect();
+        await populateOwnerSelect();
         const f = document.getElementById('book-form');
         f.id.value = b.id;
         f.title.value = b.title || '';
@@ -607,22 +886,34 @@
         openModal('book-modal');
       }
       if (delBtn) {
-        const id = +delBtn.dataset.deleteBook;
-        const b = API.getBook(id);
+        const id = delBtn.dataset.deleteBook;
+        const b = booksCache.find(x => String(x.id) === String(id)) || API.getBook(+id);
         if (!b) return;
         askConfirm(
           'Eliminare il volume?',
           `"${b.title}" verrà cancellato insieme a tutte le richieste di prestito, visualizzazioni e like. Operazione irreversibile.`,
-          () => {
-            const r = API.deleteBook(id);
-            if (r.ok) { UI.toast('Volume eliminato.', 'success'); renderBooks(); renderKpi(); }
+          async () => {
+            // Beta 5: admin override via DELETE /api/admin/books/:id
+            if (window.LB_API && window.LB_API_AVAILABLE !== false) {
+              try {
+                await window.LB_API.admin.deleteBookAs(+id);
+                UI.toast('Volume eliminato.', 'success');
+                await renderBooks();
+                await renderKpi();
+                return;
+              } catch (err) {
+                console.debug(`[admin deleteBook] fallback legacy: ${err.code || err.message}`);
+              }
+            }
+            const r = API.deleteBook(+id);
+            if (r.ok) { UI.toast('Volume eliminato.', 'success'); await renderBooks(); await renderKpi(); }
             else UI.toast('Eliminazione fallita: ' + r.reason, 'error');
           }
         );
       }
     });
 
-    document.getElementById('book-form').addEventListener('submit', (e) => {
+    document.getElementById('book-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = e.target;
       const data = {
@@ -631,12 +922,60 @@
         year: +f.year.value || null,
         language: f.language.value.trim() || 'Italiano',
         isbn: f.isbn.value.trim() || '—',
-        owner_id: +f.owner_id.value,
+        owner_id: f.owner_id.value,   // string per backend
         category: f.category.value.trim() || 'Narrativa',
         available: f.available.checked,
         description: f.description.value.trim()
       };
       const id = f.id.value;
+
+      // Beta 5: edit via PATCH /api/admin/books/:id (owner override)
+      if (id && window.LB_API && window.LB_API_AVAILABLE !== false) {
+        try {
+          await window.LB_API.admin.updateBookAs(+id, {
+            title: data.title,
+            author: data.author,
+            year: data.year,
+            isbn: data.isbn === '—' ? null : data.isbn,
+            language: data.language,
+            available: data.available,
+            description: data.description,
+            ownerId: data.owner_id,   // admin puo' anche cambiare owner
+          });
+          UI.toast('Volume aggiornato.', 'success');
+          closeModal('book-modal');
+          await renderBooks();
+          await renderKpi();
+          return;
+        } catch (err) {
+          console.debug(`[admin updateBook] fallback legacy: ${err.code || err.message}`);
+        }
+      }
+
+      // Beta 4: create via /api/admin/books (ownerId permesso)
+      if (!id && window.LB_API && window.LB_API_AVAILABLE !== false) {
+        try {
+          await window.LB_API.admin.addBookAs({
+            ownerId: data.owner_id,
+            title: data.title,
+            author: data.author,
+            year: data.year,
+            isbn: data.isbn === '—' ? null : data.isbn,
+            language: data.language,
+            available: data.available,
+            description: data.description,
+          });
+          UI.toast('Volume creato.', 'success');
+          closeModal('book-modal');
+          await renderBooks();
+          await renderKpi();
+          return;
+        } catch (err) {
+          console.debug(`[admin addBook] fallback legacy: ${err.code || err.message}`);
+        }
+      }
+
+      // Fallback legacy (edit + fallback create)
       let r;
       if (id) {
         r = API.updateBook(+id, data);
@@ -646,7 +985,7 @@
       if (r.ok) {
         UI.toast(id ? 'Volume aggiornato.' : 'Volume creato.', 'success');
         closeModal('book-modal');
-        renderBooks(); renderKpi();
+        await renderBooks(); await renderKpi();
       } else {
         UI.toast('Errore: ' + r.reason, 'error');
       }
@@ -690,6 +1029,161 @@
           location.href = 'login.html';
         }
       );
+    });
+
+    // ============= AUDIT LOG (Beta 6: backend /api/admin/audit-log) =============
+    // Formatta il payload JSON in stringa breve per la cella tabella.
+    function fmtPayload(p) {
+      if (!p || Object.keys(p).length === 0) return '<em>—</em>';
+      const parts = [];
+      for (const [k, v] of Object.entries(p)) {
+        if (v === null || v === undefined) continue;
+        const val = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        const truncated = val.length > 30 ? val.slice(0, 30) + '…' : val;
+        parts.push(`<code>${k}=${truncated}</code>`);
+      }
+      return parts.join(' ');
+    }
+
+    async function renderAuditLog() {
+      const tbody = document.getElementById('audit-tbody');
+      const pagination = document.getElementById('audit-pagination');
+      const adminFilter = document.getElementById('audit-filter-admin').value.trim();
+      const actionFilter = document.getElementById('audit-filter-action').value;
+
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: var(--sp-4); color: var(--color-ink-soft);"><em>Caricamento log...</em></td></tr>`;
+
+      if (!window.LB_API || window.LB_API_AVAILABLE === false) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: var(--sp-4); text-align: center; color: var(--color-ink-soft);"><em>Backend non raggiungibile: il log admin è disponibile solo online.</em></td></tr>`;
+        pagination.textContent = '';
+        return;
+      }
+
+      try {
+        const res = await window.LB_API.admin.auditLog({
+          adminId: adminFilter || undefined,
+          action: actionFilter || undefined,
+          limit: 200,
+        });
+        if (res.data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" style="padding: var(--sp-4); text-align: center; color: var(--color-ink-soft);"><em>Nessuna voce nel log.</em></td></tr>`;
+          pagination.textContent = 'Totale: 0';
+          return;
+        }
+        tbody.innerHTML = res.data.map((row) => {
+          const when = new Date(row.createdAt).toLocaleString('it-IT');
+          const adminName = row.admin.displayName || row.admin.username || row.admin.id || '—';
+          const targetLabel = row.targetType && row.targetId
+            ? `<code>${row.targetType}:${row.targetId}</code>`
+            : '<em>—</em>';
+          const ip = row.ipAddress ? `<code>${row.ipAddress}</code>` : '—';
+          return `<tr>
+            <td>${when}</td>
+            <td><strong>${adminName}</strong><br><small style="color: var(--color-ink-soft);">${row.admin.id}</small></td>
+            <td><code>${row.action}</code></td>
+            <td>${targetLabel}</td>
+            <td style="max-width: 220px; overflow: hidden; text-overflow: ellipsis;">${fmtPayload(row.payload)}</td>
+            <td>${ip}</td>
+          </tr>`;
+        }).join('');
+        pagination.textContent = `Mostrati ${res.data.length} di ${res.pagination.total}`;
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding: var(--sp-4); color: var(--color-danger);">Errore caricamento log: ${err.message || err.code}</td></tr>`;
+        pagination.textContent = '';
+      }
+    }
+
+    // Carica il log SOLO quando il tab viene aperto (lazy loading)
+    let auditLoaded = false;
+    document.querySelectorAll('.admin-tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.pane === 'auditlog' && !auditLoaded) {
+          auditLoaded = true;
+          renderAuditLog();
+        }
+      });
+    });
+    document.getElementById('audit-refresh-btn').addEventListener('click', renderAuditLog);
+    document.getElementById('audit-filter-admin').addEventListener('change', renderAuditLog);
+    document.getElementById('audit-filter-action').addEventListener('change', renderAuditLog);
+
+    // ============= BACKGROUND JOBS (Beta 7: /api/admin/jobs) =============
+    // Mostra lo stato delle queue (waiting/active/completed/failed) e permette
+    // di triggerare manualmente un job.
+    async function renderJobsStatus() {
+      const container = document.getElementById('jobs-status');
+      if (!window.LB_API || window.LB_API_AVAILABLE === false) {
+        container.innerHTML = `<p style="color: var(--color-ink-soft); padding: var(--sp-3);">
+          <em>Backend non raggiungibile.</em>
+        </p>`;
+        return;
+      }
+      container.innerHTML = `<p style="color: var(--color-ink-soft); padding: var(--sp-3);"><em>Caricamento...</em></p>`;
+      try {
+        const res = await window.LB_API.admin.jobsStatus();
+        if (!res.enabled) {
+          container.innerHTML = `<div class="alert alert--info">
+            <strong>Background jobs disabilitati.</strong><br>
+            Attiva con <code>JOBS_ENABLED=true</code> nel .env del backend. ${res.error || ''}
+          </div>`;
+          return;
+        }
+        const queueDescriptions = {
+          'overdue-loans': 'Controlla i prestiti in ritardo e invia solleciti (email + notifica in-app). Schedule: ogni ora.',
+          'retention': 'Cancella righe di audit log oltre soglia retention (default 12 mesi). Schedule: ogni notte alle 3:00 UTC.',
+          'upcoming-deadline': 'Reminder gentile pre-scadenza per i prestiti che rientrano nei prossimi 3 giorni. Schedule: ogni mattina alle 9:00 UTC.',
+        };
+        container.innerHTML = Object.entries(res.queues).map(([name, data]) => {
+          const c = data.counts;
+          return `<div style="border: 1px solid var(--color-line, #e5e0d8); border-radius: 4px; padding: var(--sp-3); margin-bottom: var(--sp-3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-2);">
+              <div>
+                <strong style="font-size: 1.05em;">${name}</strong>
+                <div style="color: var(--color-ink-soft); font-size: .88em; margin-top: 4px;">${queueDescriptions[name] || ''}</div>
+              </div>
+              <button type="button" class="btn btn--ghost btn--small" data-run-job="${name}">
+                Esegui ora
+              </button>
+            </div>
+            <div style="display: flex; gap: var(--sp-4); font-size: .9em; margin-top: var(--sp-2);">
+              <span title="In attesa"><strong>${c.waiting || 0}</strong> waiting</span>
+              <span title="In esecuzione" style="color: var(--color-accent, #a4293c);"><strong>${c.active || 0}</strong> active</span>
+              <span title="Completati"><strong>${c.completed || 0}</strong> completed</span>
+              <span title="Falliti" style="${c.failed > 0 ? 'color: var(--color-danger, #a4293c);' : ''}"><strong>${c.failed || 0}</strong> failed</span>
+              <span title="Delayed"><strong>${c.delayed || 0}</strong> delayed</span>
+            </div>
+          </div>`;
+        }).join('');
+      } catch (err) {
+        container.innerHTML = `<div class="alert alert--error">Errore: ${err.message || err.code}</div>`;
+      }
+    }
+
+    // Handler click "Esegui ora"
+    document.getElementById('jobs-status').addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-run-job]');
+      if (!btn) return;
+      const queueName = btn.dataset.runJob;
+      if (!confirm(`Eseguire manualmente il job "${queueName}"? Verrà aggiunto in coda.`)) return;
+      try {
+        const res = await window.LB_API.admin.runJob(queueName);
+        UI.toast(`Job "${queueName}" avviato (id: ${res.jobId}).`, 'info');
+        setTimeout(renderJobsStatus, 1500);
+      } catch (err) {
+        UI.toast('Errore: ' + (err.message || err.code), 'error');
+      }
+    });
+
+    // Refresh manuale
+    document.getElementById('jobs-refresh-btn').addEventListener('click', renderJobsStatus);
+
+    // Lazy load: il stato jobs si carica solo quando l'admin apre il tab Sistema
+    document.querySelectorAll('.admin-tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.pane === 'system') {
+          renderJobsStatus();
+        }
+      });
     });
   });
   </script>
