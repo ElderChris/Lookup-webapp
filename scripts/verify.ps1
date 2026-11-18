@@ -274,6 +274,9 @@ Invoke-Step 'Versioni nei container' $false {
     $redis = (Invoke-Native 'docker exec lookup-redis redis-server --version').Output
     $node  = (Invoke-Native 'docker exec lookup-api node -v').Output
     $nginx = (Invoke-Native 'docker exec lookup-web nginx -v').Output
+    # 't' se la collation registrata nel database non corrisponde a quella
+    # del sistema operativo dell'immagine (succede cambiando immagine)
+    $coll  = (Invoke-Native "echo SELECT datcollversion IS DISTINCT FROM pg_database_collation_actual_version(oid) FROM pg_database WHERE datname='lookup'; | docker exec -i lookup-postgres psql -U lookup -d lookup -tA").Output.Trim()
 
     $gisVer = '?'
     if ($gis -match 'POSTGIS="([0-9.]+)') { $gisVer = $Matches[1] }
@@ -287,8 +290,12 @@ Invoke-Step 'Versioni nei container' $false {
     $issues = @()
     if ($node -notmatch '^v26\.')        { $issues += 'node atteso 26.x' }
     if ($nginxVer -notmatch '^1\.30\.')  { $issues += 'nginx atteso 1.30.x' }
-    if ($pgVer -notmatch '^16\.')        { $issues += 'postgres atteso 16.x' }
+    if ($pgVer -match '^16\.(\d+)') {
+        if ([int]$Matches[1] -lt 16)     { $issues += 'postgres atteso 16.16 o superiore' }
+    } else                               { $issues += 'postgres atteso 16.x' }
+    if ($gisVer -notmatch '^3\.7\.')     { $issues += 'postgis atteso 3.7.x' }
     if ($gis -match 'need upgrade')      { $issues += 'postgis segnala need upgrade: eseguire ALTER EXTENSION postgis UPDATE' }
+    if ($coll -eq 't')                   { $issues += 'collation del database da aggiornare: REINDEX DATABASE lookup e ALTER DATABASE lookup REFRESH COLLATION VERSION' }
     if ($issues.Count -gt 0) { return @{ Status = 'WARN'; Detail = "$detail - " + ($issues -join '; ') } }
     return @{ Status = 'PASS'; Detail = $detail }
 }

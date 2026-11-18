@@ -50,15 +50,20 @@ services:
     restart: unless-stopped
 
   # ==========================================================================
-  # DATABASE — PostgreSQL 16 + PostGIS 3.4
+  # DATABASE — PostgreSQL 16 + PostGIS 3.7
   # ==========================================================================
   # Volume nominato persistente (`postgres-data`). Per reset completo del DB:
   #   docker compose down -v
   # L'init script in infra/postgres/init.sql viene eseguito UNA SOLA VOLTA al
   # primo avvio (quando il volume è vuoto). Abilita postgis, pg_trgm, citext.
-  # Le tabelle vere arrivano via Prisma migration in Fase 1b.
+  # Le tabelle arrivano dalle migrazioni Prisma (npm run db:migrate:deploy).
+  #
+  # Aggiornare l'immagine su un volume esistente NON aggiorna l'estensione
+  # PostGIS registrata nel database (serve ALTER EXTENSION postgis UPDATE) e,
+  # se cambia la versione di Debian dell'immagine, richiede REINDEX degli
+  # indici di testo. Con soli dati di prova: docker compose down -v.
   postgres:
-    image: postgis/postgis:16-3.4
+    image: postgis/postgis:16-3.7
     container_name: lookup-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-lookup}
