@@ -170,7 +170,7 @@
       }
     },
     {
-      "title": "Node event loop lag (max)",
+      "title": "Node event loop lag (p99)",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
@@ -184,8 +184,8 @@
       },
       "targets": [
         {
-          "expr": "lookup_nodejs_eventloop_lag_seconds{quantile=\"1\"}",
-          "legendFormat": "max",
+          "expr": "lookup_nodejs_eventloop_lag_p99_seconds{job=\"lookup-api\"}",
+          "legendFormat": "p99",
           "refId": "A"
         }
       ],
@@ -223,7 +223,7 @@
       },
       "targets": [
         {
-          "expr": "process_resident_memory_bytes{service=\"lookup-api\"}",
+          "expr": "lookup_process_resident_memory_bytes{job=\"lookup-api\"}",
           "legendFormat": "RSS",
           "refId": "A"
         }
@@ -262,7 +262,7 @@
       },
       "targets": [
         {
-          "expr": "rate(process_cpu_seconds_total{service=\"lookup-api\"}[1m])",
+          "expr": "rate(lookup_process_cpu_seconds_total{job=\"lookup-api\"}[1m])",
           "legendFormat": "CPU",
           "refId": "A"
         }
