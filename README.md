@@ -13,7 +13,7 @@ verificarne il funzionamento.
 | Software | Versione | Note |
 |---|---|---|
 | [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows, macOS) oppure Docker Engine (Linux) | Compose v2 | Deve essere **avviato** prima dei comandi qui sotto |
-| [Node.js](https://nodejs.org/) | 24 o superiore | Include `npm` |
+| [Node.js](https://nodejs.org/) | 26 o superiore | Include `npm` |
 | [Git](https://git-scm.com/) | qualsiasi recente | Per clonare il repository |
 
 Porte che devono essere libere: `8080` (applicazione), `3000` (API),
