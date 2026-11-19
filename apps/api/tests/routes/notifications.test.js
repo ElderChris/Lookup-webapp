@@ -6,17 +6,24 @@ import { describe, it, expect, afterAll, beforeEach } from 'vitest';
 import { buildTestApp, authHeaders, createTestPrisma, SEED } from '../helpers.mjs';
 
 const prisma = createTestPrisma();
-afterAll(async () => {
-  await prisma.$disconnect();
-});
 
-beforeEach(async () => {
+async function cleanup() {
   await prisma.notification.deleteMany();
   await prisma.postReaction.deleteMany();
   await prisma.post.deleteMany();
   await prisma.review.deleteMany();
   await prisma.follow.deleteMany();
+}
+
+// Pulizia anche alla fine: altrimenti i follow creati qui restano nel DB e
+// i test di altri file (es. isFollowing in users.test.js) dipendono
+// dall'ordine di esecuzione.
+afterAll(async () => {
+  await cleanup();
+  await prisma.$disconnect();
 });
+
+beforeEach(cleanup);
 
 describe('Emissione cross-cutting da altri endpoint', () => {
   it('POST /api/users/:id/follow genera notifica new_follower al followed', async () => {
