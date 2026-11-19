@@ -8,7 +8,8 @@
 #
 # Uso (dalla root del progetto):
 #   .\scripts\verify.ps1                      tutto
-#   .\scripts\verify.ps1 -SkipInstall         salta npm ci
+#   .\scripts\verify.ps1 -SkipInstall         salta npm ci (ignorato se package-lock.json
+#                                             e' piu' recente di node_modules)
 #   .\scripts\verify.ps1 -SkipPull -SkipBuild riusa immagini gia' presenti
 #   .\scripts\verify.ps1 -SkipTests           salta Vitest
 #   .\scripts\verify.ps1 -Down                ferma i container alla fine
@@ -221,9 +222,21 @@ Invoke-Step 'Prerequisiti' $false {
 }
 if ($Results[-1].status -eq 'FAIL') { Write-Summary }
 
-Invoke-Step 'npm ci (dal lockfile)' $SkipInstall.IsPresent {
+# -SkipInstall vale solo se node_modules e' allineato al lockfile: npm ci
+# scrive node_modules/.package-lock.json, quindi se package-lock.json e' piu'
+# recente (pull o cambio ramo con dipendenze nuove) l'installazione si rifa'.
+# Senza questo controllo Vitest, che gira sull'host, userebbe pacchetti vecchi.
+$LockFile   = Join-Path $Root 'package-lock.json'
+$HiddenLock = Join-Path $Root 'node_modules\.package-lock.json'
+$StaleDeps  = (-not (Test-Path $HiddenLock)) -or
+              ((Get-Item $LockFile).LastWriteTimeUtc -gt (Get-Item $HiddenLock).LastWriteTimeUtc)
+$ForcedInstall = $SkipInstall.IsPresent -and $StaleDeps
+
+Invoke-Step 'npm ci (dal lockfile)' ($SkipInstall.IsPresent -and -not $StaleDeps) {
+    if ($ForcedInstall) { Say 'package-lock.json piu recente di node_modules: -SkipInstall ignorato' 'Yellow' }
     $r = Invoke-Native 'npm ci --no-audit --no-fund'
     if ($r.Code -ne 0) { return @{ Status = 'FAIL'; Detail = 'npm ci fallito, vedi log' } }
+    if ($ForcedInstall) { return @{ Status = 'WARN'; Detail = 'eseguito nonostante -SkipInstall: node_modules non allineato a package-lock.json' } }
     return @{ Status = 'PASS'; Detail = 'dipendenze installate da package-lock.json' }
 }
 
