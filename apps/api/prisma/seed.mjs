@@ -694,46 +694,15 @@ async function main() {
     `SELECT setval('categories_id_seq', (SELECT COALESCE(MAX(id), 1) FROM categories))`
   );
 
-  // 9. PostGIS: function + trigger + indice GIST + backfill (Fase 1f)
+  // 9. PostGIS: backfill di users.location
   // -----------------------------------------------------------------------
-  // La colonna users.location e' di tipo geography(Point, 4326), aggiunta dallo
-  // schema Prisma (Unsupported). Qui creiamo:
-  //   - una funzione plpgsql che calcola location da lat/lng
-  //   - un trigger BEFORE INSERT OR UPDATE che la chiama
-  //   - un indice GIST per query ST_DWithin/ST_Distance veloci
-  //   - un backfill per gli utenti gia' inseriti
-  // Tutto idempotente: rieseguibile in sicurezza.
-  console.log('🌍 Setup PostGIS (function + trigger + indice GIST + backfill)...');
+  // Funzione, trigger e indice GIST sono nella migrazione
+  // 20261120090000_postgis_users_location (fino al 20 nov 2026 li creava
+  // questo seed, quindi un database con le sole migrazioni ne era privo).
+  // Il trigger calcola location a ogni INSERT, ma il backfill resta come
+  // garanzia: e' idempotente e non costa nulla.
+  console.log('🌍 PostGIS: backfill location utenti...');
 
-  await prisma.$executeRawUnsafe(`
-    CREATE OR REPLACE FUNCTION sync_user_location_from_latlng()
-    RETURNS TRIGGER AS $$
-    BEGIN
-      IF NEW.lat IS NOT NULL AND NEW.lng IS NOT NULL THEN
-        NEW.location := ST_SetSRID(ST_MakePoint(NEW.lng, NEW.lat), 4326)::geography;
-      ELSE
-        NEW.location := NULL;
-      END IF;
-      RETURN NEW;
-    END;
-    $$ LANGUAGE plpgsql;
-  `);
-
-  await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS sync_user_location_trigger ON users`);
-  await prisma.$executeRawUnsafe(`
-    CREATE TRIGGER sync_user_location_trigger
-    BEFORE INSERT OR UPDATE OF lat, lng ON users
-    FOR EACH ROW EXECUTE FUNCTION sync_user_location_from_latlng()
-  `);
-
-  await prisma.$executeRawUnsafe(`
-    CREATE INDEX IF NOT EXISTS users_location_gist ON users USING GIST (location)
-  `);
-
-  // Backfill: il trigger non e' stato attivato per gli INSERT del seed
-  // (quei record erano gia' presenti o sono stati inseriti prima della creazione
-  // del trigger). Calcoliamo location direttamente per tutti gli utenti che
-  // hanno lat/lng.
   const backfilled = await prisma.$executeRawUnsafe(`
     UPDATE users
     SET location = ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography
