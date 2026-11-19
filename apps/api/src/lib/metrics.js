@@ -24,7 +24,7 @@
 //   `_bytes` per dimensioni
 // =============================================================================
 
-import { Registry, collectDefaultMetrics, Histogram, Counter, Gauge } from 'prom-client';
+import { Registry, collectDefaultMetrics, Histogram, Counter, Gauge } from '@prometheus-io/client';
 
 /**
  * Registry unico dell'app. Tutte le metriche si registrano qui.

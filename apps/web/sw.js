@@ -25,7 +25,7 @@
  * =============================================================================
  */
 
-const CACHE_VERSION = 'lookup-v2'; // v2: CSS del pulsante Registrati/Accedi
+const CACHE_VERSION = 'lookup-v3'; // v3: auth.js (reset password)
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;

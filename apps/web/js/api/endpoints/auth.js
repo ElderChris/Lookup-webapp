@@ -82,7 +82,7 @@ async function authFetch(path, opts = {}) {
 
 /**
  * Registra un nuovo utente con email/password. Setta cookie session
- * (`autoSignIn: true` in config Better Auth) e invia email verify a MailHog.
+ * (`autoSignIn: true` in config Better Auth) e invia email verify a Mailpit.
  *
  * @param {object} params
  * @param {string} params.email
@@ -162,7 +162,7 @@ export async function getSession() {
  * @returns {Promise<{ status: boolean }>}
  */
 export function forgetPassword(params) {
-  return authFetch('/forget-password', { body: params });
+  return authFetch('/request-password-reset', { body: params }); // Better Auth >= 1.4
 }
 
 /**
