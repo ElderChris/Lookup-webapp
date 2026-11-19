@@ -86,6 +86,9 @@ export function attachQueueEvents(logger) {
 // con l'opzione `repeat`), API rimossa in BullMQ 6, che si rifiuta di partire
 // se in Redis trova ancora le vecchie definizioni. Ora sono Job Scheduler
 // (`upsertJobScheduler`, idempotente: un id fisso per ogni job).
+// Le vecchie definizioni in Redis le ha rimosse all'avvio la versione
+// precedente di questo file (ancora su BullMQ 5): un'installazione deve
+// averla avviata almeno una volta prima di passare a BullMQ 6.
 
 const SCHEDULES = [
   {
@@ -112,27 +115,10 @@ const SCHEDULES = [
 ];
 
 /**
- * Rimuove da Redis le pianificazioni che non sono i nostri scheduler: in
- * pratica i "repeatable" creati dalle versioni precedenti (chiave = hash
- * MD5). Ogni coda ha un solo job ricorrente, quindi qualunque altra
- * pianificazione e' un residuo. Serve una sola volta per installazione,
- * prima del passaggio a BullMQ 6; e' innocua quando non c'e' nulla da
- * rimuovere.
- */
-async function removeLegacyRepeatables(queue, keepId, logger) {
-  for (const job of await queue.getRepeatableJobs()) {
-    if (job.key === keepId) continue;
-    await queue.removeRepeatableByKey(job.key);
-    logger.info({ queue: queue.name, key: job.key }, '[jobs] pianificazione legacy rimossa');
-  }
-}
-
-/**
  * Registra i job ricorrenti. Idempotente: si chiama a ogni avvio.
  */
 export async function registerRecurringJobs(logger) {
   for (const { queue, id, pattern, opts } of SCHEDULES) {
-    await removeLegacyRepeatables(queue, id, logger);
     await queue.upsertJobScheduler(id, { pattern, tz: 'UTC' }, { name: id, data: {}, opts });
     logger.info({ queue: queue.name, schedule: pattern }, '[jobs] scheduler registrato');
   }
