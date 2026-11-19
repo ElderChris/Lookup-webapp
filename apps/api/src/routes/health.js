@@ -13,6 +13,8 @@
 // Usato da: Docker healthcheck, load balancer, monitoring esterno.
 // =============================================================================
 
+import { API_VERSION } from '../version.js';
+
 export default async function healthRoutes(fastify) {
   fastify.get('/api/health', async (request, reply) => {
     const checks = {
@@ -46,7 +48,7 @@ export default async function healthRoutes(fastify) {
       ...checks,
       timestamp: new Date().toISOString(),
       uptime: Math.floor(process.uptime()),
-      version: '3.0.0-beta.10',
+      version: API_VERSION,
     });
   });
 
