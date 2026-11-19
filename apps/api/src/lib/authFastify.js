@@ -3,7 +3,7 @@
 // =============================================================================
 // Better Auth espone un unico handler `auth.handler(request: Request)`
 // che gestisce tutte le route /api/auth/* (sign-up, sign-in, sign-out,
-// forget-password, reset-password, verify-email, get-session, ecc.).
+// request-password-reset, reset-password, verify-email, get-session, ecc.).
 //
 // Il handler accetta e ritorna oggetti Web API standard (Request/Response).
 // Questo plugin fa il bridge Fastify ↔ Web API:

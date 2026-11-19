@@ -6,11 +6,11 @@
 // modulo indipendente perche' i job BullMQ (overdue loans reminder, ecc.)
 // hanno bisogno di inviare email fuori dal contesto Better Auth.
 //
-// In dev: SMTP verso MailHog (http://localhost:8025 UI).
+// In dev: SMTP verso Mailpit (http://localhost:8025 UI).
 // In prod: SMTP reale (Resend, SES, Postmark, ecc.) via env var.
 //
 // Fail-safe: se SMTP giu', log warning + procedi. Non vogliamo che un job
-// di reminder fallisca perche' MailHog e' spento in dev.
+// di reminder fallisca perche' Mailpit e' spento in dev.
 // =============================================================================
 
 import nodemailer from 'nodemailer';
@@ -19,7 +19,7 @@ export const smtpTransport = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'localhost',
   port: Number(process.env.SMTP_PORT || 1025),
   secure: false,
-  ignoreTLS: true, // MailHog non ha TLS
+  ignoreTLS: true, // Mailpit non ha TLS
   auth: process.env.SMTP_USER
     ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
     : undefined,

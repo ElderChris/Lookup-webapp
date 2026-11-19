@@ -72,10 +72,10 @@ Il primo comando crea le tabelle, il secondo carica i dati di prova
 | Applicazione | http://localhost:8080 |
 | API — stato dei servizi | http://localhost:3000/api/health |
 | API — documentazione interattiva | http://localhost:3000/api/docs |
-| Email di prova (MailHog) | http://localhost:8025 |
+| Email di prova (Mailpit) | http://localhost:8025 |
 
 Tutte le email inviate dall'applicazione (conferma registrazione, recupero
-password, notifiche) non escono dal computer: si leggono in MailHog.
+password, notifiche) non escono dal computer: si leggono in Mailpit.
 
 ---
 

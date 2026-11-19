@@ -8,11 +8,13 @@
 #
 # Uso (dalla root del progetto):
 #   .\scripts\verify.ps1                      tutto
-#   .\scripts\verify.ps1 -SkipInstall         salta npm ci
+#   .\scripts\verify.ps1 -SkipInstall         salta npm ci (ignorato se package-lock.json
+#                                             e' piu' recente di node_modules)
 #   .\scripts\verify.ps1 -SkipPull -SkipBuild riusa immagini gia' presenti
 #   .\scripts\verify.ps1 -SkipTests           salta Vitest
 #   .\scripts\verify.ps1 -Down                ferma i container alla fine
 #   .\scripts\verify.ps1 -Reseed              ricarica i dati di prova (AZZERA il DB)
+#   .\scripts\verify.ps1 -Monitoring          verifica anche Prometheus e Grafana
 #
 # Output (cartella logs/, ignorata da git):
 #   logs/verify-<timestamp>.log   log completo: ogni comando e il suo output
@@ -36,9 +38,15 @@ param(
     [switch]$SkipSmoke,
     [switch]$Down,
     [switch]$Reseed,
+    [switch]$Monitoring,
     [int]$HealthTimeoutSec = 180,
     [string]$ApiUrl = 'http://localhost:3000',
     [string]$WebUrl = 'http://localhost:8080',
+    [string]$MailUrl = 'http://localhost:8025',
+    [string]$PrometheusUrl = 'http://localhost:9090',
+    [string]$GrafanaUrl = 'http://localhost:3001',
+    [string]$GrafanaUser = 'admin',
+    [string]$GrafanaPassword = 'admin',
     [string]$SeedEmail = 'c.morandi@mail.it',
     [string]$SeedPassword = 'Lookup2026!'
 )
@@ -214,16 +222,28 @@ Invoke-Step 'Prerequisiti' $false {
 }
 if ($Results[-1].status -eq 'FAIL') { Write-Summary }
 
-Invoke-Step 'npm ci (dal lockfile)' $SkipInstall.IsPresent {
+# -SkipInstall vale solo se node_modules e' allineato al lockfile: npm ci
+# scrive node_modules/.package-lock.json, quindi se package-lock.json e' piu'
+# recente (pull o cambio ramo con dipendenze nuove) l'installazione si rifa'.
+# Senza questo controllo Vitest, che gira sull'host, userebbe pacchetti vecchi.
+$LockFile   = Join-Path $Root 'package-lock.json'
+$HiddenLock = Join-Path $Root 'node_modules\.package-lock.json'
+$StaleDeps  = (-not (Test-Path $HiddenLock)) -or
+              ((Get-Item $LockFile).LastWriteTimeUtc -gt (Get-Item $HiddenLock).LastWriteTimeUtc)
+$ForcedInstall = $SkipInstall.IsPresent -and $StaleDeps
+
+Invoke-Step 'npm ci (dal lockfile)' ($SkipInstall.IsPresent -and -not $StaleDeps) {
+    if ($ForcedInstall) { Say 'package-lock.json piu recente di node_modules: -SkipInstall ignorato' 'Yellow' }
     $r = Invoke-Native 'npm ci --no-audit --no-fund'
     if ($r.Code -ne 0) { return @{ Status = 'FAIL'; Detail = 'npm ci fallito, vedi log' } }
+    if ($ForcedInstall) { return @{ Status = 'WARN'; Detail = 'eseguito nonostante -SkipInstall: node_modules non allineato a package-lock.json' } }
     return @{ Status = 'PASS'; Detail = 'dipendenze installate da package-lock.json' }
 }
 
 Invoke-Step 'Pull immagini' $SkipPull.IsPresent {
-    $r = Invoke-Native 'docker compose pull web postgres redis mailhog'
+    $r = Invoke-Native 'docker compose pull web postgres redis mailpit'
     if ($r.Code -ne 0) { return @{ Status = 'FAIL'; Detail = 'docker compose pull fallito, vedi log' } }
-    return @{ Status = 'PASS'; Detail = 'web, postgres, redis, mailhog aggiornate' }
+    return @{ Status = 'PASS'; Detail = 'web, postgres, redis, mailpit aggiornate' }
 }
 
 Invoke-Step 'Build immagine API' $SkipBuild.IsPresent {
@@ -235,7 +255,7 @@ Invoke-Step 'Build immagine API' $SkipBuild.IsPresent {
 Invoke-Step 'Avvio container + healthcheck' $false {
     $r = Invoke-Native 'docker compose --profile backend up -d'
     if ($r.Code -ne 0) { return @{ Status = 'FAIL'; Detail = 'docker compose up fallito, vedi log' } }
-    $targets = @('lookup-postgres', 'lookup-redis', 'lookup-web', 'lookup-api')
+    $targets = @('lookup-postgres', 'lookup-redis', 'lookup-mailpit', 'lookup-web', 'lookup-api')
     $left = Wait-Healthy $targets $HealthTimeoutSec
     if ($left.Count -gt 0) {
         [void](Invoke-Native 'docker compose --profile backend ps')
@@ -274,6 +294,9 @@ Invoke-Step 'Versioni nei container' $false {
     $redis = (Invoke-Native 'docker exec lookup-redis redis-server --version').Output
     $node  = (Invoke-Native 'docker exec lookup-api node -v').Output
     $nginx = (Invoke-Native 'docker exec lookup-web nginx -v').Output
+    # 't' se la collation registrata nel database non corrisponde a quella
+    # del sistema operativo dell'immagine (succede cambiando immagine)
+    $coll  = (Invoke-Native "echo SELECT datcollversion IS DISTINCT FROM pg_database_collation_actual_version(oid) FROM pg_database WHERE datname='lookup'; | docker exec -i lookup-postgres psql -U lookup -d lookup -tA").Output.Trim()
 
     $gisVer = '?'
     if ($gis -match 'POSTGIS="([0-9.]+)') { $gisVer = $Matches[1] }
@@ -287,8 +310,13 @@ Invoke-Step 'Versioni nei container' $false {
     $issues = @()
     if ($node -notmatch '^v26\.')        { $issues += 'node atteso 26.x' }
     if ($nginxVer -notmatch '^1\.30\.')  { $issues += 'nginx atteso 1.30.x' }
-    if ($pgVer -notmatch '^16\.')        { $issues += 'postgres atteso 16.x' }
+    if ($redisVer -notmatch '^8\.')       { $issues += 'redis atteso 8.x' }
+    if ($pgVer -match '^16\.(\d+)') {
+        if ([int]$Matches[1] -lt 16)     { $issues += 'postgres atteso 16.16 o superiore' }
+    } else                               { $issues += 'postgres atteso 16.x' }
+    if ($gisVer -notmatch '^3\.7\.')     { $issues += 'postgis atteso 3.7.x' }
     if ($gis -match 'need upgrade')      { $issues += 'postgis segnala need upgrade: eseguire ALTER EXTENSION postgis UPDATE' }
+    if ($coll -eq 't')                   { $issues += 'collation del database da aggiornare: REINDEX DATABASE lookup e ALTER DATABASE lookup REFRESH COLLATION VERSION' }
     if ($issues.Count -gt 0) { return @{ Status = 'WARN'; Detail = "$detail - " + ($issues -join '; ') } }
     return @{ Status = 'PASS'; Detail = $detail }
 }
@@ -369,6 +397,96 @@ Invoke-Step 'Smoke applicativo (login, prestiti, SSE)' $SkipSmoke.IsPresent {
         return @{ Status = 'FAIL'; Detail = $issues -join '; ' }
     }
     return @{ Status = 'PASS'; Detail = "login e sessione via frontend ($SeedEmail), users/me, prestiti inviati/ricevuti, stream SSE via frontend" }
+}
+
+# Email: richiesta di reset password dal frontend, poi controllo in Mailpit
+# che il messaggio sia arrivato (SMTP dal container API a Mailpit).
+Invoke-Step 'Email (reset password -> Mailpit)' $SkipSmoke.IsPresent {
+    $before = Invoke-Http "$MailUrl/api/v1/messages?limit=1"
+    if ($before.Code -ne 200) { return @{ Status = 'FAIL'; Detail = "Mailpit non risponde su $MailUrl ($($before.Code))" } }
+    $total0 = ($before.Body | ConvertFrom-Json).total
+    $body = @{ email = $SeedEmail; redirectTo = "$WebUrl/reset-password.html" } | ConvertTo-Json
+    Write-Log ">>> POST $WebUrl/api/auth/request-password-reset ($SeedEmail)"
+    try {
+        $r = Invoke-WebRequest -Uri "$WebUrl/api/auth/request-password-reset" -Method Post -Body $body `
+            -ContentType 'application/json' -Headers @{ Origin = $WebUrl } -UseBasicParsing -TimeoutSec 15
+        Write-Log "<<< $([int]$r.StatusCode)"
+    } catch {
+        $code = 0
+        if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
+        Write-Log "<<< $code $($_.Exception.Message)"
+        [void](Invoke-Native 'docker logs --tail 40 lookup-api')
+        return @{ Status = 'FAIL'; Detail = "request-password-reset $code" }
+    }
+    # L'invio e' asincrono: si attende fino a 10 secondi
+    for ($i = 0; $i -lt 20; $i++) {
+        Start-Sleep -Milliseconds 500
+        $after = Invoke-Http "$MailUrl/api/v1/messages?limit=1"
+        if ($after.Code -eq 200) {
+            $j = $after.Body | ConvertFrom-Json
+            if ($j.total -gt $total0 -and $after.Body -match [regex]::Escape($SeedEmail)) {
+                return @{ Status = 'PASS'; Detail = "email di reset per $SeedEmail arrivata in Mailpit" }
+            }
+        }
+    }
+    [void](Invoke-Native 'docker logs --tail 40 lookup-api')
+    return @{ Status = 'FAIL'; Detail = 'nessuna email arrivata in Mailpit entro 10 s' }
+}
+
+# Monitoraggio (solo con -Monitoring): Prometheus raccoglie le metriche
+# dell'API, Grafana e' raggiungibile, datasource e dashboard caricati.
+Invoke-Step 'Monitoraggio (Prometheus + Grafana)' (-not $Monitoring.IsPresent) {
+    $r = Invoke-Native 'docker compose --profile backend --profile monitoring up -d prometheus grafana'
+    if ($r.Code -ne 0) { return @{ Status = 'FAIL'; Detail = 'avvio di prometheus/grafana fallito, vedi log' } }
+    $issues = @()
+
+    # Prometheus: target lookup-api 'up' (attesa fino a 60 s: scrape ogni 15 s)
+    $up = $false
+    for ($i = 0; $i -lt 30 -and -not $up; $i++) {
+        $t = Invoke-Http "$PrometheusUrl/api/v1/targets"
+        if ($t.Code -eq 200) {
+            $api = ($t.Body | ConvertFrom-Json).data.activeTargets | Where-Object { $_.labels.job -eq 'lookup-api' }
+            if ($api -and $api.health -eq 'up') { $up = $true; break }
+        }
+        Start-Sleep -Seconds 2
+    }
+    if (-not $up) { $issues += 'prometheus: target lookup-api non up' }
+    $pv = '?'
+    $b = Invoke-Http "$PrometheusUrl/api/v1/status/buildinfo"
+    if ($b.Code -eq 200) { $pv = ($b.Body | ConvertFrom-Json).data.version }
+
+    # Grafana: salute, datasource e dashboard (autenticazione di base)
+    $gv = '?'
+    $h = $null
+    for ($i = 0; $i -lt 30; $i++) {
+        $h = Invoke-Http "$GrafanaUrl/api/health"
+        if ($h.Code -eq 200) { break }
+        Start-Sleep -Seconds 2
+    }
+    if ($h.Code -ne 200) {
+        $issues += "grafana /api/health $($h.Code)"
+    } else {
+        $gv = ($h.Body | ConvertFrom-Json).version
+        $pair = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($GrafanaUser):$($GrafanaPassword)"))
+        $hdr = @{ Authorization = "Basic $pair" }
+        try {
+            $ds = Invoke-WebRequest -Uri "$GrafanaUrl/api/datasources/uid/prometheus/health" -Headers $hdr -UseBasicParsing -TimeoutSec 15
+            Write-Log "<<< datasource $([int]$ds.StatusCode) $($ds.Content)"
+            if ($ds.Content -notmatch '"status":"OK"') { $issues += 'grafana: datasource prometheus non OK' }
+        } catch { $issues += 'grafana: datasource prometheus non trovato o non OK' }
+        try {
+            $se = Invoke-WebRequest -Uri "$GrafanaUrl/api/search?type=dash-db" -Headers $hdr -UseBasicParsing -TimeoutSec 15
+            $uids = @(($se.Content | ConvertFrom-Json) | ForEach-Object { $_.uid })
+            Write-Log "<<< dashboard: $($uids -join ', ')"
+            foreach ($u in @('lookup-overview', 'lookup-business', 'lookup-jobs-sse')) {
+                if ($uids -notcontains $u) { $issues += "grafana: dashboard $u mancante" }
+            }
+        } catch { $issues += 'grafana: ricerca dashboard fallita' }
+    }
+
+    $detail = "prometheus $pv, grafana $gv"
+    if ($issues.Count -gt 0) { return @{ Status = 'FAIL'; Detail = "$detail - " + ($issues -join '; ') } }
+    return @{ Status = 'PASS'; Detail = "$detail, target lookup-api up, datasource OK, 3 dashboard caricati" }
 }
 
 Invoke-Step 'Test suite Vitest' $SkipTests.IsPresent {

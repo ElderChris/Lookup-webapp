@@ -1,9 +1,9 @@
 # =============================================================================
 # docker-compose.yml — Lookup
 # =============================================================================
-# Fase 1a: web (nginx) + postgres (postgis) + redis attivi.
-# Fase 1c+: anche api (Fastify backend) — oggi commentato.
-# Fase 3+:  anche mailhog (cattura email transactional) — oggi commentato.
+# Servizi sempre attivi: web (nginx), postgres (PostGIS), redis, mailpit.
+# Profili opzionali: backend (api), monitoring (prometheus, grafana),
+# admin (pgadmin).
 #
 # Uso:
 #   docker compose up              avvia tutto in foreground
@@ -50,15 +50,20 @@ services:
     restart: unless-stopped
 
   # ==========================================================================
-  # DATABASE — PostgreSQL 16 + PostGIS 3.4
+  # DATABASE — PostgreSQL 16 + PostGIS 3.7
   # ==========================================================================
   # Volume nominato persistente (`postgres-data`). Per reset completo del DB:
   #   docker compose down -v
   # L'init script in infra/postgres/init.sql viene eseguito UNA SOLA VOLTA al
   # primo avvio (quando il volume è vuoto). Abilita postgis, pg_trgm, citext.
-  # Le tabelle vere arrivano via Prisma migration in Fase 1b.
+  # Le tabelle arrivano dalle migrazioni Prisma (npm run db:migrate:deploy).
+  #
+  # Aggiornare l'immagine su un volume esistente NON aggiorna l'estensione
+  # PostGIS registrata nel database (serve ALTER EXTENSION postgis UPDATE) e,
+  # se cambia la versione di Debian dell'immagine, richiede REINDEX degli
+  # indici di testo. Con soli dati di prova: docker compose down -v.
   postgres:
-    image: postgis/postgis:16-3.4
+    image: postgis/postgis:16-3.7
     container_name: lookup-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-lookup}
@@ -78,12 +83,12 @@ services:
     restart: unless-stopped
 
   # ==========================================================================
-  # CACHE / SESSION — Redis 7
+  # CACHE / SESSION — Redis 8
   # ==========================================================================
   # Usato in Fase 1c+ per: session store (lucia-auth), rate limiting,
   # future queue (BullMQ). Per ora gira "in attesa", consuma ~10MB RAM.
   redis:
-    image: redis:7-alpine
+    image: redis:8.10-alpine
     container_name: lookup-redis
     ports:
       - "${REDIS_PORT:-6379}:6379"
@@ -98,18 +103,18 @@ services:
     restart: unless-stopped
 
   # ==========================================================================
-  # MailHog (Fase 3.1) — cattura email transactional in dev
+  # Mailpit — cattura le email inviate dall'applicazione (ambiente di prova)
   # ==========================================================================
   # UI: http://localhost:8025 — legge tutte le email inviate dal backend
-  # (verify email, reset password, ecc.). Zero configurazione, zero
-  # autenticazione: fatto apposta per essere semplice in dev.
+  # (verifica email, reset password, ecc.). Nessuna email esce dal computer.
+  # Sostituisce MailHog (non piu' mantenuto): stesse porte, stesso uso.
   # In produzione: sostituire con Resend/SES/SMTP2GO reali (config via env).
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: lookup-mailhog
+  mailpit:
+    image: axllent/mailpit:v1.34.0
+    container_name: lookup-mailpit
     ports:
-      - "${MAILHOG_SMTP_PORT:-1025}:1025"     # SMTP (il backend invia qui)
-      - "${MAILHOG_WEB_PORT:-8025}:8025"      # UI web per leggere
+      - "${MAIL_SMTP_PORT:-1025}:1025"     # SMTP (il backend invia qui)
+      - "${MAIL_WEB_PORT:-8025}:8025"      # UI web per leggere
     restart: unless-stopped
 
   # ==========================================================================
@@ -138,6 +143,8 @@ services:
       API_PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-lookup}:${POSTGRES_PASSWORD:-lookup_dev}@postgres:5432/${POSTGRES_DB:-lookup}?schema=public
       REDIS_URL: redis://redis:6379
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
       LOG_LEVEL: ${LOG_LEVEL:-info}
       CORS_ORIGINS: http://localhost:${WEB_PORT:-8080},http://localhost:8765
     ports:
@@ -178,7 +185,7 @@ services:
   # storia. UI accessibile su http://localhost:9090 (Explorer PromQL).
   # Profile: monitoring (attiva con: docker compose --profile monitoring up -d)
   prometheus:
-    image: prom/prometheus:v2.55.1
+    image: prom/prometheus:v3.16.0
     container_name: lookup-prometheus
     profiles: [monitoring]
     ports:
@@ -190,8 +197,6 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=30d'
       - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
     restart: unless-stopped
 
   # ==========================================================================
@@ -201,7 +206,7 @@ services:
   # Datasource Prometheus e dashboard sono provisioned automaticamente dai
   # file in docker/monitoring/grafana/.
   grafana:
-    image: grafana/grafana:11.3.0
+    image: grafana/grafana:13.3.1
     container_name: lookup-grafana
     profiles: [monitoring]
     ports:

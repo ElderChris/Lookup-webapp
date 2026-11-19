@@ -14,7 +14,7 @@
 //
 // ADESSO (backend job):
 //   - Check indipendente dall'attivita' utenti
-//   - Email reali (MailHog in dev, SMTP in prod)
+//   - Email reali (Mailpit in dev, SMTP in prod)
 //   - Single execution grazie al lock BullMQ (piu' istanze backend = OK)
 //   - Se il job fallisce (SMTP giu'), BullMQ retry con exponential backoff
 // =============================================================================
@@ -113,7 +113,7 @@ export async function processOverdueLoans(job, logger) {
 }
 
 // -----------------------------------------------------------------------------
-// Template email (in dev arrivano a MailHog; in prod SMTP reale)
+// Template email (in dev arrivano a Mailpit; in prod SMTP reale)
 // -----------------------------------------------------------------------------
 
 function buildBorrowerEmailText(loan, days) {
