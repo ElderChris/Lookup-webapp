@@ -41,3 +41,6 @@ logs/
 docs/
 *.md
 !/README.md
+
+# Prisma Client generato (Prisma 7): rigenerato da `prisma generate`
+apps/api/src/generated/

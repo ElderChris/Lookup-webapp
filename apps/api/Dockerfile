@@ -20,7 +20,7 @@
 # -----------------------------------------------------------------------------
 FROM node:26-alpine AS builder
 
-# openssl: richiesto da Prisma su Alpine
+# openssl: la CLI Prisma lo usa per riconoscere la piattaforma
 RUN apk add --no-cache openssl
 
 WORKDIR /app
@@ -35,10 +35,12 @@ COPY packages/shared/package.json ./packages/shared/
 # lifecycle del monorepo (husky, postinstall): Prisma Client si genera sotto.
 RUN npm ci --workspace=apps/api --ignore-scripts --no-audit --no-fund
 
-# Genera Prisma Client in node_modules/.prisma/client
-# (scarica gli engine Prisma per la piattaforma del container)
+# Genera Prisma Client in apps/api/src/generated/prisma (Prisma 7: niente
+# motore di query nativo, il client usa il driver pg tramite adapter).
+# La CLI legge prisma.config.mjs, quindi si lancia dalla cartella dell'API.
 COPY apps/api/prisma ./apps/api/prisma
-RUN npx prisma generate --schema apps/api/prisma/schema.prisma
+COPY apps/api/prisma.config.mjs ./apps/api/
+RUN cd apps/api && npx prisma generate
 
 # Codice sorgente
 COPY packages/shared/src ./packages/shared/src
@@ -51,8 +53,8 @@ FROM node:26-alpine AS runtime
 
 # wget: healthcheck Docker
 # dumb-init: gestione corretta dei segnali (PID 1)
-# openssl: richiesto da Prisma su Alpine
-RUN apk add --no-cache wget dumb-init openssl
+# (openssl non serve piu': da Prisma 7 il client non ha motori nativi)
+RUN apk add --no-cache wget dumb-init
 
 WORKDIR /app
 
@@ -67,9 +69,8 @@ COPY packages/shared/package.json ./packages/shared/
 RUN npm ci --workspace=apps/api --omit=dev --ignore-scripts --no-audit --no-fund && \
     npm cache clean --force
 
-# Prisma Client generato + codice dallo stage builder
-COPY --from=builder --chown=lookup:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=lookup:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+# Codice dallo stage builder, compreso il Prisma Client generato
+# (apps/api/src/generated/prisma)
 COPY --from=builder --chown=lookup:nodejs /app/packages/shared/src ./packages/shared/src
 COPY --from=builder --chown=lookup:nodejs /app/apps/api/src ./apps/api/src
 COPY --from=builder --chown=lookup:nodejs /app/apps/api/prisma ./apps/api/prisma

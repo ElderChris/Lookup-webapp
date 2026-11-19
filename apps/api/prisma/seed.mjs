@@ -20,10 +20,10 @@
 // Idempotenza: lo script usa upsert dove possibile, e disconnette pulito alla fine.
 // =============================================================================
 
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '../src/lib/prismaClient.js';
 import { hashPassword } from 'better-auth/crypto';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 // =============================================================================
 // FASE 3.3: password comune per tutti i seed users

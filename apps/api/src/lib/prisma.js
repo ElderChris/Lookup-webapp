@@ -6,12 +6,16 @@
 //
 // Esposto al resto dell'app via Fastify decorator `fastify.prisma` (vedi
 // src/app.js). Disconnessione gestita nel hook onClose di Fastify.
+//
+// Unica istanza per tutto il processo: route, Better Auth e job BullMQ la
+// condividono (fino a Prisma 5 ognuno creava la propria, con un pool di
+// connessioni ciascuno).
 // =============================================================================
 
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from './prismaClient.js';
 import { config } from '../config.js';
 
-export const prisma = new PrismaClient({
+export const prisma = createPrismaClient({
   log: config.isDev
     ? [
         { emit: 'event', level: 'query' },
