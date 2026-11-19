@@ -6,7 +6,7 @@
 // Scelte:
 //  - Esecuzione SEQUENZIALE: ogni file usa lo stesso DB lookup_test, eseguire
 //    in parallelo causerebbe race condition. fileParallelism: false e
-//    pool: 'forks' con singleFork garantiscono ordine deterministico.
+//    maxWorkers: 1 garantiscono ordine deterministico.
 //  - globalSetup: applica migrations + seed UNA volta prima di tutti i test
 //    (non ad ogni file). I test che vogliono stato fresh fanno truncate
 //    locale.
@@ -29,9 +29,10 @@ export default defineConfig({
     environment: 'node',
     fileParallelism: false,
     pool: 'forks',
-    poolOptions: {
-      forks: { singleFork: true }, // 1 solo worker: condivide il DB lookup_test
-    },
+    // Un solo worker alla volta: tutti i file condividono il DB lookup_test.
+    // Vitest 4 ha rimosso poolOptions (singleFork); maxWorkers: 1 mantiene
+    // l'esecuzione sequenziale e l'isolamento dei moduli tra un file e l'altro.
+    maxWorkers: 1,
     testTimeout: 15000,
     hookTimeout: 30000, // setup/teardown puo' richiedere migrate+seed
     globalSetup: ['./tests/setup-globals.mjs'],

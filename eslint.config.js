@@ -3,7 +3,8 @@ import js from '@eslint/js';
 import globals from 'globals';
 
 /**
- * Configurazione ESLint 9 (flat config).
+ * Configurazione ESLint 10 (flat config). `@eslint/js` e `globals` sono
+ * dipendenze dirette: da ESLint 10 non arrivano piu' insieme a eslint.
  *
  * Filosofia: niente preset opinionati (no airbnb, no standard). Solo:
  * - `eslint:recommended` per i bug reali

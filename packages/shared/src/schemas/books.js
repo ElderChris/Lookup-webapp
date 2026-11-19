@@ -60,7 +60,7 @@ export const CreateBookBody = z.object({
   language: z.string().max(20).optional(),
   isbn: z.string().max(20).optional(),
   description: z.string().max(2000).optional(),
-  coverUrl: z.string().url().optional(),
+  coverUrl: z.url().optional(),
   categoryIds: z.array(IntId).min(1).max(5),
   tags: z.array(z.string().max(40)).max(10).optional(),
 });
@@ -73,7 +73,7 @@ export const UpdateBookBody = z.object({
   pages: z.number().int().positive().optional(),
   language: z.string().max(20).optional(),
   description: z.string().max(2000).optional(),
-  coverUrl: z.string().url().optional(),
+  coverUrl: z.url().optional(),
   status: BookStatus.optional(),
   available: z.boolean().optional(),
   categoryIds: z.array(IntId).min(1).max(5).optional(),

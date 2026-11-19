@@ -49,7 +49,7 @@ export const UpdateOrgProfileBody = z.object({
   orgCategory: OrgCategory.optional(),
   contactPerson: z.string().max(120).nullable().optional(),
   website: z.string().max(300).nullable().optional(),
-  publicEmail: z.string().email().max(255).nullable().optional(),
+  publicEmail: z.email().max(255).nullable().optional(),
   publicPhone: z.string().max(30).nullable().optional(),
   publicAddress: z.string().max(200).nullable().optional(),
   openingHours: z.string().max(2000).nullable().optional(),
@@ -116,7 +116,7 @@ export const UserPublicDto = z.object({
 
 /** Profilo privato — solo il proprietario lo vede */
 export const UserMeDto = UserPublicDto.extend({
-  email: z.string().email(),
+  email: z.email(),
   preferences: UserPreferencesDto.nullable(),
 });
 
@@ -131,7 +131,7 @@ export const UpdateMeBody = z.object({
   country: z.string().max(60).optional(),
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
-  avatarUrl: z.string().url().optional(),
+  avatarUrl: z.url().optional(),
   preferences: UserPreferencesDto.partial().optional(),
   organization: OrganizationProfileDto.partial().optional(), // solo per account organization
 });
