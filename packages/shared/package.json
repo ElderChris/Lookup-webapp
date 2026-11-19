@@ -13,6 +13,6 @@
     "lint": "node --input-type=module -e \"await import('./src/index.js')\""
   },
   "dependencies": {
-    "zod": "^3.23.8"
+    "zod": "^4.6.7"
   }
 }
