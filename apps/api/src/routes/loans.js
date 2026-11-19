@@ -17,7 +17,7 @@
 //             ↘ cancelled (T)   (cancel possibile anche da confirmed)
 // =============================================================================
 
-import { getCurrentUserId, requireUserId } from '../lib/authHelpers.js';
+import { requireUserId } from '../lib/authHelpers.js';
 import {
   notifyLoanRequested,
   notifyLoanStatusChange,
