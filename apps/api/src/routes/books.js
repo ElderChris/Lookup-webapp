@@ -17,46 +17,6 @@
 import { getCurrentUserId, requireUserId, requireOwner } from '../lib/authHelpers.js';
 
 // -----------------------------------------------------------------------------
-// JSON Schemas riusabili
-// -----------------------------------------------------------------------------
-
-const bookSummarySchema = {
-  type: 'object',
-  properties: {
-    id: { type: 'integer' },
-    title: { type: 'string' },
-    author: { type: 'string' },
-    year: { type: ['integer', 'null'] },
-    available: { type: 'boolean' },
-    coverUrl: { type: ['string', 'null'] },
-    viewCount: { type: 'integer' },
-    requestCount: { type: 'integer' },
-    createdAt: { type: 'string', format: 'date-time' },
-    owner: {
-      type: 'object',
-      properties: {
-        id: { type: 'integer' },
-        displayName: { type: 'string' },
-        city: { type: ['string', 'null'] },
-        accountType: { type: 'string' },
-      },
-    },
-    categories: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'integer' },
-          name: { type: 'string' },
-          slug: { type: 'string' },
-          isPrimary: { type: 'boolean' },
-        },
-      },
-    },
-  },
-};
-
-// -----------------------------------------------------------------------------
 // Helper: trasforma il record Prisma "raw" nel DTO che esponiamo via API
 // -----------------------------------------------------------------------------
 
@@ -702,7 +662,7 @@ export default async function booksRoutes(fastify) {
         },
       },
     },
-    async (request, reply) => {
+    async (request) => {
       const { id } = request.params;
       const userId = await requireUserId(request);
 

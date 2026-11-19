@@ -6,7 +6,7 @@
 
 import { z } from 'zod';
 import {
-  IntId, IsoDateTime, PaginationQuery, PaginatedResponse, UserSummaryDto,
+  IntId, IsoDateTime, PaginationQuery, UserSummaryDto,
 } from './common.js';
 
 // -----------------------------------------------------------------------------

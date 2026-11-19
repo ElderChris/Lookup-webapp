@@ -44,7 +44,7 @@ function dockerExec(sql, db = 'postgres') {
       .toString()
       .trim();
   } catch (err) {
-    throw new Error(`Docker exec fallito: ${err.message}\nComando: ${cmd}`);
+    throw new Error(`Docker exec fallito: ${err.message}\nComando: ${cmd}`, { cause: err });
   }
 }
 

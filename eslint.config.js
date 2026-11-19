@@ -58,6 +58,27 @@ export default [
     }
   },
   {
+    // Codice Node: backend, test, schemi condivisi e script di supporto.
+    // Stesse regole del frontend, con i globali di Node al posto di quelli
+    // del browser. Fino al 19 nov 2026 questi file venivano letti senza
+    // nessuna regola attiva.
+    files: ['apps/api/**/*.{js,mjs}', 'packages/**/*.js', 'scripts/**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 2025,
+      sourceType: 'module',
+      globals: { ...globals.node },
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      'no-unused-vars': ['warn', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_'
+      }],
+      'no-console': 'off',
+    }
+  },
+  {
     // eslint.config.js e altri file di configurazione
     files: ['*.config.js', '*.config.mjs'],
     languageOptions: {
@@ -75,7 +96,8 @@ export default [
       'dist/**',
       '.husky/**',
       // Archivio storico del vecchio frontend: conservato invariato
-      'apps/web/js/legacy/**'
+      'apps/web/js/legacy/**',
+      'apps/api/coverage/**'
     ]
   }
 ];
