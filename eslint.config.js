@@ -97,7 +97,8 @@ export default [
       '.husky/**',
       // Archivio storico del vecchio frontend: conservato invariato
       'apps/web/js/legacy/**',
-      'apps/api/coverage/**'
+      'apps/api/coverage/**',
+      'apps/api/src/generated/**'
     ]
   }
 ];

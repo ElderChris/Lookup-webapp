@@ -15,10 +15,8 @@
 
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from './prisma.js';
 import { smtpTransport, SMTP_FROM } from './mailer.js';
-
-const prisma = new PrismaClient();
 
 async function sendMail({ to, subject, text, html }) {
   try {

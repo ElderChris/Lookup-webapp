@@ -17,8 +17,15 @@
 // In dev include lo stack trace; in prod no.
 // =============================================================================
 
-import { Prisma } from '@prisma/client';
+import { Prisma } from './prismaClient.js';
 import { config } from '../config.js';
+
+// Con il driver adapter (Prisma 7) i dettagli del vincolo violato non sono
+// piu' in `meta.target` / `meta.field_name` ma nell'errore del driver.
+function constraintOf(error) {
+  const c = error.meta?.driverAdapterError?.cause?.constraint;
+  return c?.fields ?? c?.index ?? c?.foreignKey ?? undefined;
+}
 
 export function errorHandler(error, request, reply) {
   request.log.error({ err: error }, 'request error');
@@ -45,7 +52,7 @@ export function errorHandler(error, request, reply) {
           error: {
             code: 'CONFLICT',
             message: 'Risorsa già esistente',
-            details: { fields: error.meta?.target },
+            details: { fields: error.meta?.target ?? constraintOf(error) },
           },
         });
       case 'P2025': // record not found
@@ -57,7 +64,7 @@ export function errorHandler(error, request, reply) {
           error: {
             code: 'BAD_REFERENCE',
             message: 'Riferimento a risorsa inesistente',
-            details: { field: error.meta?.field_name },
+            details: { field: error.meta?.field_name ?? constraintOf(error) },
           },
         });
       default:

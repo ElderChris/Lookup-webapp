@@ -17,6 +17,9 @@ Thumbs.db
 docs/
 *.md
 
+# Prisma Client generato in locale: l'immagine lo rigenera per Linux
+apps/api/src/generated/
+
 # Non servono all'immagine dell'API (contesto di build = root del repo)
 apps/web/
 logs/

@@ -24,9 +24,7 @@
 //   RETENTION_AUDIT_MONTHS=12  (default). Puoi mettere 6, 24, ecc.
 // =============================================================================
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma.js';
 
 /**
  * Handler purge audit log oltre soglia.
