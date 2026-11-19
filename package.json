@@ -27,9 +27,11 @@
     "db:reset": "docker compose down -v && docker compose up -d postgres redis"
   },
   "devDependencies": {
-    "eslint": "^9.13.0",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0",
     "husky": "^9.1.6",
-    "lint-staged": "^15.2.10",
+    "lint-staged": "^17.6.1",
     "prettier": "^3.3.3"
   },
   "lint-staged": {
