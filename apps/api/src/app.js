@@ -62,6 +62,10 @@ export async function buildApp(opts = {}) {
       callback(new Error(`CORS: origin ${origin} non permessa`), false);
     },
     credentials: true, // per session cookie (Fase 3)
+    // Da @fastify/cors 11 il default e' solo GET,HEAD,POST: senza questa
+    // riga le preflight di PUT/PATCH/DELETE da un'origine diversa
+    // (frontend di sviluppo su :8765) verrebbero rifiutate.
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   });
 
   // --- Rate limit globale (Beta 5) ---
