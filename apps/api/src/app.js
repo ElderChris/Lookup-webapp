@@ -253,6 +253,14 @@ export async function buildApp(opts = {}) {
   // --- Routes ---
   await fastify.register(routes);
 
+  // --- Email: controllo della configurazione SMTP all'avvio ---
+  // In background, per non rallentare l'avvio: registra host, modalita' TLS,
+  // utente e avvisi (es. verifica del certificato disattivata).
+  if (process.env.NODE_ENV !== 'test') {
+    const { checkSmtp } = await import('./lib/mailer.js');
+    void checkSmtp(fastify.log);
+  }
+
   // --- Background jobs (Beta 7) ---
   // Startup dei worker BullMQ + registrazione dei repeat job (overdue-loans,
   // retention). Disabilitato in NODE_ENV=test (i test non hanno bisogno di

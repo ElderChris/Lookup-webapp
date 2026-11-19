@@ -109,9 +109,19 @@ services:
   # (verifica email, reset password, ecc.). Nessuna email esce dal computer.
   # Sostituisce MailHog (non piu' mantenuto): stesse porte, stesso uso.
   # In produzione: sostituire con Resend/SES/SMTP2GO reali (config via env).
+  #
+  # Configurato come un provider reale: STARTTLS obbligatorio (certificato
+  # autofirmato generato all'avvio) e credenziali SMTP. Cosi' l'API usa in
+  # prova lo stesso percorso di invio della produzione; l'unica differenza e'
+  # SMTP_TLS_VERIFY=false, che accetta il certificato autofirmato.
   mailpit:
     image: axllent/mailpit:v1.34.0
     container_name: lookup-mailpit
+    environment:
+      MP_SMTP_TLS_CERT: sans:mailpit,localhost
+      MP_SMTP_TLS_KEY: sans:mailpit,localhost
+      MP_SMTP_REQUIRE_STARTTLS: "true"
+      MP_SMTP_AUTH: ${SMTP_USER:-lookup}:${SMTP_PASS:-lookup-dev}
     ports:
       - "${MAIL_SMTP_PORT:-1025}:1025"     # SMTP (il backend invia qui)
       - "${MAIL_WEB_PORT:-8025}:8025"      # UI web per leggere
@@ -145,6 +155,9 @@ services:
       REDIS_URL: redis://redis:6379
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
+      SMTP_USER: ${SMTP_USER:-lookup}
+      SMTP_PASS: ${SMTP_PASS:-lookup-dev}
+      SMTP_TLS_VERIFY: "false"   # solo per Mailpit: certificato autofirmato
       LOG_LEVEL: ${LOG_LEVEL:-info}
       CORS_ORIGINS: http://localhost:${WEB_PORT:-8080},http://localhost:8765
     ports:

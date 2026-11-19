@@ -425,7 +425,13 @@ Invoke-Step 'Email (reset password -> Mailpit)' $SkipSmoke.IsPresent {
         if ($after.Code -eq 200) {
             $j = $after.Body | ConvertFrom-Json
             if ($j.total -gt $total0 -and $after.Body -match [regex]::Escape($SeedEmail)) {
-                return @{ Status = 'PASS'; Detail = "email di reset per $SeedEmail arrivata in Mailpit" }
+                # Mailpit accetta solo connessioni STARTTLS autenticate: se
+                # l'email e' arrivata, TLS e credenziali hanno funzionato.
+                # Il log di avvio dell'API lo conferma esplicitamente.
+                $logs = Invoke-Native 'docker logs lookup-api' -Quiet
+                $tls = 'STARTTLS + credenziali'
+                if ($logs.Output -match 'server SMTP raggiungibile') { $tls += ', controllo SMTP di avvio OK' }
+                return @{ Status = 'PASS'; Detail = "email di reset per $SeedEmail arrivata in Mailpit ($tls)" }
             }
         }
     }
