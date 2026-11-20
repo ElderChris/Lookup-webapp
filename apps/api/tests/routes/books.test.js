@@ -83,6 +83,23 @@ describe('GET /api/books/:id', () => {
     expect(res.statusCode).toBe(404);
     expect(res.json().error.code).toBe('NOT_FOUND');
   });
+
+  it("indica se il libro piace all'utente autenticato (likedByMe)", async () => {
+    const app = await buildTestApp();
+    const url = `/api/books/${SEED.BOOK_GATTOPARDO}`;
+    const headers = await authHeaders(SEED.USER_MARCO);
+
+    const guest = await app.inject({ method: 'GET', url });
+    expect(guest.json().likedByMe).toBe(false);
+
+    await app.inject({ method: 'DELETE', url: `${url}/like`, headers });
+    expect((await app.inject({ method: 'GET', url, headers })).json().likedByMe).toBe(false);
+
+    await app.inject({ method: 'POST', url: `${url}/like`, headers });
+    expect((await app.inject({ method: 'GET', url, headers })).json().likedByMe).toBe(true);
+
+    await app.inject({ method: 'DELETE', url: `${url}/like`, headers });
+  });
 });
 
 describe('POST /api/books', () => {

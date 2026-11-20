@@ -62,6 +62,7 @@ function toDto(book) {
       accountType: book.owner.accountType,
       avatarUrl: book.owner.avatarUrl,
     };
+    if (book.owner.bio !== undefined) dto.owner.bio = book.owner.bio;
   }
 
   return dto;
@@ -341,6 +342,11 @@ export default async function booksRoutes(fastify) {
 
       const dto = toDto(book);
       dto.likesCount = book._count?.likes ?? 0;
+      // Stato del "mi piace" per l'utente autenticato (false per gli ospiti)
+      const userId = await getCurrentUserId(request);
+      dto.likedByMe = userId
+        ? (await fastify.prisma.like.count({ where: { userId, bookId: id } })) > 0
+        : false;
       return dto;
     }
   );

@@ -476,7 +476,14 @@ export default async function loansRoutes(fastify) {
 
       const loan = await fastify.prisma.loanRequest.findUnique({
         where: { id },
-        select: { id: true, status: true, requesterId: true, lenderId: true, bookId: true },
+        select: {
+          id: true,
+          status: true,
+          requesterId: true,
+          lenderId: true,
+          bookId: true,
+          daysRequested: true,
+        },
       });
       if (!loan) {
         return reply.status(404).send({
