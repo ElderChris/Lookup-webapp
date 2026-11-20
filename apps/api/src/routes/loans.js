@@ -9,6 +9,7 @@
 //   GET    /api/loans/:id                 Dettaglio (participant only)
 //   PATCH  /api/loans/:id                 Transizione di stato (action)
 //   POST   /api/loans/:id/messages        Aggiungi messaggio
+//   POST   /api/loans/:id/read            Segna come letti i messaggi
 //   GET    /api/loans/:id/messages        Storico messaggi (paginated)
 //
 // State machine (vedi commento in schema.prisma LoanRequest):
@@ -86,7 +87,7 @@ function userSummaryDto(u) {
   };
 }
 
-function loanDto(loan, currentUserId) {
+function loanDto(loan, currentUserId, unreadCount = 0) {
   const role = currentUserId === loan.requesterId ? 'requester' : 'lender';
   return {
     id: loan.id,
@@ -119,7 +120,35 @@ function loanDto(loan, currentUserId) {
       cancelled: loan.cancelledAt,
     },
     messagesCount: loan._count?.messages ?? 0,
+    // Messaggi dell'altro partecipante non ancora letti da chi chiede
+    unreadCount,
   };
+}
+
+/**
+ * Messaggi non letti per l'utente, per ciascun prestito indicato: messaggi
+ * dell'altro partecipante successivi all'ultima lettura dell'utente
+ * (requester_last_read_at o lender_last_read_at a seconda del ruolo).
+ * Una sola query per tutta la lista.
+ *
+ * @returns {Promise<Map<number, number>>} loanId → non letti
+ */
+async function unreadCounts(prisma, userId, loanIds) {
+  const counts = new Map();
+  if (loanIds.length === 0) return counts;
+  const rows = await prisma.$queryRaw`
+    SELECT m.loan_id AS "loanId", COUNT(*)::int AS "unread"
+    FROM loan_messages m
+    JOIN loan_requests l ON l.id = m.loan_id
+    WHERE m.loan_id = ANY(${loanIds}::int[])
+      AND m.sender_id <> ${userId}
+      AND m.created_at > COALESCE(
+        CASE WHEN l.requester_id = ${userId} THEN l.requester_last_read_at
+             ELSE l.lender_last_read_at END,
+        'epoch'::timestamptz)
+    GROUP BY m.loan_id`;
+  for (const r of rows) counts.set(Number(r.loanId), Number(r.unread));
+  return counts;
 }
 
 function loanMessageDto(msg) {
@@ -341,9 +370,14 @@ export default async function loansRoutes(fastify) {
         }),
         fastify.prisma.loanRequest.count({ where }),
       ]);
+      const unread = await unreadCounts(
+        fastify.prisma,
+        userId,
+        loans.map((l) => l.id)
+      );
 
       return {
-        data: loans.map((l) => loanDto(l, userId)),
+        data: loans.map((l) => loanDto(l, userId, unread.get(l.id) ?? 0)),
         pagination: { total, limit, offset },
       };
     }
@@ -391,9 +425,14 @@ export default async function loansRoutes(fastify) {
         }),
         fastify.prisma.loanRequest.count({ where }),
       ]);
+      const unread = await unreadCounts(
+        fastify.prisma,
+        userId,
+        loans.map((l) => l.id)
+      );
 
       return {
-        data: loans.map((l) => loanDto(l, userId)),
+        data: loans.map((l) => loanDto(l, userId, unread.get(l.id) ?? 0)),
         pagination: { total, limit, offset },
       };
     }
@@ -428,7 +467,8 @@ export default async function loansRoutes(fastify) {
       }
 
       requireParticipant(loan, userId);
-      return loanDto(loan, userId);
+      const unread = await unreadCounts(fastify.prisma, userId, [loan.id]);
+      return loanDto(loan, userId, unread.get(loan.id) ?? 0);
     }
   );
 
@@ -572,7 +612,8 @@ export default async function loansRoutes(fastify) {
         }
       );
 
-      return loanDto(updated, userId);
+      const unread = await unreadCounts(fastify.prisma, userId, [updated.id]);
+      return loanDto(updated, userId, unread.get(updated.id) ?? 0);
     }
   );
 
@@ -716,6 +757,44 @@ export default async function loansRoutes(fastify) {
         data: messages.map(loanMessageDto),
         pagination: { total, limit, offset },
       };
+    }
+  );
+
+  // ===========================================================================
+  // POST /api/loans/:id/read — Segna come letti i messaggi della chat
+  // ===========================================================================
+  fastify.post(
+    '/api/loans/:id/read',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          properties: { id: { type: 'integer', minimum: 1 } },
+          required: ['id'],
+        },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      const userId = await requireUserId(request);
+      const loan = await fastify.prisma.loanRequest.findUnique({
+        where: { id },
+        select: { id: true, requesterId: true, lenderId: true },
+      });
+      if (!loan) {
+        return reply.status(404).send({
+          error: { code: 'NOT_FOUND', message: `Prestito con id ${id} non trovato` },
+        });
+      }
+      const role = requireParticipant(loan, userId);
+      await fastify.prisma.loanRequest.update({
+        where: { id },
+        data:
+          role === 'requester'
+            ? { requesterLastReadAt: new Date() }
+            : { lenderLastReadAt: new Date() },
+      });
+      return { loanId: id, unreadCount: 0 };
     }
   );
 }
