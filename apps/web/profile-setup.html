@@ -436,11 +436,8 @@
          sessione valida (nessun cookie Better Auth + nessun current_user_id
          legacy), redirect al login. Altrimenti sync con LB_AUTH_USER
          quando disponibile (backend), altrimenti fallback Storage. */
-      if (!window.LB_AUTH_READY) {
-        await new Promise((res) => window.addEventListener('lb-auth-ready', res, { once: true }));
-      }
-      const currentUser = API.requireAuth('login.html');
-      if (!currentUser) return;            // requireAuth ha già reindirizzato
+      const currentUser = await window.LB_UI.requireUser('login.html');
+      if (!currentUser) return;            // requireUser ha già reindirizzato
       const userId = currentUser.id;
 
       // Beta 3: prefs dal backend con fallback graceful

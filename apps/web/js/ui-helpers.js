@@ -169,6 +169,56 @@ export function backendUserToLegacy(beUser) {
  *
  * @returns {object|null}
  */
+/**
+ * Attende che api-bootstrap abbia verificato la sessione (evento
+ * `lb-auth-ready`). Da usare prima di leggere l'utente negli script delle
+ * pagine, che partono al DOMContentLoaded, quando la richiesta di sessione
+ * puo' essere ancora in corso.
+ */
+export function whenAuthReady() {
+  if (window.LB_AUTH_READY) return Promise.resolve();
+  return new Promise((resolve) =>
+    window.addEventListener('lb-auth-ready', () => resolve(), { once: true })
+  );
+}
+
+/**
+ * Pagine riservate: restituisce l'utente autenticato oppure rimanda al login.
+ * Sostituisce `API.requireAuth()` del prototipo, che restituiva l'utente
+ * fittizio salvato nel browser.
+ *
+ * @param {string} [redirectTo='login.html']
+ * @returns {Promise<object|null>} utente (forma di currentUser) o null
+ */
+export async function requireUser(redirectTo = 'login.html') {
+  await whenAuthReady();
+  const me = currentUser();
+  if (!me) {
+    window.location.href = redirectTo;
+    return null;
+  }
+  return me;
+}
+
+/**
+ * Come requireUser, ma solo per gli amministratori (ruolo dal backend).
+ *
+ * @param {string} [redirectIfMissing='login.html']
+ * @param {string} [redirectIfForbidden='index.html']
+ */
+export async function requireAdmin(
+  redirectIfMissing = 'login.html',
+  redirectIfForbidden = 'index.html'
+) {
+  const me = await requireUser(redirectIfMissing);
+  if (!me) return null;
+  if (!me.is_admin) {
+    window.location.href = redirectIfForbidden;
+    return null;
+  }
+  return me;
+}
+
 export function currentUser() {
   // Rispetta soft logout locale (auth_state='guest')
   try {

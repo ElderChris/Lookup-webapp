@@ -254,7 +254,7 @@
          Se qualcuno arriva con ?id= di un altro utente, lo si
          reindirizza alla vista pubblica library.html (sola lettura),
          perché non si gestisce la libreria altrui da qui. */
-      const me = API.requireAuth('login.html');
+      const me = await window.LB_UI.requireUser('login.html');
       if (!me) return;
 
       const requestedId = new URLSearchParams(location.search).get('id');
