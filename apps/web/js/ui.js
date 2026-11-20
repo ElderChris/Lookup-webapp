@@ -483,85 +483,99 @@ export const UI = {
       </div>`;
   },
 
-  /** v1.7: Chat inline associata a un prestito.
-      Toggle "💬 Chat (N nuovi)" + pannello espandibile con bolle
-      messaggio (user a destra/bordeaux per chi scrive, a sinistra per
-      l'altro; system centrate, più piccole). Input + send in fondo.
-      All'apertura: auto-mark-read di tutti i messaggi + scroll bottom.
-      Re-render su submit per aggiornare il counter unread.
-      `onUpdate` viene chiamata dopo ogni invio (utile per ridipingere
-      la card contenitore se serve aggiornare contatori esterni). */
+  /** Modale "Rifiuta la richiesta di prestito": motivazione obbligatoria
+      (almeno 10 caratteri), inviata al backend con l'azione `reject`.
+      `loan` e' l'oggetto dell'API; `onDone` viene chiamata a rifiuto
+      avvenuto. */
+  openRejectLoanModal(loan, onDone) {
+    const modal = document.createElement('div');
+    modal.className = 'return-wizard';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'reject-title');
+    modal.innerHTML = `
+      <div class="return-wizard__backdrop" data-close></div>
+      <div class="return-wizard__panel">
+        <button type="button" class="return-wizard__close" aria-label="Chiudi" data-close>×</button>
+        <h2 id="reject-title">Rifiuta la richiesta</h2>
+        <p style="color: var(--color-ink-soft); margin-bottom: 1.2rem;">
+          Stai per rifiutare la richiesta di
+          <strong>${this._escapeHtml(loan.requester?.displayName || '')}</strong> per il volume
+          <em>${this._escapeHtml(loan.book?.title || '')}</em>. Aggiungi una breve motivazione:
+          la vedrà nella sua pagina dei prestiti.
+        </p>
+        <div class="form__group">
+          <label class="form__label" for="reject-reason">Motivazione</label>
+          <textarea id="reject-reason" class="form__input" rows="3" maxlength="500"
+            placeholder="Esempio: il volume è già impegnato per un altro prestito, riprova fra due settimane."
+            minlength="10" required></textarea>
+          <small class="form__help">Minimo 10 caratteri.</small>
+        </div>
+        <div class="return-wizard__actions">
+          <button type="button" class="btn btn--ghost" data-close>Annulla</button>
+          <button type="button" class="btn btn--primary" data-reject-confirm>Rifiuta richiesta</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') close();
+    };
+    function close() {
+      modal.remove();
+      document.removeEventListener('keydown', onKey);
+    }
+    document.addEventListener('keydown', onKey);
+    modal.addEventListener('click', (e) => {
+      if (e.target.matches('[data-close]')) close();
+    });
+    const confirmBtn = modal.querySelector('[data-reject-confirm]');
+    confirmBtn.addEventListener('click', async () => {
+      const reason = modal.querySelector('#reject-reason').value.trim();
+      if (reason.length < 10) {
+        UI.toast('La motivazione deve essere lunga almeno 10 caratteri.', 'error');
+        return;
+      }
+      confirmBtn.disabled = true;
+      try {
+        await window.LB_API.loans.reject(loan.id, reason);
+        window.LB_API.cache.invalidate('loans:');
+        UI.toast("Richiesta rifiutata. Chi l'ha inviata riceverà una notifica.", 'info');
+        close();
+        if (typeof onDone === 'function') onDone();
+      } catch (err) {
+        UI.toast(err.message || 'Operazione non riuscita.', 'error');
+        confirmBtn.disabled = false;
+      }
+    });
+    setTimeout(() => modal.querySelector('#reject-reason').focus(), 50);
+  },
+
+  /** Chat di un prestito (messaggi dal backend: /api/loans/:id/messages).
+      `loan` e' l'oggetto restituito dall'API (book, requester, lender,
+      role, messagesCount). Restituisce { refresh } per ricaricare i
+      messaggi quando arriva una notifica in tempo reale. */
   renderLoanChat(container, loan, opts = {}) {
     const me = window.LB_UI.currentUser();
-    if (!me) {
-      container.innerHTML = '';
-      return;
-    }
-    const isParticipant = +me.id === +loan.requester_id || +me.id === +loan.lender_id;
+    const isParticipant = me && (me.id === loan.requester?.id || me.id === loan.lender?.id);
     if (!isParticipant) {
       container.innerHTML = '';
-      return;
+      return { refresh: () => {} };
     }
-
-    const messages = API.getMessagesForLoan(loan.id);
-    const unread = API.getUnreadMessageCount(loan.id, me.id);
-    const otherId = +me.id === +loan.requester_id ? loan.lender_id : loan.requester_id;
-    const other = API.getUser(otherId);
-    const otherPrefs = API.getProfilePrefs(otherId) || {};
-    const otherTheme = `cover--${otherPrefs.theme || 'classic'}`;
-    const otherSymbol =
-      otherPrefs.avatar_style === 'symbol' && otherPrefs.avatar_symbol
-        ? otherPrefs.avatar_symbol
-        : (other ? other.display_name : '?').trim()[0].toUpperCase();
-    const mePrefs = API.getProfilePrefs(me.id) || {};
-    const meTheme = `cover--${mePrefs.theme || 'classic'}`;
-    const meSymbol =
-      mePrefs.avatar_style === 'symbol' && mePrefs.avatar_symbol
-        ? mePrefs.avatar_symbol
-        : (me.display_name || '?').trim()[0].toUpperCase();
-
-    // Etichette icone per i messaggi di sistema
-    const sysIcon = {
-      requested: '📨',
-      confirmed: '✓',
-      borrowed: '↦',
-      returning: '↩',
-      returned: '✓✓',
-      rejected: '✕',
-      cancelled: '⊘',
-      overdue_reminder: '⏰',
-    };
-
-    const startOpen = opts.startOpen || unread > 0;
+    const other = me.id === loan.requester.id ? loan.lender : loan.requester;
+    const initial = (name) => (name || '?').trim().charAt(0).toUpperCase();
+    const startOpen = opts.startOpen !== false;
 
     container.innerHTML = `
       <div class="loan-chat ${startOpen ? 'is-open' : ''}">
-        <button type="button" class="loan-chat__toggle" aria-expanded="${startOpen ? 'true' : 'false'}">
+        <button type="button" class="loan-chat__toggle" aria-expanded="${startOpen}">
           <span aria-hidden="true">💬</span>
-          <span class="loan-chat__toggle-label">Chat con ${other ? other.display_name : 'utente'}</span>
-          ${
-            unread > 0
-              ? `<span class="loan-chat__unread-badge">${unread} nuov${unread === 1 ? 'o' : 'i'}</span>`
-              : ''
-          }
+          <span class="loan-chat__toggle-label">Chat con ${this._escapeHtml(other?.displayName || 'utente')}</span>
           <span class="loan-chat__caret" aria-hidden="true">▾</span>
         </button>
         <div class="loan-chat__panel" ${startOpen ? '' : 'hidden'}>
           <div class="loan-chat__messages" role="log" aria-live="polite">
-            ${messages
-              .map((m) =>
-                this._renderChatMessage(
-                  m,
-                  me,
-                  other,
-                  meTheme,
-                  meSymbol,
-                  otherTheme,
-                  otherSymbol,
-                  sysIcon
-                )
-              )
-              .join('')}
+            <p class="loan-chat__status">Caricamento dei messaggi…</p>
           </div>
           <form class="loan-chat__form" novalidate>
             <textarea class="loan-chat__input" rows="2"
@@ -580,36 +594,45 @@ export const UI = {
     const messagesEl = root.querySelector('.loan-chat__messages');
     const form = root.querySelector('.loan-chat__form');
     const input = root.querySelector('.loan-chat__input');
+    const sendBtn = root.querySelector('.loan-chat__send');
 
-    function open() {
-      root.classList.add('is-open');
-      panel.hidden = false;
-      toggle.setAttribute('aria-expanded', 'true');
-      API.markLoanMessagesRead(loan.id, me.id);
-      const badge = toggle.querySelector('.loan-chat__unread-badge');
-      if (badge) badge.remove();
-      // Scroll alla fine (mostra gli ultimi messaggi)
+    const bubble = (m) => {
+      const isMine = m.sender?.id === me.id;
+      return `
+        <div class="chat-msg chat-msg--user ${isMine ? 'chat-msg--mine' : ''}">
+          <span class="chat-msg__avatar cover--classic" aria-hidden="true">${this._escapeHtml(initial(m.sender?.displayName))}</span>
+          <div class="chat-msg__bubble">
+            <div class="chat-msg__text">${this._escapeHtml(m.body)}</div>
+            <div class="chat-msg__time">${UI.timeAgo(m.createdAt)}</div>
+          </div>
+        </div>`;
+    };
+    const scrollToEnd = () => {
       messagesEl.scrollTop = messagesEl.scrollHeight;
-      input.focus();
-    }
-    function close() {
-      root.classList.remove('is-open');
-      panel.hidden = true;
-      toggle.setAttribute('aria-expanded', 'false');
-    }
-    if (startOpen) {
-      // Già aperto al primo rendering: marca letti, scroll bottom
-      API.markLoanMessagesRead(loan.id, me.id);
-      const badge = toggle.querySelector('.loan-chat__unread-badge');
-      if (badge) badge.remove();
-      setTimeout(() => {
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-      }, 30);
+    };
+
+    async function refresh() {
+      try {
+        const res = await window.LB_API.loans.listMessages(loan.id, { limit: 100 });
+        const list = res.data || [];
+        messagesEl.innerHTML = list.length
+          ? list.map(bubble).join('')
+          : '<p class="loan-chat__status">Nessun messaggio. Scrivi tu per primo.</p>';
+        scrollToEnd();
+      } catch {
+        messagesEl.innerHTML =
+          '<p class="loan-chat__status">Impossibile caricare i messaggi. Riprova tra poco.</p>';
+      }
     }
 
     toggle.addEventListener('click', () => {
-      if (root.classList.contains('is-open')) close();
-      else open();
+      const isOpen = root.classList.toggle('is-open');
+      panel.hidden = !isOpen;
+      toggle.setAttribute('aria-expanded', String(isOpen));
+      if (isOpen) {
+        scrollToEnd();
+        input.focus();
+      }
     });
 
     // Enter (senza Shift) invia; Shift+Enter va a capo
@@ -620,62 +643,31 @@ export const UI = {
       }
     });
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const text = input.value;
-      const r = API.sendMessage(loan.id, text);
-      if (!r.ok) {
-        if (r.reason === 'empty') {
-          input.focus();
-          return;
-        }
-        UI.toast('Errore: ' + r.reason, 'error');
+      const text = input.value.trim();
+      if (!text) {
+        input.focus();
         return;
       }
-      input.value = '';
-      // Append del nuovo messaggio senza re-render completo
-      messagesEl.insertAdjacentHTML(
-        'beforeend',
-        UI._renderChatMessage(
-          r.message,
-          me,
-          other,
-          meTheme,
-          meSymbol,
-          otherTheme,
-          otherSymbol,
-          sysIcon
-        )
-      );
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-      input.focus();
-      if (typeof opts.onUpdate === 'function') opts.onUpdate();
+      sendBtn.disabled = true;
+      try {
+        const msg = await window.LB_API.loans.sendMessage(loan.id, { body: text });
+        input.value = '';
+        messagesEl.querySelector('.loan-chat__status')?.remove();
+        messagesEl.insertAdjacentHTML('beforeend', bubble(msg));
+        scrollToEnd();
+        if (typeof opts.onUpdate === 'function') opts.onUpdate();
+      } catch (err) {
+        UI.toast(err.message || 'Messaggio non inviato. Riprova.', 'error');
+      } finally {
+        sendBtn.disabled = false;
+        input.focus();
+      }
     });
-  },
 
-  /** Helper interno: rendering di una singola bolla messaggio. */
-  _renderChatMessage(m, me, other, meTheme, meSymbol, otherTheme, otherSymbol, sysIcon) {
-    if (m.type === 'system') {
-      const icon = sysIcon[m.event_type] || 'ℹ';
-      return `
-        <div class="chat-msg chat-msg--system">
-          <span class="chat-msg__sys-icon" aria-hidden="true">${icon}</span>
-          <span class="chat-msg__sys-text">${this._escapeHtml(m.content)}</span>
-          <span class="chat-msg__sys-time">${UI.timeAgo(m.created_at)}</span>
-        </div>`;
-    }
-    const isMine = +m.sender_id === +me.id;
-    const author = isMine ? me : other;
-    const theme = isMine ? meTheme : otherTheme;
-    const symbol = isMine ? meSymbol : otherSymbol;
-    return `
-      <div class="chat-msg chat-msg--user ${isMine ? 'chat-msg--mine' : ''}">
-        <span class="chat-msg__avatar ${theme}" aria-hidden="true">${symbol}</span>
-        <div class="chat-msg__bubble">
-          <div class="chat-msg__text">${this._escapeHtml(m.content)}</div>
-          <div class="chat-msg__time">${UI.timeAgo(m.created_at)}</div>
-        </div>
-      </div>`;
+    refresh();
+    return { refresh };
   },
 
   renderBookCard(book, user, options = {}) {
@@ -724,7 +716,7 @@ export const UI = {
         <h3 class="book-card__title">${book.title}</h3>
         <p class="book-card__author">${book.author}, ${book.year}</p>
         <div class="book-card__meta">
-          <span>${owner ? owner.city : ''}</span>
+          <span>${book.owner_city ?? (owner ? owner.city : '')}</span>
           <span>${book.available ? 'Disponibile' : 'In prestito'}</span>
         </div>
       </a>`;

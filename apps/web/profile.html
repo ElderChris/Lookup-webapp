@@ -686,7 +686,7 @@
           // v1.4: popola la tab Recensioni quando viene aperta
           if (btn.dataset.tab === 'reviews') renderReviewsTab(user.id);
           // v1.5: popola la tab Richieste ricevute quando viene aperta
-          if (btn.dataset.tab === 'requests') renderLenderLoansTab(user.id);
+          if (btn.dataset.tab === 'requests') renderLenderLoansTab();
           // v2.4: popola la tab Post quando viene aperta
           if (btn.dataset.tab === 'posts') renderPostsTab(user.id);
         });
@@ -730,302 +730,43 @@
         paint();
       }
 
-      /* Render dinamico delle richieste ricevute (v1.5).
-         Beta 3 (Opzione W): backend-first via loans.list({role:'lender'})
-         con include=book,requester → NO more N+1 su getBooks/getUser.
-
-         Mostra ogni prestito come una piccola card con timeline compatta
-         e i pulsanti azione adatti allo stato corrente:
-         - requested → "Conferma" / "Rifiuta"
-         - confirmed → in attesa che il richiedente confermi il ritiro
-         - borrowed  → in possesso del richiedente, niente azioni
-         - returning → "Conferma ricezione"
-         - returned  → chiuso */
-      function renderLenderLoansTab(userId) {
+      /* Richieste di prestito ricevute (dal backend). La gestione completa
+         (accetta, rifiuta, consegna, restituzione, chat) e' in loans.html:
+         qui un riepilogo con il collegamento al prestito. */
+      async function renderLenderLoansTab() {
         const container = document.getElementById('lender-loans-list');
-
-        async function paint() {
-          let loans = [];
-          let source = 'legacy';
-
-          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-            try {
-              // Backend: ottengo loans con book + requester embed
-              const res = await window.LB_API.loans.list({
-                role: 'lender',
-                limit: 100,
-              });
-              loans = res.data.map((l) => window.LB_API.loanToLegacy(l));
-              source = `backend (${loans.length})`;
-            } catch (err) {
-              console.debug(`[profile loans] fallback legacy: ${err.code || err.message}`);
-            }
-          }
-          if (source === 'legacy') {
-            loans = API.getLoansByLender(userId);
-          }
-          console.debug(`[profile loans] source: ${source}`);
-
-          if (loans.length === 0) {
-            container.innerHTML = `<p class="alert alert--info">
-              Nessuna richiesta di prestito ricevuta. Pubblica più volumi per
-              aumentare le possibilità di essere contattato dalla comunità.
-            </p>`;
-            return;
-          }
-
-          // Beta 3 (Opzione W): preload prefs dei requester in parallelo
-          // (per theme card). Se source è backend, uso /api/users/:id/prefs.
-          // Cache 5min per evitare rifetch tra ripitture.
-          const requesterPrefs = new Map();
-          if (source.startsWith('backend') && window.LB_API) {
-            const uniqueRequesters = [...new Set(loans.map(l => l.requester_id).filter(Boolean))];
-            await Promise.all(uniqueRequesters.map(async (rid) => {
-              try {
-                const p = await window.LB_API.prefs.getPublic(rid, {
-                  cache: { ttlMs: 5 * 60_000, key: `prefs:pub:${rid}` },
-                });
-                requesterPrefs.set(rid, p);
-              } catch (_) {
-                requesterPrefs.set(rid, { theme: 'classic' });
-              }
-            }));
-          }
-
-          container.innerHTML = loans.map(loan => {
-            // Beta 3: usa dati embedded dal backend (loanToLegacy include _book, _requester)
-            // per evitare N+1 su localStorage. Fallback a lookup legacy se manca.
-            const book = loan._book || API.getBooks().find(b => b.id === loan.book_id) || {};
-            const requester = loan._requester || API.getUser(loan.requester_id) || {};
-            const reqPrefs = requesterPrefs.get(loan.requester_id) || API.getProfilePrefs(loan.requester_id) || {};
-            const themeClass = `cover--${reqPrefs.theme || 'classic'}`;
-            // Support both camelCase (backend prefs) and snake_case (legacy prefs)
-            const avatarStyle = reqPrefs.avatarStyle || reqPrefs.avatar_style;
-            const avatarSymbol = reqPrefs.avatarSymbol || reqPrefs.avatar_symbol;
-            const symbol = avatarStyle === 'symbol' && avatarSymbol
-              ? avatarSymbol
-              : (requester.display_name || '?').trim()[0].toUpperCase();
-            let actions = '';
-            if (loan.status === LOAN_STATUS.REQUESTED) {
-              actions = `<button type="button" class="btn btn--primary btn--small"
-                                 data-loan-action="confirm" data-loan-id="${loan.id}">
-                          ✓ Conferma richiesta
-                        </button>
-                        <button type="button" class="btn btn--ghost btn--small"
-                                 data-loan-action="reject" data-loan-id="${loan.id}">
-                          ✕ Rifiuta
-                        </button>`;
-            } else if (loan.status === LOAN_STATUS.RETURNING) {
-              actions = `<button type="button" class="btn btn--primary btn--small"
-                                 data-loan-action="confirm-return" data-loan-id="${loan.id}">
-                          ✓ Conferma ricezione del volume
-                        </button>`;
-            }
-            return `
-              <article class="loan-card loan-card--lender">
-                <div class="loan-card__head">
-                  <div class="loan-card__book">
-                    <div class="loan-card__cover book-card__cover book-card__cover--placeholder"
-                         style="background: ${book.cover_gradient || 'var(--color-paper-dark)'};">
-                      <span class="book-card__cover-title">${book.title || ''}</span>
-                    </div>
-                    <div class="loan-card__book-info">
-                      <h3 class="loan-card__title">
-                        <a href="book-detail.html?id=${book.id}">${book.title || 'Libro non trovato'}</a>
-                      </h3>
-                      <p class="loan-card__author">${book.author || ''}, ${book.year || ''}</p>
-                      <p class="loan-card__lender">
-                        Richiesto da
-                        <a href="library.html?id=${requester.id}" class="loan-card__lender-link">
-                          <span class="loan-card__lender-avatar ${themeClass}" aria-hidden="true">${symbol}</span>
-                          <strong>${requester.display_name || ''}</strong>
-                        </a>
-                      </p>
-                    </div>
-                  </div>
-                  <div class="loan-card__actions">${actions}</div>
-                </div>
-                ${UI.renderLoanTimeline(loan, { compact: true })}
-                <div class="loan-chat-mount" data-loan-id="${loan.id}"></div>
-              </article>`;
-          }).join('');
-
-          // v1.7: monta la chat sotto ogni card lato prestatore
-          container.querySelectorAll('.loan-chat-mount').forEach(mount => {
-            const lid = +mount.dataset.loanId;
-            const lo = loans.find(x => x.id === lid);
-            if (lo) UI.renderLoanChat(mount, lo);
-          });
+        const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[c]);
+        const LABEL = {
+          requested: 'Da valutare', confirmed: 'Accettata, da consegnare', borrowed: 'In prestito',
+          returning: 'In restituzione', returned: 'Conclusa', rejected: 'Rifiutata', cancelled: 'Annullata',
+        };
+        container.innerHTML = '<p style="color: var(--color-ink-soft);">Caricamento…</p>';
+        let loans;
+        try {
+          loans = (await window.LB_API.loans.listReceived({ limit: 100 })).data || [];
+        } catch {
+          container.innerHTML = '<p class="alert alert--info">Server non raggiungibile: impossibile caricare le richieste. Riprova tra poco.</p>';
+          return;
         }
-        // Wiring azioni (delega)
-        container.addEventListener('click', async e => {
-          const btn = e.target.closest('[data-loan-action]');
-          if (!btn) return;
-          const loanId = +btn.dataset.loanId;
-          const action = btn.dataset.loanAction;
-
-          // ----- Fase 2c.3: WRITE con backend primary + fallback legacy -----
-          const transitionLoan = async (apiMethod, legacyFn, extraArg) => {
-            if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-              try {
-                const fn = window.LB_API.loans[apiMethod];
-                const res = extraArg !== undefined
-                  ? await fn(loanId, extraArg)
-                  : await fn(loanId);
-                console.debug(`[profile WRITE] backend ${apiMethod}(${loanId}) OK, status=${res?.status}`);
-                window.LB_API.cache.invalidate('loans:');
-                try { legacyFn(); } catch (_) { /* consistency, non-critico */ }
-                return { ok: true, source: 'backend' };
-              } catch (err) {
-                if (err.status >= 400 && err.status < 500) {
-                  return { ok: false, source: 'backend', reason: err.message || err.code };
-                }
-                console.debug(`[profile WRITE] backend fail, legacy: ${err.code}`);
-              }
-            }
-            const r = legacyFn();
-            return { ok: !!r?.ok, source: 'legacy', reason: r?.reason };
-          };
-          // ------------------------------------------------------------------
-
-          if (action === 'confirm') {
-            const r = await transitionLoan('accept', () => API.confirmLoan(loanId));
-            if (r.ok) {
-              UI.toast(`Richiesta confermata. (${r.source})`, 'success');
-              paint();
-            } else UI.toast('Errore: ' + r.reason, 'error');
-          }
-          if (action === 'reject') {
-            openRejectModal(loanId, paint);
-          }
-          if (action === 'confirm-return') {
-            const r = await transitionLoan('markReturned', () => API.confirmReturn(loanId));
-            if (r.ok) {
-              UI.toast(`Restituzione confermata. Prestito chiuso. (${r.source})`, 'success');
-              paint();
-            } else UI.toast('Errore: ' + r.reason, 'error');
-          }
-        });
-        paint();
-      }
-
-      /* v1.6: modale "Rifiuta richiesta" — richiede una motivazione
-         testuale (min 10 caratteri), così il richiedente capisce il
-         perché. Costruisce il modale al volo, non richiede HTML extra.
-
-         Beta 3 (Opzione W): backend-first per fetch loan + book + requester
-         (con include). Fallback legacy per demo offline. */
-      async function openRejectModal(loanId, onDone) {
-        let loan, book, requester;
-        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-          try {
-            const res = await window.LB_API.loans.getById(loanId);
-            loan = window.LB_API.loanToLegacy(res);
-            book = loan._book || {};
-            requester = loan._requester || {};
-          } catch (err) {
-            console.debug(`[profile reject-modal] fallback legacy: ${err.code || err.message}`);
-          }
+        if (loans.length === 0) {
+          container.innerHTML = `<p class="alert alert--info">
+            Nessuna richiesta di prestito ricevuta. Pubblica più volumi per
+            aumentare le possibilità di essere contattato dalla comunità.
+          </p>`;
+          return;
         }
-        if (!loan) {
-          loan = API.getLoan(loanId);
-          book = API.getBooks().find(b => b.id === loan.book_id) || {};
-          requester = API.getUser(loan.requester_id) || {};
-        }
-
-        // Costruzione modale
-        const modal = document.createElement('div');
-        modal.className = 'return-wizard';   // riusa il modale del wizard
-        modal.setAttribute('role', 'dialog');
-        modal.setAttribute('aria-modal', 'true');
-        modal.innerHTML = `
-          <div class="return-wizard__backdrop" data-close></div>
-          <div class="return-wizard__panel">
-            <button type="button" class="return-wizard__close" aria-label="Chiudi" data-close>×</button>
-            <h2>Rifiuta la richiesta</h2>
-            <p style="color: var(--color-ink-soft); margin-bottom: 1.2rem;">
-              Stai per rifiutare la richiesta di
-              <strong>${requester.display_name}</strong> per il volume
-              <em>${book.title}</em>. Aggiungi una breve motivazione: il
-              richiedente la riceverà nella sua pagina prestiti.
-            </p>
-            <div class="form__group">
-              <label class="form__label" for="reject-reason">Motivazione</label>
-              <textarea id="reject-reason" class="form__input" rows="3"
-                placeholder="Esempio: «Il volume è già impegnato per un altro prestito imminente — riprova fra due settimane.»"
-                minlength="10" required></textarea>
-              <small class="form__help">Minimo 10 caratteri. Sii cortese e chiaro.</small>
-            </div>
-            <div class="return-wizard__actions">
-              <button type="button" class="btn btn--ghost" data-close>Annulla</button>
-              <button type="button" class="btn btn--primary" id="reject-confirm">
-                Rifiuta richiesta
-              </button>
-            </div>
-          </div>`;
-        document.body.appendChild(modal);
-
-        function close() { modal.remove(); }
-        modal.addEventListener('click', e => {
-          if (e.target.matches('[data-close]')) close();
-        });
-        document.addEventListener('keydown', function esc(e) {
-          if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); }
-        });
-        modal.querySelector('#reject-confirm').addEventListener('click', async () => {
-          const reason = modal.querySelector('#reject-reason').value;
-          const trimmed = (reason || '').trim();
-          if (trimmed.length < 10) {
-            UI.toast('La motivazione deve essere lunga almeno 10 caratteri.', 'error');
-            return;
-          }
-
-          // Fase 2c.3: WRITE con backend primary
-          let source = 'legacy';
-          let ok = false;
-          let errReason = null;
-
-          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-            try {
-              const res = await window.LB_API.loans.reject(loanId, trimmed);
-              console.debug(`[profile] backend reject(${loanId}) OK, status=${res?.status}`);
-              window.LB_API.cache.invalidate('loans:');
-              // Replica in legacy per consistency locale
-              try { API.rejectLoan(loanId, trimmed); } catch (_) {}
-              ok = true;
-              source = 'backend';
-            } catch (err) {
-              if (err.status >= 400 && err.status < 500) {
-                errReason = err.message || err.code;
-              } else {
-                console.debug(`[profile] backend reject fail, legacy: ${err.code}`);
-              }
-            }
-          }
-
-          if (!ok && !errReason) {
-            // Fallback legacy (backend giu' o 5xx)
-            const r = API.rejectLoan(loanId, trimmed);
-            if (r.ok) {
-              ok = true;
-              source = 'legacy';
-            } else {
-              errReason = r.reason === 'reason-short'
-                ? 'La motivazione deve essere lunga almeno 10 caratteri.'
-                : ('Errore: ' + r.reason);
-            }
-          }
-
-          if (!ok) {
-            UI.toast(errReason || 'Errore sconosciuto', 'error');
-            return;
-          }
-
-          UI.toast(`Richiesta rifiutata. Il richiedente è stato notificato. (${source})`, 'info');
-          close();
-          if (typeof onDone === 'function') onDone();
-        });
-        setTimeout(() => modal.querySelector('#reject-reason').focus(), 50);
+        container.innerHTML = `<ul class="lender-loans">${loans.map((l) => `
+          <li class="lender-loans__item">
+            <a href="loans.html#loan-${l.id}" class="lender-loans__link">
+              <strong>${esc(l.book?.title || '—')}</strong>
+              <span>richiesto da ${esc(l.requester?.displayName || '—')}</span>
+              <span class="loan-listitem__status loan-listitem__status--${l.status}">${LABEL[l.status] || l.status}</span>
+              <span style="color: var(--color-ink-soft);">${UI.timeAgo(l.timestamps?.requested)}</span>
+            </a>
+          </li>`).join('')}</ul>
+          <p style="margin-top: 1rem;"><a href="loans.html" class="btn btn--primary btn--small">Gestisci i prestiti →</a></p>`;
       }
 
       /* Rende la tab "Recensioni" — v1.6: due sub-tabs "Ricevute" e
