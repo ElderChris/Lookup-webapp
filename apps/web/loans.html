@@ -268,8 +268,8 @@
                     <span class="loan-listitem__time">${UI.timeAgo(lastEvent(loan))}</span>
                   </span>
                 </span>
-                ${loan.messagesCount > 0
-                  ? `<span class="loan-listitem__unread" title="${loan.messagesCount} messaggi">${loan.messagesCount}</span>`
+                ${loan.unreadCount > 0
+                  ? `<span class="loan-listitem__unread" title="${loan.unreadCount} messaggi non letti">${loan.unreadCount}</span>`
                   : ''}
               </button>`;
           }).join('');
@@ -281,7 +281,17 @@
           mdview.classList.add('is-detail-open');
           detailEl.innerHTML = renderLoanDetail(selected);
           const mount = detailEl.querySelector('.loan-chat-mount');
-          chat = mount ? UI.renderLoanChat(mount, selected, { startOpen: true }) : null;
+          chat = mount
+            ? UI.renderLoanChat(mount, selected, {
+                startOpen: true,
+                // Letti: azzera il contatore anche nella lista, senza ricaricare
+                onRead: (loanId) => {
+                  const l = view.loans.find((x) => x.id === loanId);
+                  if (l) l.unreadCount = 0;
+                  listEl.querySelector(`[data-open-loan="${loanId}"] .loan-listitem__unread`)?.remove();
+                },
+              })
+            : null;
           if (selected.role === 'requester' && selected.status === 'returned') markReviewState(selected);
         } else {
           chat = null;
@@ -515,7 +525,9 @@
       if (window.LB_EVENTS) {
         window.LB_EVENTS.on('notification', (payload) => {
           const type = payload?.type || '';
-          if (type === 'loan_message') { if (chat) chat.refresh(); return; }
+          // Nuovo messaggio: con un prestito aperto si aggiorna la sua chat
+          // (che lo segna come letto), poi i contatori della lista
+          if (type === 'loan_message' && chat) chat.refresh();
           if (type.startsWith('loan_')) load();
         });
       }

@@ -7241,3 +7241,14 @@ body.is-offline .offline-badge {
 /* Messaggio iniziale della richiesta di prestito */
 .loan-card__message { margin: .8rem 0 0; font-style: italic; color: var(--color-ink-soft); }
 .loan-chat__status { color: var(--color-ink-soft); font-size: .9rem; margin: .5rem 0; }
+
+/* Chat di un prestito rifiutato o annullato: resta utilizzabile, ma appare
+   attenuata e riporta lo stato; torna piena quando ci si interagisce. */
+.loan-chat--closed {
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+.loan-chat--closed:hover,
+.loan-chat--closed:focus-within { opacity: 0.9; }
+.loan-chat--closed .loan-chat__toggle { border-style: dashed; }
+.loan-chat__state { font-size: 0.7rem; }
