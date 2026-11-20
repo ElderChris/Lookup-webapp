@@ -185,11 +185,11 @@
   <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
 
       /* PROTEZIONE PROPRIETÀ — si pubblicano volumi SOLO nella propria
          libreria. Un visitatore anonimo viene mandato al login. */
-      const me = API.requireAuth('login.html');
+      const me = await window.LB_UI.requireUser('login.html');
       if (!me) return;
 
       // v1.9: i Lettori (library_role='borrower') non possono pubblicare

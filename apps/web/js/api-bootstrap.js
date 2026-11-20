@@ -7,12 +7,11 @@
 //   <script type="module" src="/js/api-bootstrap.js"></script>
 //
 // Cosa fa, in ordine:
-//   1. Fase 3.2: chiama /api/auth/get-session per capire chi e' l'utente
-//      loggato (cookie httpOnly Better Auth). Se il backend e' irraggiungibile,
-//      fallback a Storage.current_user_id per compat con pagine legacy.
-//   2. Configura apiClient.currentUserId di conseguenza + sincronizza
-//      localStorage.current_user_id per compat con le pagine ancora legacy
-//      (profile-setup, admin, register in caso di rollback).
+//   1. Chiama /api/auth/get-session per capire chi e' l'utente loggato
+//      (cookie httpOnly Better Auth) e lo espone in window.LB_AUTH_USER.
+//      E' l'unica identita' valida: le pagine la leggono con
+//      LB_UI.currentUser() / LB_UI.requireUser().
+//   2. Segnala con l'evento `lb-auth-ready` che la sessione e' nota.
 //   3. Avvia un healthcheck non-bloccante.
 //   4. Espone window.LB_API + window.LB_QUERY + window.LB_AUTH_USER (utente
 //      corrente dopo session lookup).
@@ -62,7 +61,6 @@ async function initSession() {
     // Autenticato via cookie Better Auth
     const user = session.user;
     window.LB_AUTH_USER = user;
-    api.apiClient.configure({ currentUserId: user.id });
     // Beta 6 sess 2: le pagine leggono direttamente da window.LB_AUTH_USER
     // (o via window.LB_UI.currentUser() per la shape legacy).
     // Manteniamo solo auth_state='user' per il legacy check API.getAuthState()

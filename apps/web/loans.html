@@ -124,8 +124,8 @@
   <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const me = API.requireAuth('login.html');
+    document.addEventListener('DOMContentLoaded', async () => {
+      const me = await window.LB_UI.requireUser('login.html');
       if (!me) return;
 
       // v1.6: alla apertura di questa pagina ri-verifichiamo eventuali

@@ -1,18 +1,13 @@
 /* =============================================================================
    app.js — Entry point
    =============================================================================
-   Questo file è il punto di ingresso del frontend di Lookup.
-   Caricato come <script type="module"> dalle 15 pagine HTML, importa tutti
-   i moduli, esegue l'inizializzazione globale al DOMContentLoaded, ed
-   espone API/UI/Storage come globali window.* per compatibilità con gli
-   script inline delle pagine.
+   Punto di ingresso comune delle pagine (<script type="module">):
+   inizializza header, navigazione, notifiche e avatar quando la sessione
+   e' nota (evento `lb-auth-ready` di api-bootstrap.js).
 
-   Architettura moduli (v3.0.0-alpha.0+):
-     data.js     → seed fixtures + costanti tassonomiche
-     storage.js  → wrapper localStorage (sarà refactored in Fase 2)
-     api.js      → logica applicativa (sarà endpoint REST in Fase 1)
-     ui.js       → rendering DOM e wiring eventi
-     app.js      → entry + init + window globals (questo file)
+   Espone ancora `window.API` e `window.Storage` del prototipo
+   (js/legacy/) per le parti delle pagine non ancora collegate al backend:
+   vanno eliminati quando nessuna pagina li usa piu'.
    ============================================================================= */
 
 import { Storage } from './legacy/storage.js';
@@ -45,27 +40,33 @@ window.LOAN_STATUS_LABEL = LOAN_STATUS_LABEL;
 window.LOAN_STATUS_HINT = LOAN_STATUS_HINT;
 
 /* -----------------------------------------------------------------
-   INIZIALIZZAZIONE GLOBALE (al DOMContentLoaded)
+   INIZIALIZZAZIONE GLOBALE (al DOMContentLoaded, dopo la sessione)
+   ----------------------------------------------------------------- */
+
+/* -----------------------------------------------------------------
+   DATI DEL PROTOTIPO NEL BROWSER
    -----------------------------------------------------------------
-   Beta 6 sess 2: rimosso `applySessionShim()`. Le pagine leggono ora
-   `window.LB_AUTH_USER` (popolato da api-bootstrap) direttamente, oppure
-   `window.LB_UI.currentUser()` che ritorna la shape legacy adattata.
+   Le versioni precedenti scrivevano a ogni pagina un intero insieme di dati
+   di esempio nel localStorage (utenti, libri, prestiti, notifiche finti),
+   che alcune pagine mostravano al posto dei dati reali. Non vengono piu'
+   creati; quelli gia' presenti si cancellano una volta, riconoscendoli
+   dalla chiave `data_version`. Resta solo `auth_state` (uscita locale). */
+const KEEP_KEYS = new Set(['auth_state']);
 
-   Il legacy `API.getCurrentUser()` esiste ancora ma non e' piu' patchato:
-   ritorna null (a meno che il localStorage non contenga un `current_user_id`,
-   ma quello non viene piu' scritto). Le chiamate residue nel legacy
-   `api.js` sono dead code.
+function purgePrototypeData() {
+  try {
+    if (localStorage.getItem('data_version') === null) return;
+    Object.keys(localStorage)
+      .filter((key) => !KEEP_KEYS.has(key))
+      .forEach((key) => localStorage.removeItem(key));
+  } catch {
+    /* storage non disponibile (navigazione privata, quota): niente da fare */
+  }
+}
 
-   `Storage.get('users')` non contiene piu' l'utente corrente iniettato.
-   Le funzioni legacy che facevano join su quell'array (getBooksByOwner,
-   getFollowers, ecc.) non funzionano piu' per l'utente reale — ma sono
-   comunque dead code (le pagine usano i wrapper backend). */
+purgePrototypeData();
 
 function runInits() {
-  Storage.init();
-  API.seedSocialDemo();
-  // Beta 7: rimosso API.checkOverdueLoans() - ora gestito dal job backend
-  // BullMQ (src/jobs/overdueLoans.js) schedulato ogni ora.
   UI.initMobileNav();
   UI.highlightActiveNav();
   UI.initAuthToggle();

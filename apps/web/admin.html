@@ -354,18 +354,8 @@
 
   <script>
   document.addEventListener('DOMContentLoaded', async () => {
-    // Fase 3.2: session gate — aspetta bootstrap ready per usare LB_AUTH_USER
-    if (!window.LB_AUTH_READY) {
-      await new Promise((res) => window.addEventListener('lb-auth-ready', res, { once: true }));
-    }
-    // Verifica ruolo admin da session Better Auth se disponibile
-    if (window.LB_AUTH_USER && window.LB_AUTH_USER.role !== 'admin') {
-      alert('Accesso negato: pannello admin riservato agli amministratori.');
-      location.href = 'index.html';
-      return;
-    }
-    // Fallback legacy: la funzione API.requireAdmin controlla is_admin legacy
-    const me = API.requireAdmin('login.html', 'index.html');
+    // Accesso: solo utenti con ruolo admin nella sessione del backend
+    const me = await window.LB_UI.requireAdmin('login.html', 'index.html');
     if (!me) return;
 
     // ============= KPI veloci in cima (Beta 3: backend /api/stats/global) =============
