@@ -24,10 +24,10 @@ export const UserId = z.string().min(1).max(40);
 export const PostId = z.string().min(1).max(40);
 
 /** ISO date-time string */
-export const IsoDateTime = z.string().datetime();
+export const IsoDateTime = z.iso.datetime();
 
 /** URL opzionale (consente null) */
-export const NullableUrl = z.string().url().nullable();
+export const NullableUrl = z.url().nullable();
 
 // -----------------------------------------------------------------------------
 // Paginazione

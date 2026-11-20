@@ -120,7 +120,7 @@ Uso client: \`const es = new EventSource('/api/me/events')\``,
       const heartbeatTimer = setInterval(() => {
         try {
           reply.raw.write(':heartbeat\n\n');
-        } catch (err) {
+        } catch {
           // Se il write fallisce, la connessione e' morta — cleanup verra'
           // fatto dal listener 'close' sotto
         }

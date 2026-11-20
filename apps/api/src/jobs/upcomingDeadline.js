@@ -23,10 +23,8 @@
 //     mattina cosi' l'utente ha tempo di organizzarsi durante la giornata)
 // =============================================================================
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma.js';
 import { sendEmail } from '../lib/mailer.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Handler pre-deadline reminder.

@@ -18,12 +18,14 @@
 // =============================================================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  moduleFormat           = "esm"
+  importFileExtension    = "ts"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // =============================================================================
@@ -52,7 +54,7 @@ model User {
   // Geolocalizzazione
   // - lat/lng: scrittura naturale dal frontend (sempre presenti se nota la posizione)
   // - location: PostGIS geography(Point, 4326), sincronizzata da trigger DB
-  //   (vedi seed.mjs per setup function + trigger + indice GIST). Prisma la
+  //   (migrazione 20261120090000_postgis_users_location). Prisma la
   //   espone come Unsupported: per query usare $queryRaw con ST_DWithin/ST_Distance
   lat            Float?
   lng            Float?
@@ -99,6 +101,9 @@ model User {
 
   @@index([accountType])
   @@index([status])
+  // Indice GIST per le query PostGIS; funzione e trigger che popolano
+  // location sono nella migrazione 20261120090000_postgis_users_location
+  @@index([location], type: Gist, map: "users_location_gist")
   @@map("users")
 }
 

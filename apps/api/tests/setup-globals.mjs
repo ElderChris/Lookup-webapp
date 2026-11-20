@@ -15,7 +15,7 @@
 // Ritorna funzione di teardown opzionale (no-op qui).
 // =============================================================================
 
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '../src/lib/prismaClient.js';
 
 export default async function setup() {
   // --- Safety check: DATABASE_URL deve contenere "lookup_test" ---
@@ -31,7 +31,7 @@ export default async function setup() {
     throw new Error('Refusing to run tests on non-test DB');
   }
 
-  const prisma = new PrismaClient({ log: ['warn', 'error'] });
+  const prisma = createPrismaClient({ log: ['warn', 'error'] });
 
   try {
     // Test connessione

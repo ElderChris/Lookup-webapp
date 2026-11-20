@@ -28,6 +28,7 @@ import { redis, attachRedisLogging } from './lib/redis.js';
 import { errorHandler, notFoundHandler } from './lib/errorHandler.js';
 import routes from './routes/index.js';
 import authPlugin from './lib/authFastify.js';
+import { API_VERSION } from './version.js';
 
 export async function buildApp(opts = {}) {
   const fastify = Fastify({
@@ -62,6 +63,10 @@ export async function buildApp(opts = {}) {
       callback(new Error(`CORS: origin ${origin} non permessa`), false);
     },
     credentials: true, // per session cookie (Fase 3)
+    // Da @fastify/cors 11 il default e' solo GET,HEAD,POST: senza questa
+    // riga le preflight di PUT/PATCH/DELETE da un'origine diversa
+    // (frontend di sviluppo su :8765) verrebbero rifiutate.
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   });
 
   // --- Rate limit globale (Beta 5) ---
@@ -136,9 +141,9 @@ export async function buildApp(opts = {}) {
         title: 'Lookup API',
         description:
           'API REST per Lookup, piattaforma peer-to-peer di condivisione libri ' +
-          'ambientata a Napoli. 44 endpoint su 7 domini: books, users, loans, ' +
-          'posts, notifications, stats, geo (PostGIS).',
-        version: '3.0.0-beta.10',
+          'ambientata a Napoli: libri, utenti, prestiti, post, notifiche, ' +
+          'statistiche e ricerca geografica (PostGIS).',
+        version: API_VERSION,
         license: { name: 'GPL-3.0', url: 'https://www.gnu.org/licenses/gpl-3.0.html' },
       },
       servers: [{ url: 'http://localhost:3000', description: 'Sviluppo locale' }],
@@ -248,6 +253,14 @@ export async function buildApp(opts = {}) {
 
   // --- Routes ---
   await fastify.register(routes);
+
+  // --- Email: controllo della configurazione SMTP all'avvio ---
+  // In background, per non rallentare l'avvio: registra host, modalita' TLS,
+  // utente e avvisi (es. verifica del certificato disattivata).
+  if (process.env.NODE_ENV !== 'test') {
+    const { checkSmtp } = await import('./lib/mailer.js');
+    void checkSmtp(fastify.log);
+  }
 
   // --- Background jobs (Beta 7) ---
   // Startup dei worker BullMQ + registrazione dei repeat job (overdue-loans,

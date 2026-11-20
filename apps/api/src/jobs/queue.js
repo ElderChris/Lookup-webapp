@@ -12,7 +12,7 @@
 //   1. Il modulo `queue.js` esporta le queue instances (per aggiungere job)
 //   2. Il modulo `worker.js` registra i worker che processano i job
 //   3. `app.js` chiama `bootstrapJobs()` a startup per lanciare i worker
-//      + inserire i job "ricorrenti" (repeat schedule)
+//      + registrare i job ricorrenti (Job Scheduler)
 //
 // PERCHE' BULLMQ (invece di node-cron):
 //   - Persistente: se il processo crasha, i job vengono ritentati
@@ -80,55 +80,48 @@ export function attachQueueEvents(logger) {
 }
 
 // -----------------------------------------------------------------------------
-// Configurazione dei "repeat jobs" (ricorrenti)
+// Job ricorrenti: Job Scheduler di BullMQ
 // -----------------------------------------------------------------------------
+// Fino al 20 nov 2026 i job ricorrenti erano "repeatable job" (`queue.add`
+// con l'opzione `repeat`), API rimossa in BullMQ 6, che si rifiuta di partire
+// se in Redis trova ancora le vecchie definizioni. Ora sono Job Scheduler
+// (`upsertJobScheduler`, idempotente: un id fisso per ogni job).
+// Le vecchie definizioni in Redis le ha rimosse all'avvio la versione
+// precedente di questo file (ancora su BullMQ 5): un'installazione deve
+// averla avviata almeno una volta prima di passare a BullMQ 6.
+
+const SCHEDULES = [
+  {
+    queue: overdueLoansQueue,
+    id: 'check-overdue-loans',
+    // Ogni ora (in dev si puo' accorciare via env per test rapidi)
+    pattern: process.env.OVERDUE_JOB_SCHEDULE || '0 * * * *',
+    opts: { removeOnComplete: 50, removeOnFail: 100 },
+  },
+  {
+    queue: retentionQueue,
+    id: 'purge-audit-log',
+    // Ogni notte alle 3:00 UTC
+    pattern: process.env.RETENTION_JOB_SCHEDULE || '0 3 * * *',
+    opts: { removeOnComplete: 30, removeOnFail: 100 },
+  },
+  {
+    queue: upcomingDeadlineQueue,
+    id: 'notify-upcoming-deadlines',
+    // Beta 7.1: promemoria cortese, una volta al giorno alle 9:00 UTC
+    pattern: process.env.PRE_DEADLINE_JOB_SCHEDULE || '0 9 * * *',
+    opts: { removeOnComplete: 30, removeOnFail: 100 },
+  },
+];
 
 /**
- * Registra i job ricorrenti nelle queue. Idempotente: BullMQ deduplica
- * usando il repeat key. Puoi chiamare questa funzione ad ogni startup.
+ * Registra i job ricorrenti. Idempotente: si chiama a ogni avvio.
  */
 export async function registerRecurringJobs(logger) {
-  // Overdue loans: ogni ora
-  // In dev possiamo alzarlo a ogni 5 minuti per test rapido — configurabile
-  const overdueSchedule = process.env.OVERDUE_JOB_SCHEDULE || '0 * * * *';
-  await overdueLoansQueue.add(
-    'check-overdue-loans',
-    {},
-    {
-      repeat: { pattern: overdueSchedule },
-      removeOnComplete: 50, // tieni gli ultimi 50 in history
-      removeOnFail: 100,
-    }
-  );
-  logger.info({ schedule: overdueSchedule }, '[jobs] overdue-loans scheduled');
-
-  // Retention purge: ogni notte alle 3:00 AM UTC
-  const retentionSchedule = process.env.RETENTION_JOB_SCHEDULE || '0 3 * * *';
-  await retentionQueue.add(
-    'purge-audit-log',
-    {},
-    {
-      repeat: { pattern: retentionSchedule },
-      removeOnComplete: 30,
-      removeOnFail: 100,
-    }
-  );
-  logger.info({ schedule: retentionSchedule }, '[jobs] retention scheduled');
-
-  // Beta 7.1: Upcoming deadline reminder — ogni mattina alle 9:00 UTC
-  // Frequenza giornaliera (non oraria come overdue): il pre-reminder e'
-  // cortese, non urgente, meglio arrivare una volta al mattino.
-  const upcomingSchedule = process.env.PRE_DEADLINE_JOB_SCHEDULE || '0 9 * * *';
-  await upcomingDeadlineQueue.add(
-    'notify-upcoming-deadlines',
-    {},
-    {
-      repeat: { pattern: upcomingSchedule },
-      removeOnComplete: 30,
-      removeOnFail: 100,
-    }
-  );
-  logger.info({ schedule: upcomingSchedule }, '[jobs] upcoming-deadline scheduled');
+  for (const { queue, id, pattern, opts } of SCHEDULES) {
+    await queue.upsertJobScheduler(id, { pattern, tz: 'UTC' }, { name: id, data: {}, opts });
+    logger.info({ queue: queue.name, schedule: pattern }, '[jobs] scheduler registrato');
+  }
 }
 
 /**

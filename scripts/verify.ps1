@@ -278,14 +278,21 @@ Invoke-Step 'Database: migrazioni + dati di prova' $false {
     $r = Invoke-Native 'npm run db:migrate:deploy -w apps/api'
     if ($r.Code -ne 0) { return @{ Status = 'FAIL'; Detail = 'prisma migrate deploy fallito, vedi log' } }
 
+    # Deriva tra schema.prisma e database reale (solo informativo): exit code
+    # 0 = nessuna differenza, 2 = differenze (SQL nel log), altro = errore.
+    $drift = Invoke-Native 'cd apps\api && npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script --exit-code'
+    $driftNote = 'schema allineato al database'
+    if ($drift.Code -eq 2) { $driftNote = 'DIFFERENZE tra schema e database, SQL nel log' }
+    elseif ($drift.Code -ne 0) { $driftNote = 'controllo deriva non riuscito, vedi log' }
+
     # Dati di prova solo se il database e' vuoto: il seed azzera le tabelle
     $count = (Invoke-Native 'echo SELECT count(*) FROM users; | docker exec -i lookup-postgres psql -U lookup -d lookup -tA').Output.Trim()
     if ($count -eq '0' -or $Reseed) {
         $seed = Invoke-Native 'npm run db:seed -w apps/api'
         if ($seed.Code -ne 0) { return @{ Status = 'FAIL'; Detail = 'seed fallito, vedi log' } }
-        return @{ Status = 'PASS'; Detail = "$($sql.Count) migrazioni, dati di prova caricati" }
+        return @{ Status = $(if ($drift.Code -eq 0) { 'PASS' } else { 'WARN' }); Detail = "$($sql.Count) migrazioni, dati di prova caricati, $driftNote" }
     }
-    return @{ Status = 'PASS'; Detail = "$($sql.Count) migrazioni, $count utenti gia' presenti (seed non rieseguito)" }
+    return @{ Status = $(if ($drift.Code -eq 0) { 'PASS' } else { 'WARN' }); Detail = "$($sql.Count) migrazioni, $count utenti gia' presenti (seed non rieseguito), $driftNote" }
 }
 
 Invoke-Step 'Versioni nei container' $false {
@@ -425,7 +432,13 @@ Invoke-Step 'Email (reset password -> Mailpit)' $SkipSmoke.IsPresent {
         if ($after.Code -eq 200) {
             $j = $after.Body | ConvertFrom-Json
             if ($j.total -gt $total0 -and $after.Body -match [regex]::Escape($SeedEmail)) {
-                return @{ Status = 'PASS'; Detail = "email di reset per $SeedEmail arrivata in Mailpit" }
+                # Mailpit accetta solo connessioni STARTTLS autenticate: se
+                # l'email e' arrivata, TLS e credenziali hanno funzionato.
+                # Il log di avvio dell'API lo conferma esplicitamente.
+                $logs = Invoke-Native 'docker logs lookup-api' -Quiet
+                $tls = 'STARTTLS + credenziali'
+                if ($logs.Output -match 'server SMTP raggiungibile') { $tls += ', controllo SMTP di avvio OK' }
+                return @{ Status = 'PASS'; Detail = "email di reset per $SeedEmail arrivata in Mailpit ($tls)" }
             }
         }
     }

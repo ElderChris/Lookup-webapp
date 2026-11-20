@@ -10,7 +10,7 @@
 // =============================================================================
 
 import { buildApp } from '../src/app.js';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '../src/lib/prismaClient.js';
 import { signInAsCached } from './authTestHelpers.mjs';
 
 let _app = null;
@@ -64,7 +64,7 @@ export async function authHeaders(userId) {
  * Client Prisma standalone per assertion/setup nei test.
  */
 export function createTestPrisma() {
-  return new PrismaClient({ log: ['warn', 'error'] });
+  return createPrismaClient({ log: ['warn', 'error'] });
 }
 
 /**

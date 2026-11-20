@@ -30,7 +30,7 @@ if (existsSync(INIT_SQL)) {
 // Comando come stringa unica: con `shell: true` un array di argomenti fa
 // emettere a Node l'avviso DEP0190. La shell serve per npx su Windows.
 const res = spawnSync(
-  'npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script',
+  'npx prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script',
   { cwd: API_ROOT, encoding: 'utf8', shell: true, maxBuffer: 32 * 1024 * 1024 }
 );
 if (res.status !== 0 || !res.stdout.includes('CREATE TABLE')) {

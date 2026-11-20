@@ -19,10 +19,8 @@
 //   - Se il job fallisce (SMTP giu'), BullMQ retry con exponential backoff
 // =============================================================================
 
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma.js';
 import { sendEmail } from '../lib/mailer.js';
-
-const prisma = new PrismaClient();
 
 /**
  * Handler principale del job. Processa TUTTI i loans overdue in una singola

@@ -1,6 +1,6 @@
 {
   "name": "@lookup/shared",
-  "version": "3.0.0-alpha.10-zod-openapi",
+  "version": "3.0.0-beta.11",
   "private": true,
   "description": "Schemi Zod condivisi tra backend (apps/api) e frontend (apps/web). Validazione runtime + type inference.",
   "type": "module",
@@ -13,6 +13,6 @@
     "lint": "node --input-type=module -e \"await import('./src/index.js')\""
   },
   "dependencies": {
-    "zod": "^3.23.8"
+    "zod": "^4.6.7"
   }
 }

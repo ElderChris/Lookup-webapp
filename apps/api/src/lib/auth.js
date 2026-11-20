@@ -15,16 +15,12 @@
 
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { PrismaClient } from '@prisma/client';
-import { smtpTransport } from './mailer.js';
-
-const prisma = new PrismaClient();
-
-const FROM = process.env.SMTP_FROM || 'no-reply@lookup.local';
+import { prisma } from './prisma.js';
+import { smtpTransport, SMTP_FROM } from './mailer.js';
 
 async function sendMail({ to, subject, text, html }) {
   try {
-    await smtpTransport.sendMail({ from: FROM, to, subject, text, html });
+    await smtpTransport.sendMail({ from: SMTP_FROM, to, subject, text, html });
     console.info(`[auth] email inviata a ${to}: "${subject}"`);
   } catch (err) {
     console.error(`[auth] errore invio email a ${to}:`, err.message);

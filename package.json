@@ -1,8 +1,8 @@
 {
   "name": "lookup",
-  "version": "3.0.0-alpha.1-monorepo",
+  "version": "3.0.0-beta.11",
   "private": true,
-  "description": "Lookup — piattaforma di geolocalizzazione culturale per la condivisione del patrimonio librario privato. Prototipo accademico in transizione verso Alpha.",
+  "description": "Lookup — piattaforma di geolocalizzazione culturale per la condivisione del patrimonio librario privato.",
   "type": "module",
   "workspaces": [
     "apps/web",
@@ -15,8 +15,8 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspace=apps/api",
     "test:api": "npm run test --workspace=apps/api",
-    "lint": "eslint apps/",
-    "lint:fix": "eslint apps/ --fix",
+    "lint": "eslint apps/ packages/ scripts/",
+    "lint:fix": "eslint apps/ packages/ scripts/ --fix",
     "format": "prettier --write \"apps/**/*.{js,mjs,ts,json}\"",
     "format:check": "prettier --check \"apps/**/*.{js,mjs,ts,json}\"",
     "check": "npm run lint && npm run format:check && npm test",
@@ -27,9 +27,11 @@
     "db:reset": "docker compose down -v && docker compose up -d postgres redis"
   },
   "devDependencies": {
-    "eslint": "^9.13.0",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0",
     "husky": "^9.1.6",
-    "lint-staged": "^15.2.10",
+    "lint-staged": "^17.6.1",
     "prettier": "^3.3.3"
   },
   "lint-staged": {

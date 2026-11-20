@@ -150,7 +150,7 @@ export async function subscribeToUser(userId, handler) {
       handlers.delete(channel);
       try {
         await sub.unsubscribe(channel);
-      } catch (err) {
+      } catch {
         // Redis potrebbe essere gia' disconnesso in shutdown, ignora
       }
     }

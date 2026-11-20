@@ -60,7 +60,7 @@ const BookRefDto = z.object({
   id: IntId,
   title: z.string(),
   author: z.string(),
-  coverUrl: z.string().url().nullable(),
+  coverUrl: z.url().nullable(),
   available: z.boolean(),
 });
 
