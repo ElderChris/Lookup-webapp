@@ -524,7 +524,9 @@
       // si ricaricano lista e dettaglio; per i messaggi basta la chat.
       if (window.LB_EVENTS) {
         window.LB_EVENTS.on('notification', (payload) => {
-          const type = payload?.type || '';
+          // Il payload SSE e' { type: 'notification', data: { type, ... } }:
+          // il tipo della notifica sta in data.type
+          const type = payload?.data?.type || '';
           // Nuovo messaggio: con un prestito aperto si aggiorna la sua chat
           // (che lo segna come letto), poi i contatori della lista
           if (type === 'loan_message' && chat) chat.refresh();
