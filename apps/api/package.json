@@ -1,6 +1,6 @@
 {
   "name": "@lookup/api",
-  "version": "3.0.0-beta.10",
+  "version": "3.0.0-beta.11",
   "private": true,
   "description": "Backend di Lookup — Node + Fastify + Prisma + PostgreSQL.",
   "type": "module",

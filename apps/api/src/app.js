@@ -28,6 +28,7 @@ import { redis, attachRedisLogging } from './lib/redis.js';
 import { errorHandler, notFoundHandler } from './lib/errorHandler.js';
 import routes from './routes/index.js';
 import authPlugin from './lib/authFastify.js';
+import { API_VERSION } from './version.js';
 
 export async function buildApp(opts = {}) {
   const fastify = Fastify({
@@ -140,9 +141,9 @@ export async function buildApp(opts = {}) {
         title: 'Lookup API',
         description:
           'API REST per Lookup, piattaforma peer-to-peer di condivisione libri ' +
-          'ambientata a Napoli. 44 endpoint su 7 domini: books, users, loans, ' +
-          'posts, notifications, stats, geo (PostGIS).',
-        version: '3.0.0-beta.10',
+          'ambientata a Napoli: libri, utenti, prestiti, post, notifiche, ' +
+          'statistiche e ricerca geografica (PostGIS).',
+        version: API_VERSION,
         license: { name: 'GPL-3.0', url: 'https://www.gnu.org/licenses/gpl-3.0.html' },
       },
       servers: [{ url: 'http://localhost:3000', description: 'Sviluppo locale' }],
