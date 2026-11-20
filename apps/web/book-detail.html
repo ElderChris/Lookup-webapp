@@ -68,7 +68,7 @@
     <form method="dialog" class="form" style="padding: 2rem;">
       <h3 id="loan-title" style="font-family: var(--font-display); margin: 0;">Richiedi il prestito</h3>
       <p style="color: var(--color-ink-soft); font-size: .9rem;">
-        Questo è un prototipo: la richiesta è simulata. In produzione verrebbe inviata al proprietario tramite notifica e/o email.
+        Il proprietario riceverà una notifica e potrà accettare o rifiutare la richiesta.
       </p>
 
       <!-- Suggerimento per gli ospiti: spiega che serve l'iscrizione -->
@@ -129,127 +129,77 @@
   <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
-    // Fase 2c.2: il DOMContentLoaded handler e' async. Il READ del libro
-    // proviene dal backend (con cache 30s), fallback graceful al legacy
-    // Storage se backend giu' o errore. La UI usa la shape legacy sempre,
-    // il transformer garantisce compatibilita' invisibile.
+    // Dettaglio di un libro: tutti i dati arrivano dal backend.
     document.addEventListener('DOMContentLoaded', async () => {
-
-      const id = +new URLSearchParams(location.search).get('id') || 1;
+      const id = Number(new URLSearchParams(location.search).get('id'));
       const container = document.getElementById('book-detail');
+      const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
+      const orDash = (v) => (v === null || v === undefined || v === '' ? '—' : esc(v));
 
-      // ----- Fase 2c.2 (refactor 2c.5): fetch dal backend via queryClient -----
-      // queryClient offre: dedup (2 aperture stessa tab = 1 fetch),
-      // refetch on window focus (torni al tab dopo 30s = auto-refresh),
-      // retry con exponential backoff su errori infrastrutturali,
-      // subscribe per componenti reattivi.
-      //
-      // Se backend giu' o non disponibile → fallback legacy API.getBook(id).
-      let book, source;
-      try {
-        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-          const apiBook = await window.LB_API.withApiFallback(
-            () => window.LB_QUERY.fetchQuery({
-              queryKey: ['book', id],
-              queryFn: () => window.LB_API.books.getById(id),
-              staleTime: window.LB_API.CACHE_TTL.BOOK_DETAIL,
-            }),
-            () => {
-              const legacy = API.getBook(id);
-              if (!legacy) throw new window.LB_API.ApiError('NOT_FOUND', 'Libro non trovato', 404);
-              return legacy;
-            },
-          );
-          book = ('coverUrl' in apiBook || 'viewCount' in apiBook)
-            ? window.LB_API.bookToLegacy(apiBook)
-            : apiBook;
-          source = ('coverUrl' in apiBook || 'viewCount' in apiBook) ? 'backend' : 'legacy';
-        } else {
-          book = API.getBook(id);
-          source = 'legacy';
-        }
-      } catch (err) {
-        if (err.code === 'NOT_FOUND' || err.status === 404) {
-          container.innerHTML = `<div class="alert alert--error">Libro non trovato.</div>`;
-          return;
-        }
-        book = API.getBook(id);
-        source = 'legacy (fallback errore)';
-      }
-
-      if (!book) {
-        container.innerHTML = `<div class="alert alert--error">Libro non trovato.</div>`;
+      if (!Number.isInteger(id) || id < 1) {
+        container.innerHTML = '<div class="alert alert--error">Libro non trovato.</div>';
         return;
       }
-      console.debug(`[book-detail] loaded from: ${source}`);
-      if (source === 'backend' && window.LB_markLive) {
-        window.LB_markLive('book-detail', `GET /api/books/${id} (cache 30s)`);
+
+      await window.LB_UI.whenAuthReady();
+      const me = window.LB_UI.currentUser();
+
+      let book;
+      try {
+        book = await window.LB_API.books.getById(id);
+      } catch (err) {
+        container.innerHTML = err.status === 404
+          ? '<div class="alert alert--error">Libro non trovato.</div>'
+          : '<div class="alert alert--error">Server non raggiungibile: impossibile caricare il libro. Riprova tra poco.</div>';
+        return;
       }
-      // ------------------------------------------------------------
 
-      const owner = API.getUser(book.owner_id);
+      // Registra la visualizzazione
+      window.LB_API.books.trackView(id).catch(() => {});
 
-      // v2.3: registra una visualizzazione reale (deduplicata per
-      // session). Sostituisce il vecchio incrementViews che gonfiava
-      // il counter ad ogni reload.
-      API.recordBookView(id);
+      const owner = book.owner || {};
+      const isOwner = !!me && me.id === owner.id;
+      const primaryCategory = (book.categories || []).find((c) => c.isPrimary) || (book.categories || [])[0];
+      const gradient = window.LB_API.bookToLegacy(book).cover_gradient;
 
-      // ----- Fase 2b.2: SHADOW WRITE al backend reale ---------------------
-      // Oltre al tracking legacy in localStorage (sopra), inviamo anche un
-      // POST /api/books/:id/views al backend Fastify.
-      // Fire-and-forget: se il backend e' giu', ignoriamo silenziosamente.
-      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-        window.LB_API.books.trackView(id)
-          .then((res) => {
-            console.debug(`[api shadow] /views OK, viewCount=${res?.viewCount}`);
-            // Fase 2c.5: invalida via queryClient (event-driven) invece di cache.js
-            window.LB_QUERY.invalidateQueries({ queryKey: ['book', id] });
-          })
-          .catch((err) => console.debug(`[api shadow] /views skip: ${err.code}`));
-      }
-      // --------------------------------------------------------------------
-
-      // Aggiorna titolo pagina e breadcrumb
       document.title = `${book.title} — Lookup`;
       document.getElementById('breadcrumb-title').textContent = book.title;
 
       const isbnClean = (book.isbn || '').replace(/[^\d]/g, '');
-      const olImg = isbnClean
-        ? `<img class="book-card__cover-img" alt=""
-                src="https://covers.openlibrary.org/b/isbn/${isbnClean}-L.jpg?default=false"
-                onload="this.classList.add('is-loaded')"
-                onerror="this.style.display='none'" />`
+      const coverSrc = book.coverUrl
+        || (isbnClean ? `https://covers.openlibrary.org/b/isbn/${isbnClean}-L.jpg?default=false` : '');
+      const coverImg = coverSrc
+        ? `<img class="book-card__cover-img" alt="" src="${esc(coverSrc)}"
+                onload="this.classList.add('is-loaded')" onerror="this.style.display='none'" />`
         : '';
 
       container.innerHTML = `
         <div class="book-detail__cover book-card__cover book-card__cover--placeholder"
-             style="background: ${book.cover_gradient};">
-          ${olImg}
-          <span class="book-card__cover-title">${book.title}</span>
+             style="background: ${gradient};">
+          ${coverImg}
+          <span class="book-card__cover-title">${esc(book.title)}</span>
         </div>
 
         <div>
-          <span class="book-card__category">${book.category}</span>
-          <h1 class="book-detail__title">${book.title}</h1>
-          <p class="book-detail__author">di ${book.author}</p>
+          ${primaryCategory ? `<span class="book-card__category">${esc(primaryCategory.name)}</span>` : ''}
+          <h1 class="book-detail__title">${esc(book.title)}</h1>
+          <p class="book-detail__author">di ${esc(book.author)}</p>
 
-          <!-- Like + avviso disponibilità -->
           <div style="display:flex; align-items:center; gap:1.25rem; margin: 0.5rem 0 1.25rem; flex-wrap:wrap;">
-            <button type="button" class="like-btn" id="like-btn" aria-pressed="false">
+            <button type="button" class="like-btn" id="like-btn" aria-pressed="false" ${isOwner ? 'hidden' : ''}>
               <svg class="like-btn__heart" viewBox="0 0 24 24" aria-hidden="true">
                 <path id="like-heart-path" d="M12 20 C12 20 3 14 3 8 C3 5 5 3.5 7.2 3.5 C9 3.5 10.6 4.7 12 6.6 C13.4 4.7 15 3.5 16.8 3.5 C19 3.5 21 5 21 8 C21 14 12 20 12 20 Z"
                       fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
               </svg>
               <span id="like-label">Mi piace</span>
-              <span id="like-count" style="font-family:var(--font-mono);">(${API.getLikeCount(book.id)})</span>
+              <span id="like-count" style="font-family:var(--font-mono);">(${book.likesCount ?? 0})</span>
             </button>
-            ${!book.available
-              ? `<span class="like-waiting">⏳ metti «mi piace» per essere avvisato quando torna disponibile</span>`
+            ${!book.available && !isOwner
+              ? '<span class="like-waiting">⏳ metti «mi piace» per essere avvisato quando torna disponibile</span>'
               : ''}
-            <!-- v2.3: pulsante elimina volume — visibile solo al
-                 proprietario (popolato/nascosto dal JS più sotto). -->
-            <button type="button" class="btn btn--ghost btn--small btn--danger"
-                    id="delete-book-btn" hidden>
+            <button type="button" class="btn btn--ghost btn--small btn--danger" id="delete-book-btn" ${isOwner ? '' : 'hidden'}>
               <span aria-hidden="true">🗑</span> Elimina volume
             </button>
           </div>
@@ -257,297 +207,162 @@
           <dl class="book-detail__metadata">
             <div class="book-detail__meta-item">
               <dt class="book-detail__meta-label">Anno</dt>
-              <dd class="book-detail__meta-value">${book.year}</dd>
+              <dd class="book-detail__meta-value">${orDash(book.year)}</dd>
             </div>
             <div class="book-detail__meta-item">
               <dt class="book-detail__meta-label">Pagine</dt>
-              <dd class="book-detail__meta-value">${book.pages}</dd>
+              <dd class="book-detail__meta-value">${orDash(book.pages)}</dd>
             </div>
             <div class="book-detail__meta-item">
               <dt class="book-detail__meta-label">Lingua</dt>
-              <dd class="book-detail__meta-value">${book.language}</dd>
+              <dd class="book-detail__meta-value">${orDash(book.language)}</dd>
             </div>
             <div class="book-detail__meta-item">
               <dt class="book-detail__meta-label">ISBN</dt>
-              <dd class="book-detail__meta-value" style="font-family: var(--font-mono); font-size: .85rem;">${book.isbn}</dd>
+              <dd class="book-detail__meta-value" style="font-family: var(--font-mono); font-size: .85rem;">${orDash(book.isbn)}</dd>
             </div>
           </dl>
 
-          <p class="book-detail__description">${book.description}</p>
+          ${book.description ? `<p class="book-detail__description">${esc(book.description)}</p>` : ''}
+          ${book.condition ? `<p style="color: var(--color-ink-soft); font-size: .9rem;">
+            <strong style="color: var(--color-ink);">Stato:</strong> ${esc(book.condition)}</p>` : ''}
 
-          <p style="color: var(--color-ink-soft); font-size: .9rem;">
-            <strong style="color: var(--color-ink);">Stato:</strong> ${book.condition}
-          </p>
-
-          <!-- Box proprietario e azioni -->
           <div class="owner-box">
             <p class="owner-box__label">Custodito da</p>
-            <p class="owner-box__name">${owner.display_name}</p>
-            <p class="owner-box__location">${owner.city}</p>
-            <p style="font-size: .85rem; color: var(--color-ink-soft); margin-bottom: 1rem;">
-              ${owner.bio}
-            </p>
+            <p class="owner-box__name">${esc(owner.displayName || '—')}</p>
+            <p class="owner-box__location">${esc(owner.city || '')}</p>
+            ${owner.bio ? `<p style="font-size: .85rem; color: var(--color-ink-soft); margin-bottom: 1rem;">${esc(owner.bio)}</p>` : ''}
             <div class="owner-box__actions">
-              ${book.available
-                ? `<button class="btn btn--primary" id="request-loan-btn">Richiedi prestito</button>`
-                : `<span class="badge badge--pending">Attualmente in prestito</span>`}
-              <a href="library.html?id=${owner.id}" class="btn btn--ghost">Vai alla libreria</a>
+              ${isOwner
+                ? '<span class="badge">Il tuo volume</span>'
+                : book.available
+                  ? '<button class="btn btn--primary" id="request-loan-btn">Richiedi prestito</button>'
+                  : '<span class="badge badge--pending">Attualmente in prestito</span>'}
+              <a href="library.html?id=${encodeURIComponent(owner.id || '')}" class="btn btn--ghost">Vai alla libreria</a>
             </div>
           </div>
 
-          <!-- Metriche di visualizzazione -->
-          <div style="margin-top: 2rem; display: flex; gap: 2rem; font-size: .85rem; color: var(--color-ink-soft); font-family: var(--font-mono); letter-spacing: .1em; text-transform: uppercase;">
-            <span>${book.views} visualizzazioni</span>
-            <span>${book.loan_requests} richieste di prestito</span>
-            <span>Pubblicato il ${new Date(book.added).toLocaleDateString('it-IT')}</span>
+          <div style="margin-top: 2rem; display: flex; gap: 2rem; flex-wrap: wrap; font-size: .85rem; color: var(--color-ink-soft); font-family: var(--font-mono); letter-spacing: .1em; text-transform: uppercase;">
+            <span>${book.viewCount ?? 0} visualizzazioni</span>
+            <span>${book.requestCount ?? 0} richieste di prestito</span>
+            ${book.createdAt ? `<span>Pubblicato il ${new Date(book.createdAt).toLocaleDateString('it-IT')}</span>` : ''}
           </div>
         </div>
       `;
 
-      // Gestione richiesta prestito
-      const btn = document.getElementById('request-loan-btn');
-      if (btn) {
-        btn.addEventListener('click', () => document.getElementById('loan-dialog').showModal());
+      // === Richiesta di prestito ===
+      document.getElementById('request-loan-btn')
+        ?.addEventListener('click', () => document.getElementById('loan-dialog').showModal());
+
+      // === Mi piace ===
+      const likeBtn = document.getElementById('like-btn');
+      let liked = !!book.likedByMe;
+      let likesCount = book.likesCount ?? 0;
+      function paintLike() {
+        likeBtn.classList.toggle('is-liked', liked);
+        likeBtn.setAttribute('aria-pressed', String(liked));
+        document.getElementById('like-heart-path').setAttribute('fill', liked ? 'currentColor' : 'none');
+        document.getElementById('like-label').textContent = liked ? 'Ti piace' : 'Mi piace';
+        document.getElementById('like-count').textContent = `(${likesCount})`;
       }
-
-      // Gestione "mi piace": richiede l'iscrizione (come su Vinted, per
-      // ricevere gli avvisi di disponibilità). Se ospite → invito al login.
-      (function wireLike() {
-        const likeBtn = document.getElementById('like-btn');
-        if (!likeBtn) return;
-        // v1.5: nasconde il bottone "Mi piace" se stiamo visualizzando un
-        // libro nostro — non ha senso "salvare nei preferiti" un proprio
-        // volume, e impedisce il self-like che gonfierebbe il counter.
-        const meNow = window.LB_UI.currentUser();
-        if (meNow && +book.owner_id === +meNow.id) {
-          likeBtn.hidden = true;
-          return;
-        }
-        const heart = document.getElementById('like-heart-path');
-        const label = document.getElementById('like-label');
-        const count = document.getElementById('like-count');
-
-        function paint() {
-          const me = window.LB_UI.currentUser();
-          const liked = me && API.isLiked(me.id, id);
-          likeBtn.classList.toggle('is-liked', !!liked);
-          likeBtn.setAttribute('aria-pressed', String(!!liked));
-          heart.setAttribute('fill', liked ? 'currentColor' : 'none');
-          label.textContent = liked ? 'Ti piace' : 'Mi piace';
-          count.textContent = `(${API.getLikeCount(id)})`;
-        }
-        paint();
-
-        // ============================================================
-        // Fase 2c.6: subscribe reattivo al queryClient
-        // ============================================================
-        // Quando la queryKey ['book', id] cambia (per invalidateQueries,
-        // refetch on focus, o setQueryData), la pagina si aggiorna
-        // automaticamente. Esempio: se un'altra tab modifica il libro e
-        // invalida la cache, torno su questo tab e i counter (views/likes)
-        // si aggiornano da soli senza refresh.
-        //
-        // POC: solo book-detail. Estendere ad altre pagine in Fase 3+
-        // quando avremo Web Components per rendering reattivo strutturato.
-        if (window.LB_QUERY) {
-          const unsubscribe = window.LB_QUERY.subscribe(['book', id], (state) => {
-            if (state.state === 'success' && state.data) {
-              // Confronto shape: se e' backend (camelCase), converti
-              const fresh = ('coverUrl' in state.data || 'viewCount' in state.data)
-                ? window.LB_API.bookToLegacy(state.data)
-                : state.data;
-              // Aggiorna solo i counter che possono cambiare (views/likes),
-              // NON riscrivere tutto il DOM (perderebbe interazioni utente).
-              if (fresh.likes_count !== undefined) {
-                const countEl = document.getElementById('like-count');
-                if (countEl) countEl.textContent = `(${fresh.likes_count})`;
-              }
-              console.debug(`[book-detail] reactive update: likes=${fresh.likes_count}, views=${fresh.views}`);
-            }
-          });
-          // Cleanup on beforeunload (defensivo)
-          window.addEventListener('beforeunload', unsubscribe, { once: true });
-        }
-        // ============================================================
-
-        likeBtn.addEventListener('click', async () => {
-          const me = window.LB_UI.currentUser();
-          if (!me) {
-            UI.toast('Iscriviti per salvare i preferiti ed essere avvisato sulla disponibilità.', 'info');
-            sessionStorage.setItem('pending_like_book', id);
-            setTimeout(() => location.href = `register.html?intent=borrow&book=${id}`, 1100);
-            return;
-          }
-
-          // ============================================================
-          // Fase 2c.5: like/unlike con queryClient + optimistic update
-          // ============================================================
-          // Semantica optimistic:
-          //   1. onMutate: aggiorna subito legacy Storage (UI istantanea)
-          //              + salva vecchio stato in `context` per rollback
-          //   2. mutationFn: chiamata al backend
-          //   3. onSuccess: invalida cache detail (per counter freschi al re-mount)
-          //   4. onError: rollback allo stato precedente + toast errore
-          //
-          // Se backend giu' (LB_API_AVAILABLE === false), skip la mutation
-          // e fai solo l'azione legacy (behaviour di 2b.2).
-          //
-          // Vantaggio principale: la UI risponde in <1ms invece di 30-100ms
-          // (latency backend). Sensazione istantanea per l'utente.
-          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-            const currentlyLiked = API.isLiked(me.id, id); // stato PRIMA del toggle
-            try {
-              await window.LB_QUERY.mutate({
-                mutationFn: () => {
-                  // Il nuovo stato viene deciso dal legacy (single source of truth
-                  // per lo status "liked"). Il backend prende quello.
-                  return currentlyLiked
-                    ? window.LB_API.books.unlike(id)
-                    : window.LB_API.books.like(id);
-                },
-                onMutate: () => {
-                  // Snapshot per rollback
-                  const nowLiked = API.toggleLike(id); // legacy toggle (sync, subito)
-                  paint(); // UI aggiornata IMMEDIATAMENTE
-                  if (UI._refreshNotifications) UI._refreshNotifications();
-                  UI.toast(nowLiked
-                    ? (book.available ? 'Aggiunto ai preferiti.' : 'Aggiunto ai preferiti: ti avviseremo quando tornerà disponibile.')
-                    : 'Rimosso dai preferiti.', 'info');
-                  return { previousState: currentlyLiked };
-                },
-                onSuccess: (res) => {
-                  console.debug(`[book-detail] like backend OK, count=${res?.likesCount}`);
-                  // Invalida cache detail: prossimo mount avra' likesCount fresco
-                  window.LB_QUERY.invalidateQueries({ queryKey: ['book', id] });
-                },
-                onError: (err, _vars, ctx) => {
-                  console.warn('[book-detail] like backend failed, rollback:', err.code);
-                  // Rollback: rimettere lo stato PRIMA del click
-                  // Se currentlyLiked era true e ora è false, dobbiamo rifare like (rollback unlike)
-                  API.toggleLike(id); // toggle di nuovo per riportare allo stato ctx.previousState
-                  paint();
-                  UI.toast('Errore di rete: preferito ripristinato.', 'error');
-                },
-              });
-            } catch (_) { /* gia' gestito in onError */ }
-          } else {
-            // Path legacy puro (backend giu')
-            const nowLiked = API.toggleLike(id);
-            paint();
-            if (UI._refreshNotifications) UI._refreshNotifications();
-            UI.toast(nowLiked
-              ? (book.available ? 'Aggiunto ai preferiti.' : 'Aggiunto ai preferiti: ti avviseremo quando tornerà disponibile.')
-              : 'Rimosso dai preferiti.', 'info');
-          }
-        });
-      })();
-
-      // v2.3: eliminazione volume — v2.4 security fix: visibile e
-      // utilizzabile SOLO al proprietario. L'admin elimina via il
-      // pannello admin, non dal book-detail (separazione dei canali).
-      (function wireDeleteBook() {
-        const meNow = window.LB_UI.currentUser();
-        const isOwner = meNow && +book.owner_id === +meNow.id;
-        if (!isOwner) return;
-        const btn = document.getElementById('delete-book-btn');
-        if (!btn) return;
-        btn.hidden = false;
-        btn.addEventListener('click', () => {
-          if (!confirm(
-            `Vuoi davvero eliminare definitivamente "${book.title}"?\n\n` +
-            `Verranno cancellati anche:\n` +
-            `• ${(Storage.get('loan_requests', []) || []).filter(l => +l.book_id === +book.id).length} richieste di prestito\n` +
-            `• ${(Storage.get('book_views', []) || []).filter(v => +v.book_id === +book.id).length} visualizzazioni\n` +
-            `• tutti i like ricevuti\n\n` +
-            `Questa azione non può essere annullata.`
-          )) return;
-          const r = API.deleteBook(book.id);
-          if (r.ok) {
-            UI.toast('Volume eliminato. Reindirizzamento al profilo…', 'success');
-            setTimeout(() => location.href = 'profile.html', 1000);
-          } else {
-            UI.toast('Eliminazione fallita: ' + r.reason, 'error');
-          }
-        });
-      })();
-
-      document.getElementById('loan-submit')?.addEventListener('click', async (e) => {
-        if (!document.getElementById('loan-consent').checked) return;
-        e.preventDefault();
-
-        // Per richiedere un prestito bisogna essere iscritti. Se l'utente
-        // è ospite, salviamo il libro in sospeso e lo portiamo alla
-        // registrazione (pre-selezionando il percorso "Lettore"). Al
-        // termine tornerà qui per inviare la richiesta.
-        const me = window.LB_UI.currentUser();
+      paintLike();
+      likeBtn.addEventListener('click', async () => {
         if (!me) {
-          // v1.8: salviamo anche giorni e messaggio per creare il
-          // prestito automaticamente dopo la registrazione fast-track
-          sessionStorage.setItem('pending_loan_book', id);
-          sessionStorage.setItem('pending_loan_days',
-            document.getElementById('loan-days').value || '14');
-          sessionStorage.setItem('pending_loan_message',
-            document.getElementById('loan-message').value || '');
-          document.getElementById('loan-dialog').close();
-          UI.toast('Per richiedere un prestito serve una rapida iscrizione…', 'info');
-          setTimeout(() => location.href = `register.html?intent=borrow&book=${id}`, 900);
+          UI.toast('Iscriviti per salvare i preferiti ed essere avvisato sulla disponibilità.', 'info');
+          setTimeout(() => (location.href = `register.html?intent=borrow&book=${id}`), 1100);
           return;
         }
-
-        const message = document.getElementById('loan-message').value;
-        const days = parseInt(document.getElementById('loan-days').value, 10);
-
-        // Beta 7.1: usa backend con daysRequested (fallback legacy se offline)
-        let requestOk = false;
-        let errorMsg = null;
-        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-          try {
-            await window.LB_API.loans.request(id, {
-              message: message || undefined,
-              daysRequested: days,
-            });
-            requestOk = true;
-          } catch (err) {
-            errorMsg = err.message || err.code;
-            console.debug(`[book-detail] loan request backend failed: ${errorMsg}`);
-          }
-        }
-        if (!requestOk) {
-          const r = API.requestLoan(id, me.id, message, days);
-          requestOk = r.ok;
-          errorMsg = r.reason;
-        }
-        document.getElementById('loan-dialog').close();
-        if (requestOk) {
-          UI.toast(`Richiesta inviata (per ${days} giorni). Il prestatore riceverà una notifica.`, 'success');
-          setTimeout(() => location.reload(), 1500);
-        } else {
-          UI.toast('Impossibile inviare la richiesta: ' + errorMsg, 'error');
+        likeBtn.disabled = true;
+        try {
+          const res = liked ? await window.LB_API.books.unlike(id) : await window.LB_API.books.like(id);
+          liked = !!res.liked;
+          likesCount = res.likesCount ?? likesCount;
+          paintLike();
+          UI.toast(liked
+            ? (book.available ? 'Aggiunto ai preferiti.' : 'Aggiunto ai preferiti: ti avviseremo quando tornerà disponibile.')
+            : 'Rimosso dai preferiti.', 'info');
+        } catch (err) {
+          UI.toast(err.message || 'Operazione non riuscita.', 'error');
+        } finally {
+          likeBtn.disabled = false;
         }
       });
 
-      // Wiring dello slider giorni: aggiorna la pill in tempo reale
+      // === Eliminazione (solo proprietario; l'admin usa il pannello) ===
+      document.getElementById('delete-book-btn')?.addEventListener('click', async (e) => {
+        if (!isOwner) return;
+        if (!confirm(
+          `Vuoi davvero eliminare definitivamente "${book.title}"?\n\n` +
+          'Verranno cancellati anche le richieste di prestito, le visualizzazioni e i «mi piace» collegati.\n\n' +
+          'Questa azione non può essere annullata.'
+        )) return;
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        try {
+          await window.LB_API.books.remove(id);
+          window.LB_API.cache.invalidate('books:');
+          UI.toast('Volume eliminato. Reindirizzamento al profilo…', 'success');
+          setTimeout(() => (location.href = 'profile.html'), 1000);
+        } catch (err) {
+          UI.toast('Eliminazione non riuscita: ' + (err.message || 'riprova tra poco.'), 'error');
+          btn.disabled = false;
+        }
+      });
+
+      // === Invio della richiesta di prestito ===
+      document.getElementById('loan-submit')?.addEventListener('click', async (e) => {
+        if (!document.getElementById('loan-consent').checked) return;
+        e.preventDefault();
+        if (!me) {
+          // Gli ospiti passano dalla registrazione e tornano qui (?loan=1)
+          sessionStorage.setItem('pending_loan_book', id);
+          sessionStorage.setItem('pending_loan_days', document.getElementById('loan-days').value || '14');
+          sessionStorage.setItem('pending_loan_message', document.getElementById('loan-message').value || '');
+          document.getElementById('loan-dialog').close();
+          UI.toast('Per richiedere un prestito serve una rapida iscrizione…', 'info');
+          setTimeout(() => (location.href = `register.html?intent=borrow&book=${id}`), 900);
+          return;
+        }
+        const message = document.getElementById('loan-message').value.trim();
+        const days = parseInt(document.getElementById('loan-days').value, 10);
+        const submitBtn = e.currentTarget;
+        submitBtn.disabled = true;
+        try {
+          const loan = await window.LB_API.loans.request(id, {
+            message: message || undefined,
+            daysRequested: days,
+          });
+          window.LB_API.cache.invalidate('loans:');
+          document.getElementById('loan-dialog').close();
+          UI.toast(`Richiesta inviata (per ${days} giorni). Il prestatore riceverà una notifica.`, 'success');
+          setTimeout(() => (location.href = `loans.html#loan-${loan.id}`), 1200);
+        } catch (err) {
+          UI.toast('Impossibile inviare la richiesta: ' + (err.message || 'riprova tra poco.'), 'error');
+          submitBtn.disabled = false;
+        }
+      });
+
       const daysSlider = document.getElementById('loan-days');
       const daysPill = document.getElementById('loan-days-pill');
-      if (daysSlider && daysPill) {
-        daysSlider.addEventListener('input', () => {
-          daysPill.textContent = `${daysSlider.value} giorni`;
-        });
+      daysSlider?.addEventListener('input', () => {
+        daysPill.textContent = `${daysSlider.value} giorni`;
+      });
+
+      // Ritorno dalla registrazione (register → ?loan=1): riapre la richiesta
+      if (new URLSearchParams(location.search).get('loan') === '1' && document.getElementById('request-loan-btn')) {
+        setTimeout(() => document.getElementById('loan-dialog').showModal(), 400);
       }
 
-      // Se si torna qui dopo l'iscrizione (register → ?loan=1), riapriamo
-      // automaticamente il dialog di richiesta prestito per chiudere il
-      // cerchio senza far ricominciare l'utente da capo.
-      if (new URLSearchParams(location.search).get('loan') === '1') {
-        const reopen = document.getElementById('request-loan-btn');
-        if (reopen) setTimeout(() => document.getElementById('loan-dialog').showModal(), 400);
+      // === Altri volumi dello stesso proprietario ===
+      try {
+        const res = await window.LB_API.books.list({ ownerId: owner.id, limit: 9 });
+        const others = (res.data || []).filter((b) => b.id !== book.id).map(window.LB_API.bookToLegacy);
+        document.getElementById('other-books-count').textContent =
+          `${others.length} altr${others.length === 1 ? 'o titolo' : 'i titoli'}`;
+        UI.renderBooksGrid(document.getElementById('other-books'), others.slice(0, 4));
+      } catch {
+        document.getElementById('other-books-count').textContent = '—';
       }
-
-      // Altri libri dello stesso proprietario
-      const others = API.getBooksByOwner(owner.id).filter(b => b.id !== book.id);
-      document.getElementById('other-books-count').textContent =
-        `${others.length} altri titoli`;
-      UI.renderBooksGrid(document.getElementById('other-books'), others.slice(0, 4));
     });
   </script>
 </body>

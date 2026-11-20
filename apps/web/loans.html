@@ -50,8 +50,8 @@
       </h1>
       <p style="color: var(--color-ink-soft); margin-bottom: 1.5rem; max-width: 70ch;">
         Qui trovi tutti i prestiti che hai chiesto o ricevuto. Usa i filtri per
-        navigare per stato, e clicca un prestito per vederne timeline, chat e
-        cronologia delle email.
+        navigare per stato, e clicca un prestito per vederne stato, chat e
+        azioni.
       </p>
 
       <!-- Conta veloce -->
@@ -99,9 +99,8 @@
         <button type="button" class="return-wizard__close" aria-label="Chiudi" data-close>×</button>
         <h2 id="return-wizard-title">Avvia la restituzione</h2>
         <p style="color: var(--color-ink-soft); margin-bottom: 1.5rem;">
-          Stai per avviare la procedura di restituzione. Una notifica e un'email
-          verranno inviate al prestatore con un link per confermare la ricezione
-          del volume.
+          Stai per avviare la procedura di restituzione. Il prestatore riceverà
+          una notifica e confermerà la ricezione del volume.
         </p>
         <div id="return-wizard-loan"></div>
         <div class="return-wizard__actions">
@@ -128,44 +127,80 @@
       const me = await window.LB_UI.requireUser('login.html');
       if (!me) return;
 
-      // v1.6: alla apertura di questa pagina ri-verifichiamo eventuali
-      // prestiti scaduti (in genere già fatto a Storage.init, ma è il
-      // posto naturale dove l'utente vedrà gli effetti del sollecito).
-      API.checkOverdueLoans();
+      const listEl = document.getElementById('loans-list');
+      const detailEl = document.getElementById('loans-detail');
+      const mdview = document.getElementById('loans-mdview');
+      const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
 
-      // v2.0: stato locale della vista master-detail
+      // Stato della vista master-detail
       const view = {
         filter: new URLSearchParams(location.search).get('filter') || 'all',
-        selectedId: null    // id del prestito aperto in detail; null = lista
+        selectedId: null,
+        loans: [],
+        loadError: false,
       };
-      // Hash deep-link: loans.html#loan-N apre il dettaglio N
       const hashId = (location.hash.match(/^#loan-(\d+)/) || [])[1];
-      if (hashId) view.selectedId = +hashId;
-      // Compat: query param ?id=N (vecchi link dalle notifiche)
       const queryId = new URLSearchParams(location.search).get('id');
-      if (queryId && !view.selectedId) view.selectedId = +queryId;
+      if (hashId || queryId) view.selectedId = Number(hashId || queryId);
+
+      let chat = null; // chat del prestito aperto ({ refresh })
+
+      const STATUS_LABELS = {
+        requested: 'In attesa',
+        confirmed: 'Confermato',
+        borrowed: 'In prestito',
+        returning: 'In restituzione',
+        returned: 'Concluso',
+        rejected: 'Rifiutato',
+        cancelled: 'Annullato',
+      };
+
+      const otherOf = (loan) => (loan.role === 'requester' ? loan.lender : loan.requester) || {};
+      const lastEvent = (loan) => {
+        const t = loan.timestamps || {};
+        return t.returned || t.returning || t.borrowed || t.confirmed
+          || t.rejected || t.cancelled || t.requested;
+      };
+      const initial = (name) => esc((name || '?').trim().charAt(0).toUpperCase());
 
       function passesFilter(loan, filter) {
-        if (filter === 'all') return true;
         if (filter === 'active') return ['requested', 'confirmed', 'borrowed', 'returning'].includes(loan.status);
         if (filter === 'completed') return loan.status === 'returned';
         if (filter === 'cancelled') return ['rejected', 'cancelled'].includes(loan.status);
         return true;
       }
 
-      function render() {
-        // v2.0: ora aggrega prestiti come richiedente E prestatore
-        const loans = API.getLoansForUser(me.id);
+      // === Caricamento dal backend: prestiti chiesti + prestiti ricevuti ===
+      async function load() {
+        try {
+          const [sent, received] = await Promise.all([
+            window.LB_API.loans.listSent({ limit: 100 }),
+            window.LB_API.loans.listReceived({ limit: 100 }),
+          ]);
+          view.loans = [...(sent.data || []), ...(received.data || [])]
+            .sort((a, b) => new Date(lastEvent(b)) - new Date(lastEvent(a)));
+          view.loadError = false;
+        } catch (err) {
+          view.loadError = true;
+          console.error('[loans] caricamento fallito', err);
+        }
+        render();
+      }
 
-        // === Statistiche in alto ===
-        const allCount = loans.length;
-        const inPossession = loans.filter(l => l.status === 'borrowed' && +l.requester_id === me.id).length;
-        const openRequests = loans.filter(l =>
-          ['requested', 'confirmed'].includes(l.status) && +l.requester_id === me.id).length;
+      function render() {
+        const loans = view.loans;
+
+        // === Statistiche ===
+        const inPossession = loans.filter((l) => l.status === 'borrowed' && l.role === 'requester').length;
+        const openRequests = loans.filter((l) => ['requested', 'confirmed'].includes(l.status) && l.role === 'requester').length;
+        const toHandle = loans.filter((l) =>
+          l.role === 'lender' && ['requested', 'confirmed', 'returning'].includes(l.status)).length;
         document.getElementById('loans-stats').innerHTML = `
           <div class="loans-stat">
-            <div class="loans-stat__num">${allCount}</div>
-            <div class="loans-stat__lbl">prestiti totali</div>
+            <div class="loans-stat__num">${loans.length}</div>
+            <div class="loans-stat__lbl">prestit${loans.length === 1 ? 'o' : 'i'} in totale</div>
           </div>
           <div class="loans-stat loans-stat--accent">
             <div class="loans-stat__num">${inPossession}</div>
@@ -173,89 +208,83 @@
           </div>
           <div class="loans-stat">
             <div class="loans-stat__num">${openRequests}</div>
-            <div class="loans-stat__lbl">richieste aperte</div>
+            <div class="loans-stat__lbl">richiest${openRequests === 1 ? 'a aperta' : 'e aperte'}</div>
+          </div>
+          <div class="loans-stat">
+            <div class="loans-stat__num">${toHandle}</div>
+            <div class="loans-stat__lbl">da gestire come prestatore</div>
           </div>`;
 
-        // === Counter per i filter pills ===
+        // === Contatori dei filtri ===
         const counts = {
           all: loans.length,
-          active: loans.filter(l => passesFilter(l, 'active')).length,
-          completed: loans.filter(l => passesFilter(l, 'completed')).length,
-          cancelled: loans.filter(l => passesFilter(l, 'cancelled')).length
+          active: loans.filter((l) => passesFilter(l, 'active')).length,
+          completed: loans.filter((l) => passesFilter(l, 'completed')).length,
+          cancelled: loans.filter((l) => passesFilter(l, 'cancelled')).length,
         };
-        document.querySelectorAll('.loans-filter__count').forEach(el => {
+        document.querySelectorAll('.loans-filter__count').forEach((el) => {
           el.textContent = counts[el.dataset.count] || 0;
         });
-        // Sincronizza filter pill attivo
-        document.querySelectorAll('.loans-filter').forEach(btn => {
+        document.querySelectorAll('.loans-filter').forEach((btn) => {
           btn.classList.toggle('is-active', btn.dataset.filter === view.filter);
         });
 
-        // === LISTA (master) ===
-        const filtered = loans.filter(l => passesFilter(l, view.filter));
-        const listEl = document.getElementById('loans-list');
-
-        if (filtered.length === 0) {
+        // === Lista ===
+        const filtered = loans.filter((l) => passesFilter(l, view.filter));
+        if (view.loadError) {
+          listEl.innerHTML = `
+            <div class="loans-list__empty">
+              <p><strong>Server non raggiungibile.</strong></p>
+              <p style="color: var(--color-ink-soft);">Non è stato possibile caricare i prestiti. Riprova tra poco.</p>
+              <button type="button" class="btn btn--ghost btn--small" data-reload style="margin-top: 1rem;">Riprova</button>
+            </div>`;
+        } else if (filtered.length === 0) {
           listEl.innerHTML = `
             <div class="loans-list__empty">
               ${loans.length === 0
                 ? `<p><strong>Non hai ancora prestiti.</strong></p>
                    <p style="color: var(--color-ink-soft);">Esplora la mappa per scoprire le librerie del vicinato.</p>
                    <a href="explore.html" class="btn btn--primary btn--small" style="margin-top: 1rem;">→ Esplora la mappa</a>`
-                : `<p>Nessun prestito in questa categoria.</p>`}
+                : '<p>Nessun prestito in questa categoria.</p>'}
             </div>`;
         } else {
-          listEl.innerHTML = filtered.map(loan => {
-            const book = API.getBooks().find(b => b.id === loan.book_id) || {};
-            const meIsRequester = +loan.requester_id === me.id;
-            const other = API.getUser(meIsRequester ? loan.lender_id : loan.requester_id) || {};
-            const otherPrefs = API.getProfilePrefs(other.id) || {};
-            const themeClass = `cover--${otherPrefs.theme || 'classic'}`;
-            const initial = (other.display_name || '?').trim()[0].toUpperCase();
-            const symbol = otherPrefs.avatar_style === 'symbol' && otherPrefs.avatar_symbol
-              ? otherPrefs.avatar_symbol : initial;
-            const statusLabel = STATUS_LABELS[loan.status] || loan.status;
-            const unreadCount = API.getUnreadMessageCount(loan.id, me.id);
-            const isSelected = view.selectedId === loan.id;
-            const lastEvt = loan.returned_at || loan.returning_at || loan.borrowed_at
-                          || loan.confirmed_at || loan.rejected_at || loan.cancelled_at
-                          || loan.requested_at;
+          listEl.innerHTML = filtered.map((loan) => {
+            const book = loan.book || {};
+            const other = otherOf(loan);
             return `
-              <button type="button" class="loan-listitem ${isSelected ? 'is-selected' : ''}"
+              <button type="button" class="loan-listitem ${view.selectedId === loan.id ? 'is-selected' : ''}"
                       data-open-loan="${loan.id}">
-                <span class="loan-listitem__cover ${themeClass}" aria-hidden="true">
-                  <span class="loan-listitem__cover-text">${book.title ? book.title.split(' ').slice(0,2).join(' ') : ''}</span>
+                <span class="loan-listitem__cover cover--classic" aria-hidden="true">
+                  <span class="loan-listitem__cover-text">${esc((book.title || '').split(' ').slice(0, 2).join(' '))}</span>
                 </span>
                 <span class="loan-listitem__body">
-                  <span class="loan-listitem__title">${book.title || '—'}</span>
+                  <span class="loan-listitem__title">${esc(book.title || '—')}</span>
                   <span class="loan-listitem__sub">
-                    <span class="loan-listitem__role">${meIsRequester ? 'da' : 'a'}</span>
-                    <strong>${other.display_name || '—'}</strong>
+                    <span class="loan-listitem__role">${loan.role === 'requester' ? 'da' : 'a'}</span>
+                    <strong>${esc(other.displayName || '—')}</strong>
                   </span>
                   <span class="loan-listitem__meta">
-                    <span class="loan-listitem__status loan-listitem__status--${loan.status}">${statusLabel}</span>
-                    <span class="loan-listitem__time">${UI.timeAgo(lastEvt)}</span>
+                    <span class="loan-listitem__status loan-listitem__status--${loan.status}">${STATUS_LABELS[loan.status] || loan.status}</span>
+                    <span class="loan-listitem__time">${UI.timeAgo(lastEvent(loan))}</span>
                   </span>
                 </span>
-                ${unreadCount > 0
-                  ? `<span class="loan-listitem__unread" title="${unreadCount} messaggi non letti">${unreadCount}</span>`
+                ${loan.messagesCount > 0
+                  ? `<span class="loan-listitem__unread" title="${loan.messagesCount} messaggi">${loan.messagesCount}</span>`
                   : ''}
               </button>`;
           }).join('');
         }
 
-        // === DETTAGLIO ===
-        const mdview = document.getElementById('loans-mdview');
-        const detailEl = document.getElementById('loans-detail');
-        const selected = view.selectedId ? loans.find(l => l.id === view.selectedId) : null;
-
+        // === Dettaglio ===
+        const selected = view.selectedId ? loans.find((l) => l.id === view.selectedId) : null;
         if (selected) {
           mdview.classList.add('is-detail-open');
           detailEl.innerHTML = renderLoanDetail(selected);
-          // Monta la chat
           const mount = detailEl.querySelector('.loan-chat-mount');
-          if (mount) UI.renderLoanChat(mount, selected, { startOpen: true });
+          chat = mount ? UI.renderLoanChat(mount, selected, { startOpen: true }) : null;
+          if (selected.role === 'requester' && selected.status === 'returned') markReviewState(selected);
         } else {
+          chat = null;
           mdview.classList.remove('is-detail-open');
           detailEl.innerHTML = `
             <div class="loans-detail__empty">
@@ -265,370 +294,233 @@
                   <path d="M20 30 h 40 M20 38 h 30 M20 46 h 36" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                 </svg>
               </div>
-              <p>Seleziona un prestito dalla lista per vederne timeline, chat e azioni.</p>
+              <p>Seleziona un prestito dalla lista per vederne stato, chat e azioni.</p>
             </div>`;
         }
       }
 
-      // === Etichette di stato per i list items ===
-      const STATUS_LABELS = {
-        requested: 'In attesa',
-        confirmed: 'Confermato',
-        borrowed: 'In tuo possesso',
-        returning: 'In restituzione',
-        returned: 'Concluso',
-        rejected: 'Rifiutato',
-        cancelled: 'Annullato'
-      };
+      // Azioni disponibili per ruolo e stato (stessa macchina a stati del backend)
+      function actionsFor(loan) {
+        const btn = (action, label, primary = false) => `
+          <button type="button" class="btn ${primary ? 'btn--primary' : 'btn--ghost'} btn--small"
+                  data-loan-action="${action}" data-loan-id="${loan.id}">${label}</button>`;
+        if (loan.role === 'requester') {
+          if (loan.status === 'requested' || loan.status === 'confirmed') return btn('cancel', '✕ Annulla richiesta');
+          if (loan.status === 'borrowed') return btn('start-return', '↦ Inizia restituzione', true);
+          if (loan.status === 'returned') {
+            return `<a href="library.html?id=${encodeURIComponent(loan.lender.id)}#recensioni"
+                       class="btn btn--primary btn--small" data-review-link>★ Lascia una recensione</a>`;
+          }
+          return '';
+        }
+        if (loan.status === 'requested') return btn('accept', '✓ Accetta', true) + btn('reject', '✕ Rifiuta');
+        if (loan.status === 'confirmed') return btn('mark-borrowed', '↦ Volume consegnato', true) + btn('cancel', '✕ Annulla');
+        if (loan.status === 'returning') return btn('mark-returned', '✓ Conferma restituzione', true);
+        return '';
+      }
 
-      // === Render del dettaglio (la vecchia card completa) ===
       function renderLoanDetail(loan) {
-        const book = API.getBooks().find(b => b.id === loan.book_id) || {};
-        const meIsRequester = +loan.requester_id === me.id;
-        const other = API.getUser(meIsRequester ? loan.lender_id : loan.requester_id) || {};
-        const otherPrefs = API.getProfilePrefs(other.id) || {};
-        const themeClass = `cover--${otherPrefs.theme || 'classic'}`;
-        const symbol = otherPrefs.avatar_style === 'symbol' && otherPrefs.avatar_symbol
-          ? otherPrefs.avatar_symbol
-          : (other.display_name || '?').trim()[0].toUpperCase();
+        const book = loan.book || {};
+        const other = otherOf(loan);
 
-        // Calcolo overdue per i prestiti borrowed
         let overdueBadge = '';
-        if (loan.status === LOAN_STATUS.BORROWED && loan.borrowed_at && loan.days_requested) {
-          const deadlineMs = new Date(loan.borrowed_at).getTime() + loan.days_requested * 86400000;
-          const daysLeft = Math.ceil((deadlineMs - Date.now()) / 86400000);
+        if (loan.status === 'borrowed' && loan.deadline) {
+          const daysLeft = Math.ceil((new Date(loan.deadline).getTime() - Date.now()) / 86400000);
           if (daysLeft < 0) {
             overdueBadge = `<span class="loan-card__overdue loan-card__overdue--late">
               ⏰ Scaduto da ${-daysLeft} ${-daysLeft === 1 ? 'giorno' : 'giorni'}</span>`;
           } else if (daysLeft <= 3) {
             overdueBadge = `<span class="loan-card__overdue loan-card__overdue--soon">
-              Restituisci entro ${daysLeft === 0 ? 'oggi' : daysLeft + (daysLeft === 1 ? ' giorno' : ' giorni')}</span>`;
+              Restituzione entro ${daysLeft === 0 ? 'oggi' : daysLeft + (daysLeft === 1 ? ' giorno' : ' giorni')}</span>`;
           }
         }
 
-        // Azioni in base al ruolo dell'utente e allo stato
-        let actions = '';
-        if (meIsRequester) {
-          if (loan.status === LOAN_STATUS.REQUESTED) {
-            actions = `<button type="button" class="btn btn--ghost btn--small"
-                      data-loan-action="cancel" data-loan-id="${loan.id}">✕ Annulla richiesta</button>`;
-          } else if (loan.status === LOAN_STATUS.CONFIRMED) {
-            actions = `<button type="button" class="btn btn--primary btn--small"
-                      data-loan-action="confirm-pickup" data-loan-id="${loan.id}">✓ Confermo il ritiro</button>`;
-          } else if (loan.status === LOAN_STATUS.BORROWED) {
-            actions = `<button type="button" class="btn btn--primary btn--small"
-                      data-loan-action="start-return" data-loan-id="${loan.id}">↦ Inizia restituzione</button>`;
-          } else if (loan.status === LOAN_STATUS.RETURNED) {
-            const alreadyReviewed = API.getReviewByPair(loan.lender_id, me.id);
-            if (!alreadyReviewed) {
-              actions = `<a href="library.html?id=${other.id}#recensioni" class="btn btn--primary btn--small">
-                         ★ Lascia una recensione</a>`;
-            } else {
-              actions = `<span class="loan-card__done-tag">✓ Recensione lasciata</span>`;
-            }
-          }
-        } else {
-          // Sono il prestatore: posso confermare la richiesta, rifiutarla,
-          // o confermare il ritorno del libro
-          if (loan.status === LOAN_STATUS.REQUESTED) {
-            actions = `
-              <button type="button" class="btn btn--primary btn--small"
-                      data-loan-action="confirm-request" data-loan-id="${loan.id}">✓ Conferma</button>
-              <button type="button" class="btn btn--ghost btn--small"
-                      data-loan-action="reject" data-loan-id="${loan.id}">✕ Rifiuta</button>`;
-          } else if (loan.status === LOAN_STATUS.RETURNING) {
-            actions = `<button type="button" class="btn btn--primary btn--small"
-                      data-loan-action="confirm-return" data-loan-id="${loan.id}">✓ Conferma restituzione</button>`;
-          }
-        }
+        // Adattatore per la timeline condivisa (campi snake_case)
+        const t = loan.timestamps || {};
+        const timeline = UI.renderLoanTimeline({
+          status: loan.status,
+          requested_at: t.requested, confirmed_at: t.confirmed, borrowed_at: t.borrowed,
+          returning_at: t.returning, returned_at: t.returned,
+        });
 
         return `
           <article class="loan-card" id="loan-${loan.id}" data-status="${loan.status}">
             <div class="loan-card__head">
               <div class="loan-card__book">
-                <div class="loan-card__cover ${themeClass}" aria-hidden="true">
-                  <span class="loan-card__cover-text">${book.title || ''}</span>
+                <div class="loan-card__cover cover--classic" aria-hidden="true">
+                  <span class="loan-card__cover-text">${esc(book.title || '')}</span>
                 </div>
                 <div class="loan-card__info">
-                  <h3 class="loan-card__title">${book.title || '—'}</h3>
-                  <p class="loan-card__author"><em>${book.author || ''}</em>${book.year ? ', ' + book.year : ''}</p>
+                  <h3 class="loan-card__title"><a href="book-detail.html?id=${book.id}">${esc(book.title || '—')}</a></h3>
+                  <p class="loan-card__author"><em>${esc(book.author || '')}</em></p>
                   <p class="loan-card__lender">
-                    ${meIsRequester ? 'Prestato da' : 'Richiesto da'}
-                    <a href="library.html?id=${other.id}" class="loan-card__lender-link">
-                      <span class="loan-card__lender-avatar ${themeClass}" aria-hidden="true">${symbol}</span>
-                      <strong>${other.display_name || ''}</strong>
+                    ${loan.role === 'requester' ? 'Prestato da' : 'Richiesto da'}
+                    <a href="library.html?id=${encodeURIComponent(other.id || '')}" class="loan-card__lender-link">
+                      <span class="loan-card__lender-avatar cover--classic" aria-hidden="true">${initial(other.displayName)}</span>
+                      <strong>${esc(other.displayName || '')}</strong>
                     </a>
                   </p>
-                  ${loan.days_requested && loan.status === LOAN_STATUS.BORROWED
-                    ? `<p class="loan-card__days">Periodo pattuito: <strong>${loan.days_requested} giorni</strong></p>`
-                    : ''}
+                  ${loan.daysRequested ? `<p class="loan-card__days">Periodo richiesto: <strong>${loan.daysRequested} giorni</strong></p>` : ''}
+                  ${loan.deadline && loan.status === 'borrowed'
+                    ? `<p class="loan-card__days">Da restituire entro il <strong>${new Date(loan.deadline).toLocaleDateString('it-IT')}</strong></p>` : ''}
                   ${overdueBadge}
                 </div>
               </div>
-              <div class="loan-card__actions">${actions}</div>
+              <div class="loan-card__actions">${actionsFor(loan)}</div>
             </div>
 
-            ${['requested', 'confirmed', 'borrowed', 'returning'].includes(loan.status) ? `
-              <div class="loan-sim">
-                <button type="button" class="btn btn--ghost btn--small loan-sim__btn"
-                        data-loan-action="simulate-next" data-loan-id="${loan.id}">
-                  <span aria-hidden="true">🎬</span> Simula prossimo stato (demo)
-                </button>
-                <span class="loan-sim__hint">
-                  A scopo dimostrativo: avanza il prestito allo stato successivo
-                  e fa rispondere automaticamente l'altra parte in chat.
-                </span>
-              </div>
-            ` : ''}
+            ${loan.message ? `<p class="loan-card__message">«${esc(loan.message)}»</p>` : ''}
 
             ${loan.status === 'rejected' ? `
               <div class="loan-card__rejection">
                 <strong>Richiesta non accettata.</strong>
-                ${loan.rejection_reason ? `<br><span style="font-style:italic;">«${loan.rejection_reason}»</span>` : ''}
-              </div>
-            ` : ''}
-            ${loan.status === 'cancelled' ? `
-              <div class="loan-card__cancelled">Richiesta annullata.</div>
-            ` : ''}
-
-            ${loan.status !== 'rejected' && loan.status !== 'cancelled'
-              ? UI.renderLoanTimeline(loan) : ''}
-
-            ${renderSimulatedEmailFor(loan)}
+                ${loan.rejectReason ? `<br><span style="font-style:italic;">«${esc(loan.rejectReason)}»</span>` : ''}
+              </div>` : ''}
+            ${loan.status === 'cancelled' ? '<div class="loan-card__cancelled">Richiesta annullata.</div>' : ''}
+            ${loan.status !== 'rejected' && loan.status !== 'cancelled' ? timeline : ''}
 
             <div class="loan-chat-mount" data-loan-id="${loan.id}"></div>
           </article>`;
       }
 
+      // Dopo un prestito concluso: c'e' gia' una recensione al prestatore?
+      async function markReviewState(loan) {
+        try {
+          const res = await window.LB_API.users.listReviews(loan.lender.id, { limit: 100 });
+          const mine = (res.data || []).some((r) => (r.reviewer?.id || r.reviewerId) === me.id);
+          const link = detailEl.querySelector('[data-review-link]');
+          if (mine && link) link.outerHTML = '<span class="loan-card__done-tag">✓ Recensione lasciata</span>';
+        } catch {
+          /* il link resta: la pagina della libreria gestisce il caso */
+        }
+      }
+
+      // === Transizioni di stato (backend) ===
+      const API_ACTION = {
+        accept: 'accept',
+        reject: 'reject',
+        cancel: 'cancel',
+        'mark-borrowed': 'markBorrowed',
+        'mark-returned': 'markReturned',
+        'start-return': 'markReturning',
+      };
+      const DONE_MESSAGE = {
+        accept: 'Richiesta accettata.',
+        reject: 'Richiesta rifiutata.',
+        cancel: 'Prestito annullato.',
+        'mark-borrowed': 'Consegna registrata: il prestito è in corso.',
+        'mark-returned': 'Restituzione confermata. Prestito concluso.',
+        'start-return': 'Restituzione avviata: il prestatore riceverà una notifica.',
+      };
+
+      async function transition(loanId, action, reason) {
+        try {
+          const fn = window.LB_API.loans[API_ACTION[action]];
+          await (reason !== undefined ? fn(loanId, reason) : fn(loanId));
+          window.LB_API.cache.invalidate('loans:');
+          UI.toast(DONE_MESSAGE[action], 'success');
+          await load();
+          return true;
+        } catch (err) {
+          UI.toast(err.message || 'Operazione non riuscita.', 'error');
+          return false;
+        }
+      }
+
       // === Wiring ===
-      // Filter pills
-      document.querySelectorAll('.loans-filter').forEach(btn => {
+      document.querySelectorAll('.loans-filter').forEach((btn) => {
         btn.addEventListener('click', () => {
           view.filter = btn.dataset.filter;
           render();
         });
       });
 
-      // Click sui list-item: apre il dettaglio
-      document.getElementById('loans-list-pane').addEventListener('click', e => {
+      document.getElementById('loans-list-pane').addEventListener('click', (e) => {
+        if (e.target.closest('[data-reload]')) { load(); return; }
         const item = e.target.closest('[data-open-loan]');
         if (!item) return;
-        view.selectedId = +item.dataset.openLoan;
+        view.selectedId = Number(item.dataset.openLoan);
         history.replaceState(null, '', `#loan-${view.selectedId}`);
         render();
       });
 
-      // Back button (mobile)
       document.getElementById('loans-detail-back').addEventListener('click', () => {
         view.selectedId = null;
         history.replaceState(null, '', location.pathname);
         render();
       });
 
-      // Click sulle azioni dentro al dettaglio (delega centrale)
-      document.getElementById('loans-detail').addEventListener('click', async e => {
+      document.getElementById('loans-detail').addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-loan-action]');
         if (!btn) return;
-        const loanId = +btn.dataset.loanId;
+        const loanId = Number(btn.dataset.loanId);
         const action = btn.dataset.loanAction;
 
-        // ----- Fase 2c.3: helper WRITE con backend primary + fallback legacy -----
-        // Cambiamento rispetto al shadow di Fase 2b.3:
-        //   PRIMA:  legacy result decide, backend in shadow fire-and-forget
-        //   ORA:    tenta backend PRIMA con await. Se OK, replica in legacy.
-        //           Se backend giu' (network/5xx), fallback al legacy.
-        //           Errori 4xx del backend (WRONG_ROLE, INVALID_TRANSITION) →
-        //           toast + STOP (non fare fallback, la transizione e' invalida).
-        //
-        // Ritorna { ok: boolean, source: 'backend'|'legacy', reason?: string }
-        const transitionLoan = async (apiMethod, legacyFn, extraArg) => {
-          // 1. Prova backend
-          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-            try {
-              const fn = window.LB_API.loans[apiMethod];
-              const res = extraArg !== undefined
-                ? await fn(loanId, extraArg)
-                : await fn(loanId);
-              console.debug(`[loans WRITE] backend ${apiMethod}(${loanId}) OK, status=${res?.status}`);
-              window.LB_API.cache.invalidate('loans:'); // liste sent/received obsolete
-              // Replica anche in legacy per consistenza (altre pagine leggono ancora da Storage)
-              try { legacyFn(); } catch (_) { /* legacy potrebbe rifiutare, non blocchiamo */ }
-              return { ok: true, source: 'backend' };
-            } catch (err) {
-              // Errori business (4xx) sono decisioni del backend, non fallback-abili
-              if (err.status >= 400 && err.status < 500) {
-                return { ok: false, source: 'backend', reason: err.message || err.code };
-              }
-              console.debug(`[loans WRITE] backend fail, fallback legacy: ${err.code}`);
-            }
-          }
-          // 2. Fallback legacy (offline o 5xx backend)
-          const r = legacyFn();
-          return { ok: !!r?.ok, source: 'legacy', reason: r?.reason };
-        };
-        // ------------------------------------------------------------------
-
-        if (action === 'confirm-pickup') {
-          if (!confirm('Confermi di aver ritirato fisicamente il volume?')) return;
-          const r = await transitionLoan('markBorrowed', () => API.confirmPickup(loanId));
-          if (r.ok) {
-            UI.toast(`Confermato. Il volume è ora in tuo possesso. (${r.source})`, 'success');
-            render();
-          } else UI.toast('Errore: ' + r.reason, 'error');
-        }
-        if (action === 'cancel') {
-          if (!confirm('Annullare questa richiesta? Il prestatore verrà notificato.')) return;
-          const r = await transitionLoan('cancel', () => API.cancelLoan(loanId));
-          if (r.ok) {
-            UI.toast(`Richiesta annullata. (${r.source})`, 'info');
-            render();
-          } else UI.toast('Errore: ' + r.reason, 'error');
-        }
-        if (action === 'start-return') {
-          openReturnWizard(loanId);
-        }
-        if (action === 'confirm-request') {
-          const r = await transitionLoan('accept', () => API.confirmLoan(loanId));
-          if (r.ok) {
-            UI.toast(`Richiesta confermata. (${r.source})`, 'success');
-            render();
-          } else UI.toast('Errore: ' + r.reason, 'error');
-        }
+        if (action === 'start-return') { openReturnWizard(loanId); return; }
         if (action === 'reject') {
-          const reason = prompt('Motiva il rifiuto (min 10 caratteri):');
-          if (!reason) return;
-          const r = await transitionLoan('reject', () => API.rejectLoan(loanId, reason), reason);
-          if (r.ok) {
-            UI.toast(`Richiesta rifiutata. Il richiedente è stato notificato. (${r.source})`, 'info');
-            render();
-          } else {
-            UI.toast(r.reason === 'reason-short'
-              ? 'La motivazione deve essere lunga almeno 10 caratteri.'
-              : 'Errore: ' + r.reason, 'error');
-          }
+          const loan = view.loans.find((l) => l.id === loanId);
+          if (loan) UI.openRejectLoanModal(loan, load);
+          return;
         }
-        if (action === 'confirm-return') {
-          const r = await transitionLoan('markReturned', () => API.confirmReturn(loanId));
-          if (r.ok) {
-            UI.toast(`Restituzione confermata. Prestito chiuso. (${r.source})`, 'success');
-            render();
-          } else UI.toast('Errore: ' + r.reason, 'error');
-        }
-        if (action === 'simulate-next') {
-          // v1.9: animazione fade-out → simulazione → fade-in con nuovo stato
-          const card = btn.closest('.loan-card');
-          if (!card) return;
-          btn.disabled = true;
-          card.classList.add('is-simulating');
-          setTimeout(() => {
-            const r = API.simulateNextState(loanId);
-            if (!r.ok) {
-              UI.toast('Stato terminale, non simulabile.', 'info');
-              card.classList.remove('is-simulating');
-              btn.disabled = false;
-              return;
-            }
-            const labelMap = {
-              confirmed: 'Richiesta confermata', borrowed: 'Volume ritirato',
-              returning: 'Restituzione avviata', returned: 'Prestito chiuso'
-            };
-            UI.toast(`🎬 Demo: stato avanzato → "${labelMap[r.toState] || r.toState}"`, 'success');
-            setTimeout(() => render(), 600);
-          }, 500);
-        }
+        if (action === 'cancel' && !confirm('Annullare questo prestito?')) return;
+        btn.disabled = true;
+        const ok = await transition(loanId, action);
+        if (!ok) btn.disabled = false;
       });
 
       // === Wizard restituzione ===
-
-      /* Mostra l'email "simulata" inviata associata al prestito.
-         v1.6: mostrata sia per 'returning' (notifica al prestatore) sia
-         per 'borrowed' con `reminder_sent_at` (sollecito al richiedente).
-         Il box "🔧 Demo del prototipo" rende visibile l'email che il
-         destinatario riceverebbe in produzione via SMTP. */
-      function renderSimulatedEmailFor(loan) {
-        const showFor = loan.status === LOAN_STATUS.RETURNING
-                     || (loan.status === LOAN_STATUS.BORROWED && loan.reminder_sent_at);
-        if (!showFor) return '';
-        const emails = API.getSimulatedEmailsForLoan(loan.id);
-        if (!emails.length) return '';
-        const e = emails[emails.length - 1];
-        return `
-          <div class="simulated-email" style="margin-top: 1rem;">
-            <div class="simulated-email__header">
-              <span aria-hidden="true">🔧</span>
-              <strong>Demo del prototipo</strong>
-              <span style="color: var(--color-ink-soft); font-size: .85rem;">
-                — l'email inviata
-              </span>
-            </div>
-            <div class="simulated-email__body">
-              <p style="margin: 0 0 .5rem 0;">
-                <strong>A:</strong> ${e.to_name} &lt;${e.to}&gt;
-              </p>
-              <p style="margin: 0 0 .5rem 0;">
-                <strong>Oggetto:</strong> ${e.subject}
-              </p>
-              <div style="margin-top: .8rem;">${e.body_html}</div>
-            </div>
-          </div>`;
-      }
-
-      // === Wizard restituzione ===
       function openReturnWizard(loanId) {
-        const loan = API.getLoan(loanId);
+        const loan = view.loans.find((l) => l.id === loanId);
         if (!loan) return;
-        const book = API.getBooks().find(b => b.id === loan.book_id) || {};
-        const lender = API.getUser(loan.lender_id) || {};
-
+        const book = loan.book || {};
         document.getElementById('return-wizard-loan').innerHTML = `
           <div class="return-wizard__loan-summary">
-            <div class="return-wizard__cover" style="background: ${book.cover_gradient};">
-              <span class="book-card__cover-title">${book.title}</span>
+            <div class="return-wizard__cover cover--classic">
+              <span class="book-card__cover-title">${esc(book.title || '')}</span>
             </div>
             <div>
-              <h3 style="margin: 0 0 .3rem; font-size: 1.1rem;">${book.title}</h3>
-              <p style="margin: 0; color: var(--color-ink-soft); font-size: .9rem;">
-                ${book.author}, ${book.year}
-              </p>
+              <h3 style="margin: 0 0 .3rem; font-size: 1.1rem;">${esc(book.title || '')}</h3>
+              <p style="margin: 0; color: var(--color-ink-soft); font-size: .9rem;">${esc(book.author || '')}</p>
               <p style="margin: .6rem 0 0; font-size: .9rem;">
-                Prestatore: <strong>${lender.display_name}</strong>
+                Prestatore: <strong>${esc(loan.lender?.displayName || '')}</strong>
               </p>
             </div>
           </div>
           <p style="background: var(--color-paper-dark); padding: .8rem 1rem; border-radius: var(--radius); margin-top: 1rem; font-size: .9rem; color: var(--color-ink-soft);">
-            Una volta avviata la restituzione, lo stato del prestito passerà a
-            <strong>"Restituzione in corso"</strong>. Sarà cura del prestatore
-            confermare la ricezione del volume per chiudere definitivamente il
-            prestito.
+            Lo stato passerà a <strong>"In restituzione"</strong>. Il prestito si
+            chiude quando il prestatore conferma di aver ricevuto il volume.
           </p>`;
-
         const wiz = document.getElementById('return-wizard');
         wiz.hidden = false;
         wiz.dataset.loanId = String(loanId);
       }
 
-      document.getElementById('return-wizard').addEventListener('click', e => {
-        if (e.target.matches('[data-close]')) {
-          document.getElementById('return-wizard').hidden = true;
-        }
+      const wizard = document.getElementById('return-wizard');
+      wizard.addEventListener('click', (e) => {
+        if (e.target.matches('[data-close]')) wizard.hidden = true;
       });
-      document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') document.getElementById('return-wizard').hidden = true;
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') wizard.hidden = true;
       });
-      document.getElementById('return-wizard-confirm').addEventListener('click', () => {
-        const wiz = document.getElementById('return-wizard');
-        const loanId = +wiz.dataset.loanId;
-        const r = API.startReturn(loanId);
-        if (r.ok) {
-          UI.toast('Restituzione avviata. Email inviata al prestatore.', 'success');
-          wiz.hidden = true;
-          render();
-        } else {
-          UI.toast('Errore: ' + r.reason, 'error');
-        }
+      document.getElementById('return-wizard-confirm').addEventListener('click', async (e) => {
+        e.currentTarget.disabled = true;
+        const ok = await transition(Number(wizard.dataset.loanId), 'start-return');
+        e.currentTarget.disabled = false;
+        if (ok) wizard.hidden = true;
       });
 
-      render();
+      // === Aggiornamenti in tempo reale ===
+      // Notifiche sui prestiti (nuova richiesta, cambio di stato, messaggio):
+      // si ricaricano lista e dettaglio; per i messaggi basta la chat.
+      if (window.LB_EVENTS) {
+        window.LB_EVENTS.on('notification', (payload) => {
+          const type = payload?.type || '';
+          if (type === 'loan_message') { if (chat) chat.refresh(); return; }
+          if (type.startsWith('loan_')) load();
+        });
+      }
+
+      await load();
     });
   </script>
 </body>

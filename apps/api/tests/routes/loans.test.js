@@ -161,6 +161,41 @@ describe('PATCH /api/loans/:id (state machine)', () => {
     expect(book.available).toBe(false);
   });
 
+  it('mark_borrowed: la scadenza usa i giorni richiesti, non il default di 14', async () => {
+    const app = await buildTestApp();
+    const lender = await authHeaders(SEED.USER_CHIARA);
+    // Nuova richiesta con 21 giorni (quella del beforeEach non li indica)
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/loans/${loanId}`,
+      headers: await authHeaders(SEED.USER_MARCO),
+      payload: { action: 'cancel' },
+    });
+    const created = await app.inject({
+      method: 'POST',
+      url: `/api/books/${SEED.BOOK_GATTOPARDO}/loan-requests`,
+      headers: await authHeaders(SEED.USER_MARCO),
+      payload: { daysRequested: 21 },
+    });
+    const id = created.json().id;
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/loans/${id}`,
+      headers: lender,
+      payload: { action: 'accept' },
+    });
+    const before = Date.now();
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/loans/${id}`,
+      headers: lender,
+      payload: { action: 'mark_borrowed' },
+    });
+    const days = (new Date(res.json().deadline).getTime() - before) / 86_400_000;
+    expect(days).toBeGreaterThan(20.9);
+    expect(days).toBeLessThan(21.1);
+  });
+
   it('ciclo completo: accept → borrowed → returning → returned (book disponibile di nuovo)', async () => {
     const app = await buildTestApp();
     const transitions = [

@@ -75,6 +75,8 @@ export function bookToLegacy(b) {
     cover_gradient: b.cover_gradient ?? deterministicGradient(b.id),
     available: b.available,
     owner_id: b.ownerId ?? (b.owner && b.owner.id) ?? null,
+    owner_name: b.owner?.displayName ?? null,
+    owner_city: b.owner?.city ?? null,
     created_at: b.createdAt ?? null,
     added: b.createdAt ? b.createdAt.slice(0, 10) : null,
     views: b.viewCount ?? 0,
