@@ -1957,7 +1957,11 @@ export const UI = {
     paint();
     loadPrefs();
     document.addEventListener('auth:change', paint);
-    UI._refreshAvatar = paint;
+    // Dopo una modifica del profilo: rilegge anche tema e simbolo
+    UI._refreshAvatar = () => {
+      paint();
+      loadPrefs();
+    };
   },
 
   /* -------------------------------------------------------------

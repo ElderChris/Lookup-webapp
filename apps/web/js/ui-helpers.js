@@ -193,11 +193,32 @@ export function whenAuthReady() {
 export async function requireUser(redirectTo = 'login.html') {
   await whenAuthReady();
   const me = currentUser();
+  if (!me && window.LB_AUTH_ERROR) {
+    // Sessione non verificabile (server giu' o troppe richieste): l'utente
+    // potrebbe essere autenticato, quindi niente rimando al login
+    showSessionUnavailable();
+    return null;
+  }
   if (!me) {
     window.location.href = redirectTo;
     return null;
   }
   return me;
+}
+
+/** Avviso in testa al contenuto quando la sessione non e' verificabile. */
+function showSessionUnavailable() {
+  const main = document.querySelector('main') || document.body;
+  if (main.querySelector('.session-unavailable')) return;
+  main.insertAdjacentHTML(
+    'afterbegin',
+    `<div class="alert alert--error session-unavailable" role="alert" style="margin: 1rem;">
+      <p><strong>Server non raggiungibile.</strong></p>
+      <p>Non è stato possibile verificare l'accesso. Riprova tra poco.</p>
+      <button type="button" class="btn btn--ghost btn--small" style="margin-top: .75rem;"
+              onclick="location.reload()">Riprova</button>
+    </div>`
+  );
 }
 
 /**

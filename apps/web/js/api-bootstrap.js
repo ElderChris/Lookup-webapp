@@ -53,8 +53,11 @@ async function initSession() {
   try {
     session = await api.authClient.getSession();
   } catch (err) {
-    console.debug(`[api-bootstrap] get-session skip: ${err.code || err.message}`);
-    // fallback qui sotto
+    // Server non raggiungibile, errore o troppe richieste (429): non vuol
+    // dire "non autenticato". Le pagine riservate mostrano un avviso invece
+    // di mandare al login (vedi LB_UI.requireUser).
+    console.debug(`[api-bootstrap] get-session non riuscita: ${err.code || err.message}`);
+    window.LB_AUTH_ERROR = err;
   }
 
   if (session && session.user) {
