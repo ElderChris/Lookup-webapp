@@ -25,7 +25,7 @@
  * =============================================================================
  */
 
-const CACHE_VERSION = 'lookup-v11'; // v11: catalogo, home, esplora dal server
+const CACHE_VERSION = 'lookup-v12'; // v12: statistiche dal server
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;
