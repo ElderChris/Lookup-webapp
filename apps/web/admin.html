@@ -874,7 +874,7 @@
     // ============= JOB IN BACKGROUND =============
     const QUEUES = {
       'overdue-loans': 'Prestiti in ritardo: solleciti via email e notifica. Ogni ora.',
-      retention: 'Cancella le voci del log più vecchie del periodo di conservazione (12 mesi). Ogni notte alle 3:00 UTC.',
+      retention: 'Cancella log admin oltre 12 mesi, iscrizioni mai confermate oltre 30 giorni, sessioni e link scaduti. Ogni notte alle 3:00 UTC.',
       'upcoming-deadline': 'Promemoria per i prestiti che scadono nei prossimi 3 giorni. Ogni mattina alle 9:00 UTC.',
     };
     async function renderJobsStatus() {
@@ -884,7 +884,7 @@
         const res = await api.admin.jobsStatus();
         if (!res.enabled) {
           box.innerHTML = `<div class="alert alert--info"><strong>Job disattivati.</strong>
-            Si attivano con <code>JOBS_ENABLED=true</code> nella configurazione del server. ${esc(res.error || '')}</div>`;
+            Nella configurazione del server è impostato <code>JOBS_ENABLED=false</code>. ${esc(res.error || '')}</div>`;
           return;
         }
         box.innerHTML = Object.entries(res.queues).map(([name, data]) => {
