@@ -104,6 +104,16 @@ export function checkUsername(username) {
 }
 
 /**
+ * Cancella definitivamente il proprio account e i dati collegati.
+ * Poi va chiamato signOut() per togliere i cookie di sessione.
+ * @param {{ password: string }} params
+ * @throws {AuthError} INVALID_PASSWORD, UNAUTHENTICATED, RATE_LIMITED
+ */
+export function deleteAccount(params) {
+  return authFetch('/users/me', { method: 'DELETE', body: params, base: '/api' });
+}
+
+/**
  * Pagina di conferma dell'email su questo sito; `next` e' la pagina in cui
  * proseguire dopo la conferma (percorso relativo, es. '/profile.html').
  * @param {string} [next]
