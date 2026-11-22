@@ -132,6 +132,13 @@ export const auth = betterAuth({
         defaultValue: 'active',
         input: false,
       },
+      // Lettore (borrower) o curatore: si cambia con PATCH /api/users/me
+      libraryRole: {
+        type: 'string',
+        required: false,
+        defaultValue: 'curator',
+        input: false,
+      },
       welcomeIndex: {
         type: 'number',
         required: false,

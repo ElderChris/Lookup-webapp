@@ -44,7 +44,7 @@ model User {
   displayName    String    @map("display_name") @db.VarChar(100)
   bio            String?   @db.Text
   avatarUrl      String?   @map("avatar_url") @db.VarChar(500)
-  avatarDataUrl  String?   @map("avatar_data_url") @db.Text // base64 inline (legacy prototype)
+  avatarDataUrl  String?   @map("avatar_data_url") @db.Text // foto profilo (data URL), servita da /api/users/:id/avatar
   city           String?   @db.VarChar(150)
 
   // Tipo account

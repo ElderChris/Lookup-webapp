@@ -119,6 +119,27 @@ export function randomPostContent(overrides = {}) {
   };
 }
 
+/**
+ * Crea un prestito concluso (stato `returned`) fra due utenti: requisito
+ * per poter scrivere una recensione. Ritorna l'id, da cancellare a fine test.
+ */
+export async function createReturnedLoan(prisma, { requesterId, lenderId, bookId }) {
+  const now = new Date();
+  const loan = await prisma.loanRequest.create({
+    data: {
+      bookId,
+      requesterId,
+      lenderId,
+      status: 'returned',
+      confirmedAt: now,
+      borrowedAt: now,
+      returningAt: now,
+      returnedAt: now,
+    },
+  });
+  return loan.id;
+}
+
 // IDs convenzionali dei dati seed: definiti in seedIds.mjs, riesportati qui
 // per compatibilita' con gli import esistenti dei test.
 export { SEED } from './seedIds.mjs';
