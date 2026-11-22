@@ -138,9 +138,12 @@ export function signOut() {
  *
  * @returns {Promise<{ user: object, session: object } | null>}
  */
-export async function getSession() {
+export async function getSession({ fresh = false } = {}) {
   try {
-    const result = await authFetch('/get-session', { method: 'GET' });
+    // fresh: salta la cache della sessione nel cookie (5 minuti), per
+    // leggere subito un profilo appena modificato (nome, foto, ruolo)
+    const path = fresh ? '/get-session?disableCookieCache=true' : '/get-session';
+    const result = await authFetch(path, { method: 'GET' });
     // Better Auth ritorna null (o {}) per utente anonimo
     if (!result || !result.user) return null;
     return result;

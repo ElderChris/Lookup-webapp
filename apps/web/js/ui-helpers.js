@@ -219,6 +219,16 @@ export async function requireAdmin(
   return me;
 }
 
+/**
+ * Rilegge la sessione dal server (senza cache) dopo una modifica del
+ * profilo, aggiorna window.LB_AUTH_USER e ritorna l'utente in shape legacy.
+ */
+export async function refreshCurrentUser() {
+  const session = await window.LB_API.authClient.getSession({ fresh: true });
+  if (session && session.user) window.LB_AUTH_USER = session.user;
+  return currentUser();
+}
+
 export function currentUser() {
   // Rispetta soft logout locale (auth_state='guest')
   try {

@@ -263,68 +263,55 @@
         return;
       }
 
-      // ============================================================
-      // Beta 3: load iniziale dal backend aggregato /api/users/:id/library
-      // ============================================================
-      // Ritorna user + orgProfile + prefs + stats in una sola request.
-      // Fallback graceful se il backend e' irraggiungibile.
-      let user = me;
-      let reviewSummary = { average: 0, count: 0 };
-      let completedLoans = 0;
-      let books = [];
-      let source = 'legacy';
-
-      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-        try {
-          const agg = await window.LB_API.library.getByUser(me.id);
-          // Merge: preservo id/username/display_name da session (LB_AUTH_USER),
-          // aggiungo bio/city/lat/lng/created_at dal backend
-          user = {
-            ...me,
-            id: agg.user.id,
-            username: agg.user.username,
-            display_name: agg.user.displayName,
-            bio: agg.user.bio,
-            city: agg.user.city,
-            lat: agg.user.lat,
-            lng: agg.user.lng,
-            avatar_url: agg.user.avatarUrl,
-            account_type: agg.user.accountType,
-            joined: agg.user.createdAt,
-          };
-          reviewSummary = {
-            average: agg.stats.avgRatingReceived || 0,
-            count: agg.stats.reviewsReceivedCount,
-          };
-          completedLoans = agg.stats.completedLoansCount;
-          // Fetch libri via /api/books?ownerId=
-          const booksRes = await window.LB_API.books.list({ ownerId: me.id, limit: 200 });
-          books = booksRes.data.map(window.LB_API.bookToLegacy);
-          source = `backend (${books.length} libri)`;
-        } catch (err) {
-          console.debug(`[profile] fallback legacy: ${err.code || err.message}`);
-        }
+      // Profilo, statistiche e libri dal server: aggregato
+      // /api/users/:id/library + tutti i libri del proprietario (a pagine).
+      const esc = (v) => UI._escapeHtml(v);
+      let user;
+      let reviewSummary;
+      let completedLoans;
+      let books;
+      try {
+        const [agg, booksRes] = await Promise.all([
+          window.LB_API.library.getByUser(me.id),
+          window.LB_API.books.listAll({ ownerId: me.id }),
+        ]);
+        user = {
+          ...me,
+          id: agg.user.id,
+          username: agg.user.username,
+          display_name: agg.user.displayName,
+          bio: agg.user.bio,
+          city: agg.user.city,
+          lat: agg.user.lat,
+          lng: agg.user.lng,
+          avatar_url: agg.user.avatarUrl,
+          account_type: agg.user.accountType,
+          library_role: agg.user.libraryRole,
+          joined: agg.user.createdAt,
+        };
+        reviewSummary = {
+          average: agg.stats.avgRatingReceived || 0,
+          count: agg.stats.reviewsReceivedCount,
+        };
+        completedLoans = agg.stats.completedLoansCount;
+        books = booksRes.data.map(window.LB_API.bookToLegacy);
+      } catch (err) {
+        console.debug(`[profile] caricamento fallito: ${err.code || err.message}`);
+        document.getElementById('profile-header').innerHTML = `
+          <div class="alert alert--error" style="width: 100%;">
+            <p><strong>Server non raggiungibile.</strong></p>
+            <p>Non è stato possibile caricare il profilo. Riprova tra poco.</p>
+            <button type="button" class="btn btn--ghost btn--small" onclick="location.reload()"
+                    style="margin-top: .75rem;">Riprova</button>
+          </div>`;
+        return;
       }
-      if (source === 'legacy') {
-        // Legacy: leggo tutto da localStorage come prima
-        reviewSummary = API.getReviewSummary(me.id);
-        completedLoans = API.getCompletedLoansCount(me.id);
-        books = API.getBooksByOwner(me.id);
-        // user resta = me (LB_AUTH_USER, tramite shim in app.js)
-      }
-      console.debug(`[profile] source: ${source}`);
-      if (source.startsWith('backend') && window.LB_markLive) {
-        window.LB_markLive('profile', 'GET /api/users/:id/library + /api/books?ownerId=');
-      }
-
-      // Ora `user`, `reviewSummary`, `completedLoans`, `books` sono definiti.
-      // Il resto del codice sotto continua invariato.
 
       // Render header profilo
-      const initials = user.display_name.split(' ').map(w => w[0]).join('').slice(0, 2);
-      // v2.5: avatar cliccabile con menu per cambiare/rimuovere foto
-      const avatarInner = user.avatar_data_url
-        ? `<img class="profile-avatar__img" src="${user.avatar_data_url}" alt="">`
+      const initials = esc(user.display_name.split(' ').map(w => w[0]).join('').slice(0, 2));
+      // Avatar cliccabile con menu per cambiare/rimuovere la foto
+      const avatarInner = user.avatar_url
+        ? `<img class="profile-avatar__img" src="${esc(user.avatar_url)}" alt="">`
         : `<span class="profile-avatar__initials">${initials}</span>`;
       document.getElementById('profile-header').innerHTML = `
         <div class="profile-avatar profile-avatar--editable" id="profile-avatar"
@@ -339,7 +326,7 @@
           </span>
         </div>
         <div>
-          <h1 class="profile-name">${user.display_name}</h1>
+          <h1 class="profile-name">${esc(user.display_name)}</h1>
           <div class="profile-stars">
             ${UI.renderStars(reviewSummary.average, {
               count: reviewSummary.count,
@@ -354,9 +341,9 @@
                  </span>`
               : ''}
           </div>
-          <p class="profile-meta">@${user.username} · ${user.city}</p>
+          <p class="profile-meta">@${esc(user.username)}${user.city ? ` · ${esc(user.city)}` : ''}</p>
           <p style="color: var(--color-ink-soft); margin-top: 1rem; max-width: 60ch;">
-            ${user.bio || ''}
+            ${esc(user.bio || '')}
           </p>
           <p style="color: var(--color-ink-soft); font-size: .8rem; margin-top: .75rem; font-family: var(--font-mono); letter-spacing: .1em; text-transform: uppercase;">
             Iscritto dal ${new Date(user.joined).toLocaleDateString('it-IT')}
@@ -365,7 +352,7 @@
 
       // v2.5: wiring del menu avatar (cambio foto profilo)
       UI.wireAvatarMenu(document.getElementById('profile-avatar'), () => {
-        // Callback dopo update: ricarica per rinfrescare avatar e nav
+        // Dopo il salvataggio: ricarica per aggiornare avatar e barra
         location.reload();
       });
 
@@ -526,7 +513,7 @@
                     <div class="form__group">
                       <label class="form__label" for="lw-city">Città o quartiere *</label>
                       <input id="lw-city" name="city" type="text" class="form__input"
-                             placeholder="Napoli, Vomero" required value="${user.city || ''}" />
+                             placeholder="Napoli, Vomero" required value="${esc(user.city || '')}" />
                     </div>
                     <div class="form__group">
                       <label class="form__label" for="lw-motto">Motto (facoltativo)</label>
@@ -644,24 +631,27 @@
         });
         backBtn.addEventListener('click', () => showStep(current - 1));
 
-        form.addEventListener('submit', e => {
+        form.addEventListener('submit', async (e) => {
           e.preventDefault();
           if (!validateStep(1)) { showStep(1); return; }
-          // Salva: aggiorna user.library_role + bio + city + motto + theme
-          const users = Storage.get('users');
-          const u = users.find(x => x.id === user.id);
-          if (u) {
-            u.library_role = 'curator';
-            u.bio = form.bio.value.trim();
-            u.city = form.city.value.trim();
-            Storage.set('users', users);
+          finishBtn.disabled = true;
+          try {
+            // Profilo (ruolo curatore, bio, citta') e preferenze sul server
+            await window.LB_API.users.updateMe({
+              libraryRole: 'curator',
+              bio: form.bio.value.trim(),
+              city: form.city.value.trim(),
+            });
+            await window.LB_API.prefs.updateMe({
+              motto: form.motto.value.trim() || null,
+              theme: form.theme.value,
+            });
+            await window.LB_UI.refreshCurrentUser();
+          } catch (err) {
+            finishBtn.disabled = false;
+            UI.toast(err.message || 'Impossibile aprire la libreria. Riprova.', 'error');
+            return;
           }
-          // Salva preferences
-          Storage.set(`profile_prefs_${user.id}`, {
-            motto: form.motto.value.trim(),
-            theme: form.theme.value,
-            avatar_style: 'initials'
-          });
           UI.toast('Libreria aperta! Ora sei un curatore — puoi pubblicare il primo volume.', 'success');
           // Re-render dopo un attimo per mostrare l'empty-state classico
           setTimeout(() => location.reload(), 1500);
@@ -692,9 +682,8 @@
         });
       });
 
-      /* v2.4: rendering della tab Post — composer in cima per chi può
-         pubblicare (cioè ha almeno un volume), cronologia sotto.
-         Beta 3 (Opzione W): backend-first con fallback legacy. */
+      /* Tab Post — composer in cima per chi può pubblicare (cioè ha
+         almeno un volume), cronologia dal server sotto. */
       function renderPostsTab(userId) {
         const composer = document.getElementById('post-composer');
         const list = document.getElementById('my-posts-list');
@@ -702,21 +691,15 @@
         async function paint() {
           UI.renderPostComposer(composer, { onPublished: paint });
 
-          let myPosts = [];
-          let canPublish = books.length > 0;   // Beta 3: derivo da books gia' caricati
-
-          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-            try {
-              const res = await window.LB_API.posts.list({ authorId: userId, limit: 100 });
-              myPosts = res.data.map((p) => window.LB_API.postToLegacy(p));
-            } catch (err) {
-              console.debug(`[profile posts] fallback legacy: ${err.code || err.message}`);
-              myPosts = API.getPostsByAuthor(userId);
-              canPublish = API.canPublishPosts(userId);
-            }
-          } else {
-            myPosts = API.getPostsByAuthor(userId);
-            canPublish = API.canPublishPosts(userId);
+          let myPosts;
+          const canPublish = books.length > 0;   // si pubblica con almeno un volume
+          try {
+            const res = await window.LB_API.posts.list({ authorId: userId, limit: 100 });
+            myPosts = res.data.map((p) => window.LB_API.postToLegacy(p));
+          } catch (err) {
+            list.innerHTML = `<p class="alert alert--error">
+              Server non raggiungibile: impossibile caricare i post.</p>`;
+            return;
           }
 
           UI.renderPostsFeed(list, myPosts, {
@@ -769,37 +752,25 @@
           <p style="margin-top: 1rem;"><a href="loans.html" class="btn btn--primary btn--small">Gestisci i prestiti →</a></p>`;
       }
 
-      /* Rende la tab "Recensioni" — v1.6: due sub-tabs "Ricevute" e
-         "Scritte" che condividono lo stesso pannello principale.
-         Beta 3 (Opzione W): backend via /api/users/:id/reviews con
-         role='received' e role='written'. Fallback graceful legacy. */
+      /* Tab "Recensioni": sotto-schede "Ricevute" e "Scritte", dal server
+         (/api/users/:id/reviews con role='received' e role='written'). */
       async function renderReviewsTab(userId) {
-        // === Recensioni RICEVUTE ===
+        // === Recensioni RICEVUTE (riepilogo e distribuzione dal server) ===
         let s;
-        let receivedList = null;
-        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-          try {
-            const res = await window.LB_API.users.listReviews(userId, {
-              role: 'received',
-              limit: 100,
-            });
-            // Calcola breakdown distribution client-side
-            const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-            res.data.forEach(r => {
-              if (r.rating >= 1 && r.rating <= 5) dist[r.rating]++;
-            });
-            s = {
-              count: res.pagination.total,
-              average: res.aggregate?.average ?? 0,
-              distribution: dist,
-            };
-            receivedList = res.data;
-          } catch (err) {
-            console.debug(`[profile reviews received] fallback legacy: ${err.code || err.message}`);
-          }
-        }
-        if (!s) {
-          s = API.getReviewSummary(userId);
+        let receivedList;
+        try {
+          const res = await window.LB_API.users.listReviews(userId, { limit: 100 });
+          s = {
+            count: res.pagination.total,
+            average: res.averageRating ?? 0,
+            distribution: res.distribution,
+          };
+          receivedList = res.data;
+        } catch (err) {
+          document.getElementById('my-reviews-summary').innerHTML = `
+            <p class="alert alert--error" style="margin: 0;">
+              Server non raggiungibile: impossibile caricare le recensioni.</p>`;
+          return;
         }
 
         document.getElementById('received-count').textContent = s.count;
@@ -832,22 +803,17 @@
                 }).join('')}
               </div>
              </div>`;
-        UI.renderReviewsList(document.getElementById('my-reviews-list'), userId);
+        UI.renderReviewsList(document.getElementById('my-reviews-list'), userId, {
+          reviews: receivedList,
+        });
 
-        // === Recensioni SCRITTE (v1.6) ===
-        let writtenCount = 0;
-        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-          try {
-            const res = await window.LB_API.users.listReviewsWritten(userId, { limit: 100 });
-            writtenCount = res.pagination.total;
-          } catch (err) {
-            console.debug(`[profile reviews written] fallback legacy: ${err.code || err.message}`);
-            writtenCount = API.getReviewsByReviewer(userId).length;
-          }
-        } else {
-          writtenCount = API.getReviewsByReviewer(userId).length;
+        // === Recensioni SCRITTE ===
+        try {
+          const res = await window.LB_API.users.listReviewsWritten(userId, { limit: 1 });
+          document.getElementById('written-count').textContent = res.pagination.total;
+        } catch (_) {
+          document.getElementById('written-count').textContent = '—';
         }
-        document.getElementById('written-count').textContent = writtenCount;
         UI.renderReviewsByReviewerList(
           document.getElementById('my-written-reviews-list'), userId);
       }
@@ -873,24 +839,17 @@
         document.getElementById('tab-reviews').click();
       }
 
-      // v1.7: GDPR export — produce un file JSON e attiva il download
-      // Beta 3 (Opzione W): backend GET /api/me/export con fallback legacy
+      // Esportazione dei dati (GDPR): GET /api/me/export, scaricato come JSON
       const exportBtn = document.getElementById('gdpr-export-btn');
       if (exportBtn) {
         exportBtn.addEventListener('click', async () => {
           let data;
-          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-            try {
-              data = await window.LB_API.library.exportMe();
-              console.debug('[profile export] backend OK');
-            } catch (err) {
-              console.debug(`[profile export] fallback legacy: ${err.code || err.message}`);
-            }
+          try {
+            data = await window.LB_API.library.exportMe();
+          } catch (err) {
+            UI.toast('Server non raggiungibile: esportazione non riuscita. Riprova tra poco.', 'error');
+            return;
           }
-          if (!data) {
-            data = API.exportUserData(user.id);
-          }
-          if (!data) { UI.toast('Errore nell\'esportazione.', 'error'); return; }
           const blob = new Blob([JSON.stringify(data, null, 2)],
             { type: 'application/json' });
           const url = URL.createObjectURL(blob);
