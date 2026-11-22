@@ -250,6 +250,24 @@ export async function refreshCurrentUser() {
   return currentUser();
 }
 
+/**
+ * Stato di accesso per il CSS (.auth-only / .guest-only) su <html>, e
+ * indizio per il caricamento successivo (letto da auth-hint.js prima del
+ * primo disegno). Chiamato quando il server ha risposto sulla sessione.
+ *
+ * @param {'user'|'guest'} state
+ */
+export function setAuthState(state) {
+  if (state !== 'user' && state !== 'guest') return;
+  document.documentElement.setAttribute('data-auth-state', state);
+  try {
+    if (state === 'user') localStorage.setItem('lb_auth_hint', 'user');
+    else localStorage.removeItem('lb_auth_hint');
+  } catch (_) {
+    /* archiviazione non disponibile: resta solo l'attributo */
+  }
+}
+
 export function currentUser() {
   // Rispetta soft logout locale (auth_state='guest')
   try {

@@ -1805,17 +1805,12 @@ export const UI = {
   },
 
   /* -------------------------------------------------------------
-     Setta sul <body> il data-attr `authState` con lo stato corrente,
-     così i selettori CSS `.auth-only` e `.guest-only` mostrano/nascondono
-     i bit di UI appropriati.
-
-     v3.0.0-alpha.0: il bottone "auth-toggle" del prototipo è stato
-     rimosso; in Alpha lo stato di autenticazione viene dalla session
-     reale (cookie httpOnly del backend, non da localStorage). Qui
-     teniamo solo l'aggiornamento del data-attr per supporto CSS. */
+     Allinea data-auth-state su <html> (selettori CSS `.auth-only` e
+     `.guest-only`) alla sessione verificata dal server. Lo stato
+     iniziale, prima del primo disegno, lo imposta auth-hint.js. */
   initAuthToggle() {
-    const state = API.getAuthState();
-    document.body.dataset.authState = state;
+    if (window.LB_AUTH_ERROR) return; // sessione non verificata: resta l'indizio
+    window.LB_UI.setAuthState(window.LB_UI.currentUser() ? 'user' : 'guest');
   },
 
   /* -------------------------------------------------------------
@@ -1946,7 +1941,7 @@ export const UI = {
       } catch (_) {
         /* ignora */
       }
-      API.setAuthState('guest');
+      window.LB_UI.setAuthState('guest');
       // feedback breve e poi via
       UI.toast('Sei uscito. A presto su Lookup.', 'info');
       setTimeout(() => {

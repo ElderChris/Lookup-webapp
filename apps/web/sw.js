@@ -25,7 +25,7 @@
  * =============================================================================
  */
 
-const CACHE_VERSION = 'lookup-v8'; // v8: posizione e privacy della posizione
+const CACHE_VERSION = 'lookup-v9'; // v9: stato di accesso prima del primo disegno (auth-hint.js)
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;
@@ -41,6 +41,7 @@ const PRECACHE_ASSETS = [
   '/login.html',
   '/register.html',
   '/css/styles.css',
+  '/js/auth-hint.js',
   '/js/app.js',
   '/js/ui.js',
   '/js/ui-helpers.js',
