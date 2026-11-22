@@ -32,7 +32,7 @@ services:
       # nginx config
       - ./infra/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       # Mount dell'intera cartella apps/web come read-only.
-      # Ogni nuovo file HTML (es. api-test.html) viene automaticamente
+      # Ogni nuovo file HTML viene automaticamente
       # servito senza dover toccare docker-compose.yml.
       # nginx ignora file non-HTML/CSS/JS (no MIME mapping) — innocuo se
       # ci sono no-cache-server.py o package.json residui.
