@@ -77,11 +77,18 @@ export function bookToLegacy(b) {
     owner_id: b.ownerId ?? (b.owner && b.owner.id) ?? null,
     owner_name: b.owner?.displayName ?? null,
     owner_city: b.owner?.city ?? null,
+    owner_account_type: b.owner?.accountType ?? null,
+    // Posizione pubblica del proprietario (presente negli elenchi)
+    owner_lat: b.owner?.lat ?? null,
+    owner_lng: b.owner?.lng ?? null,
+    liked_by_me: b.likedByMe === true,
     created_at: b.createdAt ?? null,
     added: b.createdAt ? b.createdAt.slice(0, 10) : null,
     views: b.viewCount ?? 0,
     likes_count: b.likesCount ?? 0,
     category: b.primaryCategory?.slug ?? b.categories?.[0]?.slug ?? null,
+    // Nome del genere principale, da mostrare
+    category_name: b.primaryCategory?.name ?? b.categories?.[0]?.name ?? '',
     categories: (b.categories ?? []).map((c) => c.slug),
   };
 }
@@ -99,7 +106,8 @@ export function bookToApi(legacy, categoryIds) {
   const out = {
     title: legacy.title?.trim(),
     author: legacy.author?.trim(),
-    categoryIds: categoryIds && categoryIds.length > 0 ? categoryIds : [1],
+    // Almeno un genere: lo controlla la pagina e lo valida il server
+    categoryIds: categoryIds || [],
   };
   // Campi opzionali — passa solo se valorizzati (altrimenti il backend
   // rifiuta `null` con validation error)

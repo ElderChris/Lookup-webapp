@@ -256,6 +256,64 @@ export async function refreshCurrentUser() {
   return currentUser();
 }
 
+// -----------------------------------------------------------------------------
+// Punto di riferimento per le distanze (home "Librerie vicino a te", Esplora)
+// -----------------------------------------------------------------------------
+// Scelta di Chris (22 nov 2026): la propria posizione se impostata; altrimenti
+// quella del browser, ma solo quando l'utente la chiede (mai in automatico).
+// Quella del browser resta per la sessione della scheda (sessionStorage).
+
+const REF_KEY = 'lb_ref_position';
+
+/**
+ * @returns {{lat: number, lng: number, source: 'profile'|'browser'}|null}
+ */
+export function referencePosition() {
+  const me = currentUser();
+  if (me && me.lat != null && me.lng != null) {
+    return { lat: me.lat, lng: me.lng, source: 'profile' };
+  }
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(REF_KEY) || 'null');
+    if (saved && Number.isFinite(saved.lat) && Number.isFinite(saved.lng)) {
+      return { lat: saved.lat, lng: saved.lng, source: 'browser' };
+    }
+  } catch (_) {
+    /* archiviazione non disponibile */
+  }
+  return null;
+}
+
+/**
+ * Chiede la posizione al browser (con il suo permesso) e la ricorda per la
+ * sessione. Rifiuta con un messaggio leggibile se non disponibile.
+ * @returns {Promise<{lat: number, lng: number, source: 'browser'}>}
+ */
+export function requestBrowserPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Il browser non permette di leggere la posizione.'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const ref = {
+          lat: +pos.coords.latitude.toFixed(5),
+          lng: +pos.coords.longitude.toFixed(5),
+        };
+        try {
+          sessionStorage.setItem(REF_KEY, JSON.stringify(ref));
+        } catch (_) {
+          /* resta solo per questa pagina */
+        }
+        resolve({ ...ref, source: 'browser' });
+      },
+      () => reject(new Error('Posizione non disponibile o permesso negato.')),
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+    );
+  });
+}
+
 /**
  * Stato di accesso per il CSS (.auth-only / .guest-only) su <html>, e
  * indizio per il caricamento successivo (letto da auth-hint.js prima del

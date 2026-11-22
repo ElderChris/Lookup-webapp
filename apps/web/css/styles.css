@@ -7274,3 +7274,13 @@ body.is-offline .offline-badge {
 .loan-chat--closed:focus-within { opacity: 0.9; }
 .loan-chat--closed .loan-chat__toggle { border-style: dashed; }
 .loan-chat__state { font-size: 0.7rem; }
+
+/* Esplora: punto di riferimento del raggio (scelta della posizione) */
+.range-control__ref {
+  display: block;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+}
+.range-control input[type="range"]:disabled { opacity: 0.45; cursor: not-allowed; }
+

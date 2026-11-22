@@ -72,7 +72,8 @@
               <strong id="radius-label">Qualsiasi distanza</strong>
             </div>
             <input type="range" id="search-radius" name="r" min="0" max="20" step="1" value="0"
-                   aria-describedby="radius-label" />
+                   aria-describedby="radius-label radius-ref" />
+            <small id="radius-ref" class="range-control__ref"></small>
           </div>
         </div>
         <button type="submit" class="btn btn--primary">Cerca</button>
@@ -141,32 +142,54 @@
 
     let map, markersLayer;
     let scrollOnSearch = false;   // true solo dopo una ricerca esplicita dell'utente
-    const DEFAULT_CENTER = [40.8358, 14.2488];   // Napoli (contesto scelto)
+    const DEFAULT_CENTER = [40.8358, 14.2488];   // Napoli: solo inquadratura iniziale della mappa
     const DEFAULT_ZOOM = 12;
+    const esc = (v) => UI._escapeHtml(v);
+    // Recensioni per libreria (popup della mappa), da /api/libraries
+    let libraryInfo = new Map();
 
     document.addEventListener('DOMContentLoaded', async () => {
+      await window.LB_UI.whenAuthReady();
 
-      /* ----- Tag-input per i generi BISAC (multi-tag autocomplete) -----
-         Sostituisce la vecchia <select> di categoria. L'utente digita
-         e seleziona uno o più tag; ogni variazione fa scattare la
-         ricerca in tempo reale (con piccolo debounce). */
+      /* ----- Generi (macro-aree e sottogeneri dal server) -----
+         Ogni variazione fa scattare la ricerca in tempo reale (debounce). */
       const tagsBox = document.getElementById('search-tags');
       UI.initTagInput(tagsBox, {
         placeholder: 'Aggiungi un genere (es. Poesia, Storia, Gialli…)',
         onChange: () => scheduleSearch()
       });
 
-      /* ----- Slider del raggio: aggiornamento in tempo reale -----
-         0 km = "Qualsiasi distanza". Movimenti continui sono debouncati
-         così non rendiamo migliaia di ricerche durante il drag. */
+      /* ----- Raggio: richiede un punto di riferimento (scelta di Chris,
+         22 nov 2026): la propria posizione o quella del browser su
+         richiesta. Senza, il raggio resta disattivato. ----- */
       const radiusEl = document.getElementById('search-radius');
       const radiusLabel = document.getElementById('radius-label');
+      const radiusRef = document.getElementById('radius-ref');
       function paintRadius() {
+        const ref = window.LB_UI.referencePosition();
+        radiusEl.disabled = !ref;
+        if (!ref) radiusEl.value = 0;
         const v = +radiusEl.value;
         radiusLabel.textContent = v === 0 ? 'Qualsiasi distanza' : `entro ${v} km`;
-        // riempimento visivo della barra
         const pct = (v / +radiusEl.max) * 100;
         radiusEl.style.backgroundSize = `${pct}% 100%`;
+        if (ref) {
+          radiusRef.textContent = ref.source === 'profile'
+            ? 'Distanza dalla posizione indicata nelle impostazioni.'
+            : 'Distanza dalla posizione attuale del dispositivo.';
+        } else {
+          radiusRef.innerHTML = `Per cercare per distanza
+            <button type="button" class="btn btn--ghost btn--small" id="radius-use-position">📍 usa la mia posizione</button>`;
+          document.getElementById('radius-use-position').addEventListener('click', async () => {
+            try {
+              const pos = await window.LB_UI.requestBrowserPosition();
+              if (map) map.setView([pos.lat, pos.lng], 13);
+              paintRadius();
+            } catch (err) {
+              UI.toast(err.message, 'error');
+            }
+          });
+        }
       }
       paintRadius();
       radiusEl.addEventListener('input', () => { paintRadius(); scheduleSearch(); });
@@ -177,46 +200,31 @@
       function scheduleSearch() {
         clearTimeout(searchDebounce);
         searchDebounce = setTimeout(() => {
-          // Aggiornamenti automatici solo se c'è già una ricerca in corso
-          // (cioè la sezione risultati è visibile): non vogliamo aprire
-          // la ricerca senza che l'utente l'abbia mai avviata.
+          // Aggiornamenti automatici solo se una ricerca e' gia' stata avviata
           if (!document.getElementById('results-section').hidden) runSearch();
         }, 240);
       }
 
-      // Lettura parametri URL (es. ?cat=Poesia, ?q=...)
+      // Parametri URL (es. ?cat=<slug del genere>, ?q=...)
       const params = new URLSearchParams(location.search);
       if (params.get('cat')) tagsBox.setTags([params.get('cat')]);
       if (params.get('q')) document.getElementById('search-query').value = params.get('q');
 
-      // La mappa dipende da Leaflet (CDN). Se non è disponibile la
-      // incapsuliamo in try/catch così che la ricerca funzioni comunque.
+      // La mappa dipende da Leaflet (CDN): senza, la ricerca funziona comunque
       try {
         initMap();
-        // All'avvio la mappa mostra tutte le librerie (utile per esplorare).
-        // Fase 2c.4: fetch dal backend con fallback legacy. Cache 30s.
-        let allBooks;
-        let source = 'legacy';
-        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-          try {
-            const res = await window.LB_API.books.list({ limit: 200 }, {
-              cache: {
-                ttlMs: window.LB_API.CACHE_TTL.BOOKS_LIST,
-                key: 'books:list:limit=200',
-              },
-            });
-            allBooks = res.data.map(window.LB_API.bookToLegacy);
-            source = `backend (${allBooks.length})`;
-          } catch (err) {
-            console.debug(`[explore] initial books fallback legacy: ${err.code || err.message}`);
-          }
-        }
-        if (!allBooks) allBooks = API.getBooks();
-        console.debug(`[explore] initial map source: ${source}`);
-        updateMapMarkers(allBooks);
-        if (source.startsWith('backend') && window.LB_markLive) {
-          window.LB_markLive('explore', 'GET /api/books (cache 30s)');
-        }
+        const ref = window.LB_UI.referencePosition();
+        if (ref) map.setView([ref.lat, ref.lng], 13);
+        // All'avvio la mappa mostra tutte le librerie con posizione pubblica
+        const [booksRes, libsRes] = await Promise.all([
+          window.LB_API.books.listAll({}, {
+            maxItems: 500,
+            cache: { ttlMs: window.LB_API.CACHE_TTL.BOOKS_LIST, key: 'books:all' },
+          }),
+          window.LB_API.library.nearby({ limit: 50 }).catch(() => ({ data: [] })),
+        ]);
+        libraryInfo = new Map(libsRes.data.map((l) => [l.id, l]));
+        updateMapMarkers(booksRes.data.map(window.LB_API.bookToLegacy));
       } catch (err) {
         console.warn('Mappa non disponibile:', err);
         const mw = document.querySelector('.map-wrapper');
@@ -224,22 +232,16 @@
           '<p class="alert alert--info" style="margin:0;">Mappa non disponibile al momento. Usa la ricerca qui sotto.</p>';
       }
 
-      // NB: nessuna ricerca automatica all'avvio. La sezione risultati
-      // resta nascosta (mostriamo l'invito a cercare) finché l'utente
-      // non avvia una ricerca esplicita: solo allora compaiono i
-      // risultati e parte lo scroll automatico.
-
+      // Nessuna ricerca automatica all'avvio: la sezione risultati compare
+      // solo dopo una ricerca esplicita.
       const form = document.getElementById('search-form');
       const queryInput = document.getElementById('search-query');
 
-      form.addEventListener('submit', e => {
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
-
-        // Validazione: serve almeno un criterio — testo OPPURE almeno
-        // un tag BISAC selezionato. Se l'utente preme "Cerca" con tutto
-        // vuoto, evidenziamo il campo testuale con bordo rosso + shake.
+        // Serve almeno un criterio: testo, un genere o un raggio
         const hasTags = tagsBox.getTags && tagsBox.getTags().length > 0;
-        if (!queryInput.value.trim() && !hasTags) {
+        if (!queryInput.value.trim() && !hasTags && +radiusEl.value === 0) {
           queryInput.classList.remove('input-error');
           void queryInput.offsetWidth;          // reflow → riavvia l'animazione
           queryInput.classList.add('input-error');
@@ -268,112 +270,76 @@
         zoom: DEFAULT_ZOOM,
         scrollWheelZoom: false   // più accessibile: nessuno zoom accidentale
       });
-
-      // Tiles OSM (open source)
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 18
       }).addTo(map);
-
       markersLayer = L.layerGroup().addTo(map);
     }
 
-    /** Esegue la ricerca e aggiorna risultati + mappa */
+    /** Ricerca sul server (testo su titolo, autore e luogo; generi con i
+        loro sottogeneri; raggio esatto sulle posizioni pubbliche) */
     async function runSearch() {
       const query = document.getElementById('search-query').value.trim();
-      const tags  = (document.getElementById('search-tags').getTags
-                       ? document.getElementById('search-tags').getTags()
-                       : []);
-      const radius = +document.getElementById('search-radius').value;     // 0 = qualsiasi
+      const tagsBox = document.getElementById('search-tags');
+      const ids = tagsBox.getIds ? tagsBox.getIds() : [];
+      const radiusKm = +document.getElementById('search-radius').value;
+      const ref = window.LB_UI.referencePosition();
 
-      // Fase 2c.4: se backend UP e no filtro distanza → usa /api/books.
-      // Se filtro distanza attivo (max_km > 0) → legacy (che ha la logica
-      // di distanza integrata, richiederebbe post-filtro client-side).
-      let results;
-      let source = 'legacy';
-      if (window.LB_API && window.LB_API_AVAILABLE !== false && radius === 0) {
-        try {
-          // Primo tag come filtro categoria (backend accetta solo uno)
-          const primaryCat = tags[0];
-          const cats = window.LB_API.cache.get('categories:list') || [];
-          const catIds = primaryCat ? window.LB_API.categories.slugsToIds(cats, [primaryCat]) : [];
-          const query_ = {
-            limit: 100,
-            ...(query && { q: query }),
-            ...(catIds.length > 0 && { categoryId: catIds[0] }),
-          };
-          const res = await window.LB_API.books.list(query_);
-          results = res.data.map(window.LB_API.bookToLegacy);
-          // Post-filtro: se sono stati indicati piu' tag, filtra client-side
-          // (backend accetta solo un categoryId per volta)
-          if (tags.length > 1) {
-            results = results.filter(b =>
-              (b.categories || []).some(slug => tags.includes(slug)));
-          }
-          source = `backend (${results.length})`;
-        } catch (err) {
-          console.debug(`[explore] search fallback legacy: ${err.code || err.message}`);
-        }
-      }
-      if (!results) {
-        // 1. Ricerca legacy: testuale + tag BISAC + max_km
-        results = API.searchBooks(query, {
-          categories: tags,
-          max_km:     radius > 0 ? radius : undefined
-        });
-      }
-      console.debug(`[explore] search source: ${source}`);
-
-      // 3. Aggiornamento UI — elenco leggibile con enfasi sulla posizione.
-      //    Rivela la sezione risultati (nascosta finché non si cerca) e
-      //    rimuove l'invito iniziale.
+      const resultsBox = document.getElementById('books-results');
       const emptyState = document.getElementById('search-empty');
       if (emptyState) emptyState.hidden = true;
       document.getElementById('results-section').hidden = false;
 
-      const resultsBox = document.getElementById('books-results');
+      let results;
+      try {
+        const res = await window.LB_API.books.listAll({
+          ...(query && { q: query }),
+          ...(ids.length && { categories: ids.join(',') }),
+          ...(radiusKm > 0 && ref && { lat: ref.lat, lng: ref.lng, radius: radiusKm * 1000 }),
+        }, { maxItems: 500 });
+        results = res.data.map(window.LB_API.bookToLegacy);
+      } catch (err) {
+        resultsBox.innerHTML = `<p class="alert alert--error">Server non raggiungibile: ricerca non disponibile. Riprova tra poco.</p>`;
+        document.getElementById('results-count').textContent = '';
+        document.getElementById('search-status').textContent = 'Ricerca non riuscita.';
+        return;
+      }
+
       UI.renderSearchResults(resultsBox, results);
       document.getElementById('results-count').textContent =
         `${results.length} volum${results.length === 1 ? 'e' : 'i'}`;
       document.getElementById('search-status').textContent =
         `Trovati ${results.length} risultati.`;
 
-      // 4. Aggiornamento marcatori mappa
       updateMapMarkers(results);
 
-      // 5. Riavvio dell'animazione di entrata a cascata (reflow trick)
+      // Riavvio dell'animazione di entrata a cascata (reflow trick)
       resultsBox.classList.remove('results-in');
       void resultsBox.offsetWidth;
       resultsBox.classList.add('results-in');
 
-      // 6. Scroll automatico ai risultati: dopo una ricerca l'utente
-      //    vuole vedere subito cosa è stato trovato. Lo scroll è
-      //    morbido e si attiva solo se la ricerca parte da un'azione
-      //    esplicita (non al primo caricamento della pagina).
+      // Scroll ai risultati solo dopo una ricerca esplicita
       if (scrollOnSearch) {
-        const header = document.getElementById('results-title')
-                        .closest('.section-header');
+        const header = document.getElementById('results-title').closest('.section-header');
         const y = header.getBoundingClientRect().top + window.scrollY - 80;
         window.scrollTo({ top: y, behavior: 'smooth' });
       }
     }
 
-    /** Aggiorna i marker sulla mappa secondo i risultati */
+    /** Marcatori: uno per libreria, sulla posizione pubblica del
+        proprietario (chi non la mostra non compare sulla mappa) */
     function updateMapMarkers(books) {
-      // Se la mappa non è stata inizializzata (Leaflet non disponibile),
-      // saltiamo l'aggiornamento dei marker senza errori.
       if (!markersLayer || typeof L === 'undefined') return;
       markersLayer.clearLayers();
-      const users = API.getUsers();
 
-      // Raggruppa libri per proprietario (un marker per utente)
-      const byUser = {};
-      books.forEach(b => {
-        if (!byUser[b.owner_id]) byUser[b.owner_id] = { user: users.find(u => u.id === b.owner_id), books: [] };
-        byUser[b.owner_id].books.push(b);
+      const byOwner = new Map();
+      books.forEach((b) => {
+        if (b.owner_lat == null || b.owner_lng == null) return;
+        if (!byOwner.has(b.owner_id)) byOwner.set(b.owner_id, []);
+        byOwner.get(b.owner_id).push(b);
       });
 
-      // Icona personalizzata
       const customIcon = L.divIcon({
         className: 'custom-marker',
         html: `<div style="
@@ -388,27 +354,27 @@
         iconSize: [28, 28], iconAnchor: [14, 14]
       });
 
-      Object.values(byUser).forEach(({user, books}) => {
-        if (!user) return;
-        const m = L.marker([user.lat, user.lng], { icon: customIcon });
-        const booksList = books.slice(0, 5).map(b =>
-          `<li><a href="book-detail.html?id=${b.id}">${b.title}</a> <em>${b.author}</em></li>`
+      byOwner.forEach((ownerBooks, ownerId) => {
+        const first = ownerBooks[0];
+        const m = L.marker([first.owner_lat, first.owner_lng], { icon: customIcon });
+        const booksList = ownerBooks.slice(0, 5).map((b) =>
+          `<li><a href="book-detail.html?id=${b.id}">${esc(b.title)}</a> <em>${esc(b.author)}</em></li>`
         ).join('');
-
-        const reviewSummary = API.getReviewSummary(user.id);
-        const starsLine = reviewSummary.count > 0
-          ? `<div style="margin: .3rem 0 .2rem;">${UI.renderStars(reviewSummary.average, { count: reviewSummary.count, size: 'sm' })}</div>`
+        const info = libraryInfo.get(ownerId);
+        const starsLine = info && info.reviewsCount > 0
+          ? `<div style="margin: .3rem 0 .2rem;">${UI.renderStars(info.avgRating || 0, { count: info.reviewsCount, size: 'sm' })}</div>`
           : '';
+        const available = ownerBooks.filter((b) => b.available).length;
 
         m.bindPopup(`
-          <h4>${user.display_name}</h4>
+          <h4>${esc(first.owner_name || 'Libreria')}</h4>
           ${starsLine}
-          <p class="popup-author">${user.city}</p>
+          <p class="popup-author">${esc(first.owner_city || '')}</p>
           <p style="margin-top:.5rem; font-size:.85rem;">
-            <strong>${books.length}</strong> volum${books.length === 1 ? 'e' : 'i'} disponibil${books.length === 1 ? 'e' : 'i'}
+            <strong>${available}</strong> volum${available === 1 ? 'e' : 'i'} disponibil${available === 1 ? 'e' : 'i'}
           </p>
           <ul style="margin-top:.5rem; padding-left: 1.2rem; font-size:.85rem;">${booksList}</ul>
-          <a href="library.html?id=${user.id}" style="font-size:.85rem;">→ Vai alla libreria</a>
+          <a href="library.html?id=${encodeURIComponent(ownerId)}" style="font-size:.85rem;">→ Vai alla libreria</a>
         `);
         markersLayer.addLayer(m);
       });
