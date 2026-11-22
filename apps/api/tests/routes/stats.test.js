@@ -3,7 +3,7 @@
 // =============================================================================
 
 import { describe, it, expect, afterAll } from 'vitest';
-import { buildTestApp, createTestPrisma } from '../helpers.mjs';
+import { buildTestApp, authHeaders, createTestPrisma, SEED } from '../helpers.mjs';
 
 const prisma = createTestPrisma();
 afterAll(async () => {
@@ -145,5 +145,51 @@ describe('GET /api/books/nearby (PostGIS)', () => {
       url: '/api/books/nearby?lat=0&lng=0&radius=100',
     });
     expect(res.json().data.length).toBe(0);
+  });
+});
+
+describe('GET /api/stats/overview', () => {
+  it('indicatori, 12 settimane, generi, intersezioni, classifiche', async () => {
+    const app = await buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/stats/overview' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.kpi.total_books).toBeGreaterThan(0);
+    expect(body.kpi).toHaveProperty('avg_views_per_book');
+    expect(body.activity).toHaveLength(12);
+    expect(body.hierarchy.length).toBeGreaterThan(0);
+    expect(body.hierarchy[0]).toHaveProperty('children');
+    expect(body.cooccurrence.macros).toContain('Narrativa');
+    expect(body.cooccurrence.matrix.Narrativa.Narrativa).toBeGreaterThan(0);
+    expect(body.months).toHaveLength(12);
+    expect(body.topBooks.length).toBeGreaterThan(0);
+    expect(body.topBooks[0].monthly.loans).toHaveLength(12);
+    expect(body.topUsers.by_score.length).toBeGreaterThan(0);
+    expect(body.topUsers.by_score.every((u) => typeof u.id === 'string')).toBe(true);
+  });
+});
+
+describe('Visualizzazioni per giorno e andamento del libro', () => {
+  afterAll(async () => {
+    await prisma.bookViewDay.deleteMany({ where: { bookId: SEED.BOOK_GOMORRA } });
+  });
+
+  it("una visualizzazione conta nel giorno e nell'andamento (prima: errore 500)", async () => {
+    const app = await buildTestApp();
+    const v = await app.inject({
+      method: 'POST',
+      url: `/api/books/${SEED.BOOK_GOMORRA}/views`,
+      headers: await authHeaders(SEED.USER_LUCA),
+    });
+    expect(v.json().incremented).toBe(true);
+    const day = await prisma.bookViewDay.findMany({ where: { bookId: SEED.BOOK_GOMORRA } });
+    expect(day.reduce((n, d) => n + d.count, 0)).toBeGreaterThanOrEqual(1);
+
+    const tl = await app.inject({
+      method: 'GET',
+      url: `/api/books/${SEED.BOOK_GOMORRA}/timeline?days=7`,
+    });
+    expect(tl.statusCode).toBe(200);
+    expect(tl.json().totals.views).toBeGreaterThanOrEqual(1);
   });
 });

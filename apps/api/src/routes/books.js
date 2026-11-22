@@ -672,13 +672,18 @@ export default async function booksRoutes(fastify) {
         }
       }
 
-      // --- Incremento atomico ---
+      // --- Incremento atomico: totale + conteggio del giorno (anonimo) ---
       try {
-        const updated = await fastify.prisma.book.update({
-          where: { id },
-          data: { viewCount: { increment: 1 } },
-          select: { id: true, viewCount: true },
-        });
+        const [updated] = await fastify.prisma.$transaction([
+          fastify.prisma.book.update({
+            where: { id },
+            data: { viewCount: { increment: 1 } },
+            select: { id: true, viewCount: true },
+          }),
+          fastify.prisma.$executeRaw`
+            INSERT INTO book_view_days (book_id, day, count) VALUES (${id}, CURRENT_DATE, 1)
+            ON CONFLICT (book_id, day) DO UPDATE SET count = book_view_days.count + 1`,
+        ]);
         return { incremented: true, bookId: updated.id, viewCount: updated.viewCount };
       } catch (err) {
         if (err.code === 'P2025') {

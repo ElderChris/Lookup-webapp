@@ -680,14 +680,22 @@ export default async function statsRoutes(fastify) {
       from.setUTCDate(from.getUTCDate() - (days - 1));
       from.setUTCHours(0, 0, 0, 0);
 
-      // Nota: non abbiamo un log di ogni view (viewCount e' un cumulative counter).
-      // Per la timeline usiamo: likes (data di like), loan_requests (requested_at).
-      // Views timeline resta 0 (documentato: e' un limite del data model).
-      const [likes, loans] = await Promise.all([
+      // Visualizzazioni dal conteggio giornaliero anonimo (book_view_days,
+      // dal 22 nov 2026), mi piace e richieste di prestito per giorno
+      const [views, likes, loans] = await Promise.all([
+        fastify.prisma.$queryRawUnsafe(
+          `
+          SELECT to_char(day, 'YYYY-MM-DD') AS d, SUM(count)::int AS cnt
+          FROM book_view_days WHERE book_id = $1 AND day >= $2::date AND day <= $3::date GROUP BY d
+        `,
+          id,
+          from,
+          to
+        ),
         fastify.prisma.$queryRawUnsafe(
           `
           SELECT to_char(DATE_TRUNC('day', created_at), 'YYYY-MM-DD') AS d, COUNT(*)::int AS cnt
-          FROM likes WHERE book_id = $1 AND created_at >= $2 AND created_at <= $3 GROUP BY d
+          FROM book_likes WHERE book_id = $1 AND created_at >= $2 AND created_at <= $3 GROUP BY d
         `,
           id,
           from,
@@ -711,16 +719,19 @@ export default async function statsRoutes(fastify) {
           bucket.get(r.d)[key] = r.cnt;
         }
       };
+      fill(views, 'views');
       fill(likes, 'likes');
       fill(loans, 'loanRequests');
 
       const series = [];
-      let totalLikes = 0,
+      let totalViews = 0,
+        totalLikes = 0,
         totalLoans = 0;
       for (let d = new Date(from); d <= to; d.setUTCDate(d.getUTCDate() + 1)) {
         const key = d.toISOString().slice(0, 10);
         const point = bucket.get(key) || { date: key, views: 0, likes: 0, loanRequests: 0 };
         series.push(point);
+        totalViews += point.views;
         totalLikes += point.likes;
         totalLoans += point.loanRequests;
       }
@@ -730,9 +741,243 @@ export default async function statsRoutes(fastify) {
         windowDays: days,
         series,
         totals: {
-          views: 0, // TODO: manteniamo counter cumulativo, no timeline puntuale
+          views: totalViews,
           likes: totalLikes,
           loanRequests: totalLoans,
+        },
+      };
+    }
+  );
+
+  // ===========================================================================
+  // GET /api/stats/overview — Dati della pagina Statistiche (pubblico)
+  // ===========================================================================
+  // Un'unica risposta calcolata dal database, al posto di molte chiamate con i
+  // conti nel browser: indicatori, attivita' per settimana (12), generi per
+  // macro-area con sottogeneri, intersezioni fra macro-aree, libri piu'
+  // richiesti con andamento mensile (12 mesi), classifiche degli utenti.
+  fastify.get(
+    '/api/stats/overview',
+    {
+      schema: {
+        tags: ['Stats'],
+        summary: 'Statistiche aggregate della piattaforma',
+        querystring: {
+          type: 'object',
+          properties: {
+            limit: { type: 'integer', minimum: 1, maximum: 20, default: 8 },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (request) => {
+      const { limit } = request.query;
+      const q = (sql, ...params) => fastify.prisma.$queryRawUnsafe(sql, ...params);
+
+      const [kpiRows, activity, macroRows, childRows, coRows, macros, users] = await Promise.all([
+        q(`
+          SELECT
+            (SELECT COUNT(*) FROM books WHERE status = 'active')::int AS total_books,
+            (SELECT COUNT(*) FROM users WHERE status = 'active' AND role <> 'admin')::int AS total_users,
+            (SELECT COUNT(*) FROM users WHERE status = 'active' AND role <> 'admin'
+               AND library_role = 'curator')::int AS curators_count,
+            (SELECT COUNT(*) FROM users WHERE status = 'active' AND role <> 'admin'
+               AND library_role = 'borrower')::int AS borrowers_count,
+            (SELECT COUNT(*) FROM loan_requests)::int AS total_loans,
+            (SELECT COUNT(*) FROM loan_requests WHERE status = 'returned')::int AS completed_loans,
+            (SELECT COUNT(*) FROM loan_requests
+               WHERE status IN ('requested','confirmed','borrowed','returning'))::int AS active_loans,
+            (SELECT COUNT(*) FROM reviews)::int AS total_reviews,
+            (SELECT ROUND(AVG(rating)::numeric, 2) FROM reviews)::float AS avg_rating,
+            (SELECT COUNT(*) FROM loan_messages)::int AS total_messages,
+            (SELECT COUNT(*) FROM notifications)::int AS total_notifications,
+            (SELECT COALESCE(SUM(view_count), 0) FROM books WHERE status = 'active')::int AS total_views
+        `),
+        // 12 settimane (da lunedi'), la corrente compresa
+        q(`
+          WITH weeks AS (
+            SELECT generate_series(
+              date_trunc('week', now()) - interval '11 weeks',
+              date_trunc('week', now()),
+              interval '1 week'
+            ) AS w
+          )
+          SELECT w AS "weekStart",
+            (SELECT COUNT(*) FROM books b WHERE b.status = 'active'
+               AND b.created_at >= w AND b.created_at < w + interval '1 week')::int AS books,
+            (SELECT COUNT(*) FROM loan_requests l
+               WHERE l.requested_at >= w AND l.requested_at < w + interval '1 week')::int AS loans,
+            (SELECT COUNT(*) FROM reviews r
+               WHERE r.created_at >= w AND r.created_at < w + interval '1 week')::int AS reviews,
+            (SELECT COUNT(*) FROM loan_messages m
+               WHERE m.created_at >= w AND m.created_at < w + interval '1 week')::int AS messages
+          FROM weeks ORDER BY w
+        `),
+        // Libri per macro-area (un libro conta una volta per macro-area)
+        q(`
+          WITH bc AS (
+            SELECT DISTINCT b.id AS book_id, c.id AS cat_id, COALESCE(c.parent_id, c.id) AS macro_id
+            FROM books b
+            JOIN book_categories x ON x.book_id = b.id
+            JOIN categories c ON c.id = x.category_id
+            WHERE b.status = 'active'
+          )
+          SELECT m.name, COUNT(DISTINCT bc.book_id)::int AS count
+          FROM bc JOIN categories m ON m.id = bc.macro_id
+          GROUP BY m.name ORDER BY count DESC, m.name
+        `),
+        // Sottogeneri con almeno un libro
+        q(`
+          SELECT m.name AS macro, c.name, COUNT(DISTINCT b.id)::int AS count
+          FROM books b
+          JOIN book_categories x ON x.book_id = b.id
+          JOIN categories c ON c.id = x.category_id AND c.parent_id IS NOT NULL
+          JOIN categories m ON m.id = c.parent_id
+          WHERE b.status = 'active'
+          GROUP BY m.name, c.name ORDER BY count DESC, c.name
+        `),
+        // Intersezioni fra macro-aree nello stesso libro (diagonale: totale)
+        q(`
+          WITH bm AS (
+            SELECT DISTINCT b.id AS book_id, COALESCE(c.parent_id, c.id) AS macro_id
+            FROM books b
+            JOIN book_categories x ON x.book_id = b.id
+            JOIN categories c ON c.id = x.category_id
+            WHERE b.status = 'active'
+          )
+          SELECT ma.name AS a, mb.name AS b, COUNT(*)::int AS count
+          FROM bm a1 JOIN bm b1 ON a1.book_id = b1.book_id
+          JOIN categories ma ON ma.id = a1.macro_id
+          JOIN categories mb ON mb.id = b1.macro_id
+          GROUP BY ma.name, mb.name
+        `),
+        q(`SELECT name FROM categories WHERE parent_id IS NULL ORDER BY sort_order, name`),
+        // Utenti attivi con le metriche delle classifiche
+        q(`
+          SELECT u.id, u.display_name AS name, u.username, u.public_city AS city,
+            (SELECT COUNT(*) FROM books b WHERE b.owner_id = u.id AND b.status = 'active')::int AS books_count,
+            (SELECT COUNT(*) FROM loan_requests l WHERE l.status = 'returned'
+               AND (l.requester_id = u.id OR l.lender_id = u.id))::int AS completed_loans,
+            (SELECT COUNT(*) FROM reviews r WHERE r.reviewer_id = u.id)::int AS reviews_written,
+            (SELECT COUNT(*) FROM user_follows f WHERE f.followed_id = u.id)::int AS followers
+          FROM users u
+          WHERE u.status = 'active' AND u.role <> 'admin'
+        `),
+      ]);
+
+      // --- Indicatori ---
+      const k = kpiRows[0];
+      const kpi = {
+        ...k,
+        avg_views_per_book: k.total_books ? Math.round(k.total_views / k.total_books) : 0,
+      };
+
+      // --- Generi: macro-aree con i sottogeneri ---
+      const childrenByMacro = new Map();
+      for (const r of childRows) {
+        if (!childrenByMacro.has(r.macro)) childrenByMacro.set(r.macro, []);
+        childrenByMacro.get(r.macro).push({ name: r.name, count: r.count });
+      }
+      const hierarchy = macroRows.map((m) => ({
+        name: m.name,
+        count: m.count,
+        children: childrenByMacro.get(m.name) || [],
+      }));
+
+      // --- Intersezioni: matrice completa sulle macro-aree ---
+      const macroNames = macros.map((m) => m.name);
+      const matrix = {};
+      for (const a of macroNames) {
+        matrix[a] = {};
+        for (const b of macroNames) matrix[a][b] = 0;
+      }
+      for (const r of coRows) if (matrix[r.a]) matrix[r.a][r.b] = r.count;
+
+      // --- Libri piu' richiesti: interazioni (prestiti + mi piace) degli
+      //     ultimi 12 mesi, poi visualizzazioni ---
+      const top = await q(
+        `
+        SELECT b.id, b.title, b.author, b.year, b.view_count AS views, b.created_at AS "createdAt",
+          ((SELECT COUNT(*) FROM loan_requests l WHERE l.book_id = b.id
+              AND l.requested_at >= date_trunc('month', now()) - interval '11 months')
+           + (SELECT COUNT(*) FROM book_likes k WHERE k.book_id = b.id
+              AND k.created_at >= date_trunc('month', now()) - interval '11 months'))::int
+            AS total_interactions,
+          (SELECT COUNT(*) FROM loan_requests l WHERE l.book_id = b.id)::int AS total_loans,
+          (SELECT COUNT(*) FROM loan_requests l WHERE l.book_id = b.id
+             AND l.status = 'returned')::int AS completed_loans,
+          (SELECT COUNT(*) FROM loan_requests l WHERE l.book_id = b.id
+             AND l.status IN ('requested','confirmed','borrowed','returning'))::int AS active_loans,
+          (SELECT COUNT(*) FROM book_likes k WHERE k.book_id = b.id)::int AS total_likes
+        FROM books b
+        WHERE b.status = 'active'
+        ORDER BY total_interactions DESC, b.view_count DESC, b.id
+        LIMIT $1
+      `,
+        limit
+      );
+      const ids = top.map((b) => b.id);
+      const monthly = ids.length
+        ? await q(
+            `
+            WITH months AS (
+              SELECT generate_series(
+                date_trunc('month', now()) - interval '11 months',
+                date_trunc('month', now()),
+                interval '1 month'
+              ) AS m
+            ), ids AS (SELECT unnest($1::int[]) AS id)
+            SELECT ids.id AS book_id, months.m AS month,
+              (SELECT COUNT(*) FROM loan_requests l WHERE l.book_id = ids.id
+                 AND l.requested_at >= months.m AND l.requested_at < months.m + interval '1 month')::int AS loans,
+              (SELECT COUNT(*) FROM book_likes k WHERE k.book_id = ids.id
+                 AND k.created_at >= months.m AND k.created_at < months.m + interval '1 month')::int AS likes,
+              (SELECT COALESCE(SUM(v.count), 0) FROM book_view_days v WHERE v.book_id = ids.id
+                 AND v.day >= months.m::date AND v.day < (months.m + interval '1 month')::date)::int AS views
+            FROM ids CROSS JOIN months
+            ORDER BY ids.id, months.m
+          `,
+            ids
+          )
+        : [];
+      const months = [...new Set(monthly.map((r) => new Date(r.month).toISOString()))];
+      const series = new Map();
+      for (const r of monthly) {
+        if (!series.has(r.book_id)) series.set(r.book_id, { views: [], loans: [], likes: [] });
+        const sr = series.get(r.book_id);
+        sr.views.push(r.views);
+        sr.loans.push(r.loans);
+        sr.likes.push(r.likes);
+      }
+      const topBooks = top.map((b) => ({
+        ...b,
+        monthly: series.get(b.id) || { views: [], loans: [], likes: [] },
+      }));
+
+      // --- Classifiche utenti ---
+      const scored = users.map((u) => ({
+        ...u,
+        score: u.completed_loans * 3 + u.reviews_written * 2 + u.books_count + u.followers,
+      }));
+      const by = (key) =>
+        [...scored]
+          .sort((a, b) => b[key] - a[key] || a.name.localeCompare(b.name, 'it'))
+          .slice(0, limit);
+
+      return {
+        kpi,
+        activity,
+        hierarchy,
+        cooccurrence: { macros: macroNames, matrix },
+        months,
+        topBooks,
+        topUsers: {
+          by_score: by('score'),
+          by_loans: by('completed_loans'),
+          by_reviews: by('reviews_written'),
+          by_books: by('books_count'),
+          by_followers: by('followers'),
         },
       };
     }
