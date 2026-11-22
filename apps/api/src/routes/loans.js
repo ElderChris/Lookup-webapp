@@ -316,6 +316,7 @@ export default async function loansRoutes(fastify) {
           requesterId,
           lenderId: book.ownerId,
           bookId,
+          loanId: loan.id,
           bookTitle: loan.book.title,
           requesterDisplayName: loan.requester.displayName,
         }
@@ -606,6 +607,7 @@ export default async function loansRoutes(fastify) {
           actorId: userId,
           recipientId,
           bookId: loan.bookId,
+          loanId: updated.id,
           bookTitle: updated.book.title,
           actorDisplayName:
             role === 'requester' ? updated.requester.displayName : updated.lender.displayName,
@@ -683,6 +685,7 @@ export default async function loansRoutes(fastify) {
         {
           senderId: userId,
           recipientId,
+          loanId: id,
           bookTitle: loan.book.title,
           senderDisplayName: msg.sender.displayName,
           preview: body,

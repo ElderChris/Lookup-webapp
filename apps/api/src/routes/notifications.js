@@ -36,6 +36,7 @@ function notificationDto(n) {
     message: n.message,
     actor: userSummaryDto(n.actor),
     book: n.book ? { id: n.book.id, title: n.book.title, coverUrl: n.book.coverUrl } : null,
+    loanId: n.loanId ?? null,
     createdAt: n.createdAt,
     readAt: n.readAt,
     isRead: n.readAt !== null,

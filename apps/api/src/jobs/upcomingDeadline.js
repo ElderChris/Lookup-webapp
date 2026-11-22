@@ -70,6 +70,7 @@ export async function processUpcomingDeadlines(job, logger) {
             type: 'loan_deadline_upcoming_borrower',
             actorId: loan.lenderId,
             bookId: loan.book.id,
+            loanId: loan.id,
             message: `"${loan.book.title}" da restituire a ${loan.lender.displayName} tra ${daysToDeadline} ${daysToDeadline === 1 ? 'giorno' : 'giorni'} (${loan.deadline.toLocaleDateString('it-IT')}).`,
           },
         });
@@ -80,6 +81,7 @@ export async function processUpcomingDeadlines(job, logger) {
             type: 'loan_deadline_upcoming_lender',
             actorId: loan.requesterId,
             bookId: loan.book.id,
+            loanId: loan.id,
             message: `"${loan.book.title}" prestato a ${loan.requester.displayName} rientra tra ${daysToDeadline} ${daysToDeadline === 1 ? 'giorno' : 'giorni'} (${loan.deadline.toLocaleDateString('it-IT')}).`,
           },
         });

@@ -36,6 +36,25 @@ describe('POST /api/books/:id/loan-requests', () => {
     expect(body.role).toBe('requester');
   });
 
+  it('la notifica al prestatore porta il riferimento al prestito', async () => {
+    const app = await buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/books/${SEED.BOOK_GATTOPARDO}/loan-requests`,
+      headers: await authHeaders(SEED.USER_MARCO),
+      payload: {},
+    });
+    const loanId = res.json().id;
+    const notifs = await app.inject({
+      method: 'GET',
+      url: '/api/me/notifications',
+      headers: await authHeaders(SEED.USER_CHIARA),
+    });
+    const mine = notifs.json().data.find((n) => n.loanId === loanId);
+    expect(mine).toBeTruthy();
+    expect(mine.type).toBe('loan_requested');
+  });
+
   it('rifiuta self-loan (owner del libro)', async () => {
     const app = await buildTestApp();
     const res = await app.inject({

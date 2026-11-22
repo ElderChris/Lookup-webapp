@@ -296,6 +296,7 @@ model LoanRequest {
   rejectReason  String?   @map("reject_reason") @db.Text
 
   messages      LoanMessage[]
+  notifications Notification[]
 
   @@index([requesterId, requestedAt(sort: Desc)])
   @@index([lenderId, requestedAt(sort: Desc)])
@@ -374,9 +375,10 @@ model Like {
 model Notification {
   id          Int       @id @default(autoincrement())
   userId      String    @map("user_id")        // destinatario
-  type        String    @db.VarChar(20)        // new_book | profile_update | book_available | post_reaction | ...
+  type        String    @db.VarChar(40)        // loan_requested | loan_overdue_borrower | post_reaction | ...
   actorId     String?   @map("actor_id")       // chi ha generato l'evento
   bookId      Int?      @map("book_id")        // volume coinvolto (opzionale)
+  loanId      Int?      @map("loan_id")        // prestito coinvolto (link diretto)
   message     String    @db.Text
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
   readAt      DateTime? @map("read_at") @db.Timestamptz
@@ -384,6 +386,7 @@ model Notification {
   user        User      @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
   actor       User?     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
   book        Book?     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  loan        LoanRequest? @relation(fields: [loanId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("notifications")

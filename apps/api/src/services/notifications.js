@@ -34,7 +34,7 @@ import { notificationsSent } from '../lib/metrics.js';
  * Beta 8: dopo la persistenza pubblica anche via SSE (fire-and-forget).
  *
  * @param {object} ctx - { prisma, log }
- * @param {object} data - { userId, type, actorId?, bookId?, message }
+ * @param {object} data - { userId, type, actorId?, bookId?, loanId?, message }
  */
 async function emit(ctx, data) {
   try {
@@ -58,6 +58,7 @@ async function emit(ctx, data) {
         type: notif.type,
         actorId: notif.actorId,
         bookId: notif.bookId,
+        loanId: notif.loanId,
         message: notif.message,
         createdAt: notif.createdAt.toISOString(),
       },
@@ -108,12 +109,13 @@ export async function notifyNewReview(
  */
 export async function notifyLoanRequested(
   ctx,
-  { requesterId, lenderId, bookId, bookTitle, requesterDisplayName }
+  { requesterId, lenderId, bookId, loanId, bookTitle, requesterDisplayName }
 ) {
   return emit(ctx, {
     userId: lenderId,
     actorId: requesterId,
     bookId,
+    loanId,
     type: 'loan_requested',
     message: `${requesterDisplayName} ha richiesto in prestito "${bookTitle}"`,
   });
@@ -135,7 +137,7 @@ export async function notifyLoanRequested(
  */
 export async function notifyLoanStatusChange(
   ctx,
-  { action, actorId, recipientId, bookId, bookTitle, actorDisplayName }
+  { action, actorId, recipientId, bookId, loanId, bookTitle, actorDisplayName }
 ) {
   const TYPE_MAP = {
     accept: {
@@ -170,6 +172,7 @@ export async function notifyLoanStatusChange(
     userId: recipientId,
     actorId,
     bookId,
+    loanId,
     type: cfg.type,
     message: cfg.msg,
   });
@@ -180,12 +183,13 @@ export async function notifyLoanStatusChange(
  */
 export async function notifyNewLoanMessage(
   ctx,
-  { senderId, recipientId, bookTitle, senderDisplayName, preview }
+  { senderId, recipientId, loanId, bookTitle, senderDisplayName, preview }
 ) {
   const previewTrimmed = preview.length > 80 ? preview.slice(0, 77) + '...' : preview;
   return emit(ctx, {
     userId: recipientId,
     actorId: senderId,
+    loanId,
     type: 'loan_message',
     message: `${senderDisplayName} ha scritto su "${bookTitle}": ${previewTrimmed}`,
   });
