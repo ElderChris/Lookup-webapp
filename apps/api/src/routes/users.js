@@ -439,7 +439,7 @@ export default async function usersRoutes(fastify) {
       //                     role='written'  → reviews scritte da questo utente
       const whereClause = role === 'written' ? { reviewerId: id } : { targetUserId: id };
 
-      const [reviews, total, agg] = await Promise.all([
+      const [reviews, total, agg, byRating] = await Promise.all([
         fastify.prisma.review.findMany({
           where: whereClause,
           skip: offset,
@@ -455,12 +455,22 @@ export default async function usersRoutes(fastify) {
           where: whereClause,
           _avg: { rating: true },
         }),
+        fastify.prisma.review.groupBy({
+          by: ['rating'],
+          where: whereClause,
+          _count: { _all: true },
+        }),
       ]);
+
+      // Numero di recensioni per voto (1..5), su tutte e non solo sulla pagina
+      const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      for (const row of byRating) distribution[row.rating] = row._count._all;
 
       return {
         data: reviews.map(reviewDto),
         pagination: { total, limit, offset },
         averageRating: agg._avg.rating != null ? Math.round(agg._avg.rating * 10) / 10 : null,
+        distribution,
       };
     }
   );

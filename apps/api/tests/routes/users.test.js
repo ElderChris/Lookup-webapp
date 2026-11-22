@@ -224,6 +224,12 @@ describe('Recensioni: /api/users/:id/reviews', () => {
     });
     expect(after.json().review).toMatchObject({ rating: 4, text: TEXT });
 
+    const received = await app.inject({
+      method: 'GET',
+      url: `/api/users/${SEED.USER_CHIARA}/reviews`,
+    });
+    expect(received.json().distribution).toEqual({ 1: 0, 2: 0, 3: 0, 4: 1, 5: 0 });
+
     const other = await app.inject({
       method: 'GET',
       url: `/api/users/${SEED.USER_CHIARA}/reviews/me`,
@@ -251,6 +257,7 @@ describe('Recensioni: /api/users/:id/reviews', () => {
       method: 'GET',
       url: `/api/users/${SEED.USER_MARCO}/reviews?role=written`,
     });
+    expect(res.json().distribution).toMatchObject({ 5: expect.any(Number) });
     const mine = res.json().data.find((r) => r.target?.id === SEED.USER_CHIARA);
     expect(mine).toBeTruthy();
     expect(mine.target.displayName).toBe('Chiara Morandi');
