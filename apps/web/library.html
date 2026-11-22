@@ -461,6 +461,15 @@
             average: res.averageRating ?? 0,
             distribution: res.distribution,
           };
+          // Stelle in testa alla pagina allineate dopo una nuova recensione
+          const heroStars = document.querySelector('.library-hero__stars > .stars');
+          if (heroStars) {
+            heroStars.outerHTML = UI.renderStars(s.average, {
+              count: s.count,
+              asLink: '#recensioni',
+              size: 'md'
+            });
+          }
           document.getElementById('reviews-summary').innerHTML = `
             <div class="reviews-summary">
               <div class="reviews-summary__big">
