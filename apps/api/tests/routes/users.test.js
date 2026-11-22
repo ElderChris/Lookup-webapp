@@ -449,3 +449,32 @@ describe("PATCH /api/me/prefs: valori dell'interfaccia", () => {
     expect(res.statusCode).toBe(400);
   });
 });
+
+describe('GET /api/users/:id/library', () => {
+  afterAll(async () => {
+    await prisma.follow.deleteMany({
+      where: { followerId: SEED.USER_MARCO, followedId: SEED.USER_ANNA },
+    });
+  });
+
+  it('visitatore autenticato: risponde con isFollowing', async () => {
+    const app = await buildTestApp();
+    const headers = await authHeaders(SEED.USER_MARCO);
+    const before = await app.inject({
+      method: 'GET',
+      url: `/api/users/${SEED.USER_ANNA}/library`,
+      headers,
+    });
+    expect(before.statusCode).toBe(200);
+    expect(before.json().isFollowing).toBe(false);
+
+    await app.inject({ method: 'POST', url: `/api/users/${SEED.USER_ANNA}/follow`, headers });
+    const after = await app.inject({
+      method: 'GET',
+      url: `/api/users/${SEED.USER_ANNA}/library`,
+      headers,
+    });
+    expect(after.json().isFollowing).toBe(true);
+    expect(after.json().stats.followersCount).toBeGreaterThan(0);
+  });
+});

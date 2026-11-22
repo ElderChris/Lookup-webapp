@@ -87,7 +87,8 @@ export default async function libraryRoutes(fastify) {
         currentUserId && currentUserId !== id
           ? fastify.prisma.follow.findFirst({
               where: { followerId: currentUserId, followedId: id },
-              select: { id: true },
+              // Follow ha chiave composta (followerId, followedId): niente id
+              select: { followerId: true },
             })
           : Promise.resolve(null),
       ]);
