@@ -155,17 +155,6 @@ export function backendUserToLegacy(beUser) {
 }
 
 /**
- * Ritorna l'utente corrente in shape legacy, letto da `window.LB_AUTH_USER`
- * (popolato da api-bootstrap.js dopo il lookup Better Auth session).
- *
- * Rispetta il flag legacy `auth_state`: se localStorage.auth_state !== 'user'
- * ritorna null anche se c'e' una sessione backend. Serve per il "soft logout
- * locale" (utente clicca "Esci" ma il cookie e' ancora valido finche' non
- * arriva l'HTTP call).
- *
- * @returns {object|null}
- */
-/**
  * Attende che api-bootstrap abbia verificato la sessione (evento
  * `lb-auth-ready`). Da usare prima di leggere l'utente negli script delle
  * pagine, che partono al DOMContentLoaded, quando la richiesta di sessione
@@ -196,10 +185,27 @@ export async function requireUser(redirectTo = 'login.html') {
     return null;
   }
   if (!me) {
-    window.location.href = redirectTo;
+    // Dopo l'accesso si torna alla pagina richiesta
+    window.location.href =
+      redirectTo === 'login.html'
+        ? `login.html?next=${encodeURIComponent(location.pathname + location.search)}`
+        : redirectTo;
     return null;
   }
   return me;
+}
+
+/**
+ * Pagina interna in cui proseguire (parametro `next` di accesso e conferma
+ * email). Accetta solo percorsi di questo sito del tipo /pagina.html?..., per
+ * non poter essere usata per rimandare a siti esterni.
+ *
+ * @param {string|null} value
+ * @returns {string|null}
+ */
+export function safeNextPath(value) {
+  if (!value) return null;
+  return /^\/[A-Za-z0-9_-]+\.html(\?[^#\s]*)?$/.test(value) ? value : null;
 }
 
 /** Avviso in testa al contenuto quando la sessione non e' verificabile. */
@@ -322,13 +328,12 @@ export function setAuthState(state) {
   }
 }
 
+/**
+ * Utente corrente (forma usata dalle pagine), letto da `window.LB_AUTH_USER`
+ * che api-bootstrap.js popola dalla sessione del server.
+ *
+ * @returns {object|null}
+ */
 export function currentUser() {
-  // Rispetta soft logout locale (auth_state='guest')
-  try {
-    const raw = localStorage.getItem('auth_state');
-    if (raw && JSON.parse(raw) !== 'user') return null;
-  } catch (_) {
-    /* ignora incognito o quota exceeded */
-  }
   return backendUserToLegacy(window.LB_AUTH_USER);
 }

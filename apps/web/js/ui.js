@@ -1988,20 +1988,15 @@ export const UI = {
       // Beta 8: chiude la connessione SSE prima del signOut
       if (window.LB_EVENTS) window.LB_EVENTS.stop();
 
-      // Fase 3.2: logout via Better Auth (distrugge cookie session)
-      // + reset legacy Storage per pagine ancora non migrate
-      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-        try {
-          await window.LB_API.authClient.signOut();
-        } catch (err) {
-          console.debug('[logout] Better Auth skip:', err.code || err.message);
-        }
-      }
+      // Chiude la sessione sul server (cancella il cookie)
       try {
-        // Beta 2: current_user_id non piu' in localStorage — rimuovo solo auth_state
-        localStorage.removeItem('auth_state');
-      } catch (_) {
-        /* ignora */
+        await window.LB_API.authClient.signOut();
+      } catch (err) {
+        // 401: la sessione era gia' scaduta, l'utente e' comunque fuori
+        if (err.status !== 401) {
+          UI.toast('Uscita non riuscita: il server non risponde. Riprova tra poco.', 'error');
+          return;
+        }
       }
       window.LB_UI.setAuthState('guest');
       // feedback breve e poi via

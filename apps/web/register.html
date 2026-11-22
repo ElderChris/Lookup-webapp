@@ -43,7 +43,7 @@
       <!-- Switch in cima (v1.3): chi ha già un account lo trova subito,
            senza dover scorrere a fine pagina dopo tutta la registrazione. -->
       <p class="auth-switch auth-switch--top">
-        Hai già un account? <a href="login.html">Accedi</a>
+        Hai già un account? <a href="login.html" id="login-link">Accedi</a>
       </p>
 
       <span class="eyebrow">unisciti alla rete diffusa</span>
@@ -152,14 +152,14 @@
                   <span data-label-org hidden>Nome della libreria *</span>
                 </label>
                 <input type="text" id="display_name" name="display_name" class="form__input"
-                       required minlength="2" maxlength="120" autocomplete="off" />
+                       required minlength="2" maxlength="100" autocomplete="name" />
               </div>
               <div class="form__group">
                 <label class="form__label" for="username">Nome utente *</label>
                 <input type="text" id="username" name="username" class="form__input"
-                       required minlength="3" maxlength="40" pattern="^[a-z0-9._]+$"
-                       autocomplete="off" />
-                <span class="form__help">Solo minuscole, numeri, punto e underscore.</span>
+                       required minlength="3" maxlength="30" pattern="^[a-z0-9._]+$"
+                       autocomplete="username" autocapitalize="none" spellcheck="false" />
+                <span class="form__help" id="username-help">Da 3 a 30 caratteri: minuscole, numeri, punto e underscore. Non si potrà cambiare.</span>
               </div>
             </div>
 
@@ -167,12 +167,13 @@
               <div class="form__group">
                 <label class="form__label" for="email">Email *</label>
                 <input type="email" id="email" name="email" class="form__input"
-                       required autocomplete="off" />
+                       required maxlength="255" autocomplete="email" />
+                <span class="form__help">Ti invieremo un link per confermarla: serve per accedere.</span>
               </div>
               <div class="form__group">
                 <label class="form__label" for="password">Password *</label>
                 <input type="password" id="password" name="password" class="form__input"
-                       required minlength="8" autocomplete="new-password" />
+                       required minlength="8" maxlength="128" autocomplete="new-password" />
                 <span class="form__help">Almeno 8 caratteri.</span>
               </div>
             </div>
@@ -191,14 +192,7 @@
               <div class="form__row">
                 <div class="form__group">
                   <label class="form__label" for="org_category">Categoria di ente *</label>
-                  <select id="org_category" name="org_category" class="form__select">
-                    <option value="biblioteca">Biblioteca</option>
-                    <option value="associazione">Associazione culturale</option>
-                    <option value="libreria_indipendente">Libreria indipendente</option>
-                    <option value="centro_culturale">Centro culturale</option>
-                    <option value="scuola">Scuola o istituto</option>
-                    <option value="altro">Altro ente</option>
-                  </select>
+                  <select id="org_category" name="org_category" class="form__select"></select>
                 </div>
                 <div class="form__group">
                   <label class="form__label" for="contact_person">Referente *</label>
@@ -211,7 +205,7 @@
                 <div class="form__group">
                   <label class="form__label" for="website">Sito web</label>
                   <input type="url" id="website" name="website" class="form__input"
-                         placeholder="https://…" autocomplete="off" />
+                         maxlength="300" placeholder="https://…" autocomplete="url" />
                 </div>
                 <div class="form__group">
                   <label class="form__label" for="public_phone">Telefono pubblico</label>
@@ -223,7 +217,7 @@
                 <label class="form__label" for="public_address">Indirizzo pubblico *</label>
                 <input type="text" id="public_address" name="public_address" class="form__input"
                        maxlength="200" autocomplete="off" />
-                <span class="form__help">Dove si trova l'ente — sarà visibile sulla mappa.</span>
+                <span class="form__help">Compare nella pagina dell'ente. Il punto sulla mappa lo scegli dopo, dal profilo.</span>
               </div>
               <div class="form__group">
                 <label class="form__label" for="opening_hours">Orari di apertura *</label>
@@ -310,22 +304,19 @@
               <legend style="font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .1em; color: var(--color-ink-soft); padding: 0 .5rem;">Consensi</legend>
               <div class="form__check">
                 <input type="checkbox" id="consent_tos" required aria-required="true" />
-                <label for="consent_tos">Accetto i termini di servizio e la privacy policy. *</label>
+                <label for="consent_tos">Accetto i <a href="terms.html" target="_blank" rel="noopener">termini di servizio</a> e ho letto l'<a href="privacy.html" target="_blank" rel="noopener">informativa sulla privacy</a>. *</label>
               </div>
               <div class="form__check" style="margin-top: .5rem;">
                 <input type="checkbox" id="consent_age" required aria-required="true" />
                 <label for="consent_age">Dichiaro di avere almeno 18 anni (o di rappresentare legalmente l'ente). *</label>
               </div>
-              <div class="form__check" style="margin-top: .5rem;">
-                <input type="checkbox" id="consent_news" />
-                <label for="consent_news">Desidero ricevere aggiornamenti sulle attività della comunità (facoltativo).</label>
-              </div>
             </fieldset>
 
             <div class="alert alert--info" role="note" style="margin-top: 1rem;">
               <strong>Privacy della posizione:</strong>
-              <span data-label-person>per le librerie personali la posizione sulla mappa viene mostrata con un margine di imprecisione di ~200 m.</span>
-              <span data-label-org hidden>per gli enti l'indirizzo è pubblico per definizione, così la comunità può raggiungervi.</span>
+              il punto sulla mappa lo scegli dopo, dal profilo, insieme a quanto mostrarlo.
+              <span data-label-person>Per le persone di base è approssimato (circa 200 m) e la città resta visibile.</span>
+              <span data-label-org hidden>Per gli enti di base è esatto, così la comunità può raggiungervi.</span>
             </div>
           </div>
         </div>
@@ -347,7 +338,7 @@
             </div>
             <div class="wizard-panel-header__text">
               <h2>I tuoi primi volumi <span style="color: var(--color-ink-soft); font-weight: 400; font-size: 0.7em;">(opzionale)</span></h2>
-              <p>Se vuoi puoi aggiungere subito uno o più libri — oppure saltare questo passo e completare l'iscrizione: la tua libreria nascerà comunque, e potrai pubblicare i tuoi volumi più tardi dalla tua area personale.</p>
+              <p>Se vuoi puoi aggiungere subito fino a 10 libri, oppure completare l'iscrizione senza: la tua libreria nascerà comunque e potrai pubblicare i volumi più tardi. Quelli aggiunti qui diventano visibili quando confermi l'email.</p>
             </div>
           </div>
 
@@ -355,20 +346,20 @@
             <div class="form__row">
               <div class="form__group">
                 <label class="form__label" for="bk_title">Titolo</label>
-                <input type="text" id="bk_title" class="form__input" maxlength="300" autocomplete="off" />
+                <input type="text" id="bk_title" class="form__input" maxlength="500" autocomplete="off" />
               </div>
               <div class="form__group">
                 <label class="form__label" for="bk_author">Autore</label>
-                <input type="text" id="bk_author" class="form__input" maxlength="200" autocomplete="off" />
+                <input type="text" id="bk_author" class="form__input" maxlength="300" autocomplete="off" />
               </div>
             </div>
             <div class="form__row">
               <div class="form__group">
-                <label class="form__label" for="bk_year">Anno</label>
-                <input type="number" id="bk_year" class="form__input" min="1400" max="2030" />
+                <label class="form__label" for="bk_year">Anno (facoltativo)</label>
+                <input type="number" id="bk_year" class="form__input" min="1400" max="2100" />
               </div>
               <div class="form__group">
-                <label class="form__label" for="bk_category">Categoria</label>
+                <label class="form__label" for="bk_category">Genere</label>
                 <select id="bk_category" class="form__select">
                   <option value="">Seleziona…</option>
                 </select>
@@ -384,7 +375,7 @@
           </h3>
           <div class="onboarding-books" id="onboarding-books">
             <div class="onboarding-empty" id="onboarding-empty">
-              Nessun volume ancora. Aggiungine almeno uno per completare la registrazione.
+              Nessun volume aggiunto: puoi farlo anche dopo l'iscrizione.
             </div>
           </div>
         </div>
@@ -399,6 +390,20 @@
 
       </form>
 
+      <!-- Dopo l'invio: conferma dell'email -->
+      <section id="check-email" class="card" style="padding: 2rem;" hidden tabindex="-1" aria-labelledby="check-email-title">
+        <h2 id="check-email-title" style="margin-top: 0;">Controlla la tua email</h2>
+        <p>
+          Abbiamo inviato un link di conferma a <strong id="check-email-address"></strong>.
+          Aprilo, anche da un altro dispositivo, per attivare l'account ed entrare<span id="check-email-next"></span>.
+        </p>
+        <p style="color: var(--color-ink-soft); font-size: .9rem;">
+          Il link vale 24 ore. Se non trovi l'email, controlla la cartella spam.
+        </p>
+        <button type="button" class="btn btn--ghost btn--small" id="resend-btn">Invia di nuovo l'email</button>
+        <p id="resend-msg" aria-live="polite" style="margin: .5rem 0 0; font-size: .9rem;"></p>
+      </section>
+
     </section>
   </main>
 
@@ -407,7 +412,7 @@
       <div><h4>Lookup</h4><p style="color: rgba(244,239,230,.7); font-size: .9rem;">Un progetto di condivisione del patrimonio librario privato.</p></div>
       <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
       <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
-      <div><h4>Info</h4><a href="#">Privacy</a></div>
+      <div><h4>Info</h4><a href="privacy.html">Privacy</a></div>
       <div class="site-footer__colophon"><span>© 2026 Lookup</span><span>v3.0.0-alpha.0</span></div>
     </div>
   </footer>
@@ -415,7 +420,15 @@
   <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
   <script>
+    // Iscrizione in tre passi (tipo e accesso, libreria, primi volumi) con
+    // un'unica richiesta finale al server (POST /api/register). L'account
+    // si attiva aprendo il link inviato per email: la pagina mostra poi
+    // "Controlla la tua email". Chi arriva da una richiesta di prestito
+    // (?intent=borrow&book=ID) completa tutto nel primo passo e, dopo la
+    // conferma, torna al volume con la richiesta pronta.
     document.addEventListener('DOMContentLoaded', () => {
+      const esc = (v) => UI._escapeHtml(v);
+      const auth = window.LB_API.authClient;
 
       const form = document.getElementById('wizard-form');
       const panels = [...form.querySelectorAll('.wizard-panel')];
@@ -425,31 +438,60 @@
       const finishBtn = document.getElementById('wizard-finish');
       const errorBox = document.getElementById('wizard-error');
 
-      let currentStep = 1;          // 1..3
-      const addedBooks = [];        // volumi aggiunti nello step 3
+      const MAX_BOOKS = 10;
+      let currentStep = 1;
+      const addedBooks = []; // { title, author, year, categoryId, categoryName }
 
-      /* ----- Popola categorie nello step 3 ----- */
-      const bkCategory = document.getElementById('bk_category');
-      API.getCategories().forEach(c => {
-        const o = document.createElement('option');
-        o.value = c; o.textContent = c;
-        bkCategory.appendChild(o);
+      /* ----- Intento "prestito" ----- */
+      const params = new URLSearchParams(location.search);
+      const isBorrowIntent = params.get('intent') === 'borrow';
+      const pendingBookId =
+        parseInt(params.get('book'), 10) || parseInt(sessionStorage.getItem('pending_loan_book'), 10) || null;
+      // Pagina in cui proseguire dopo la conferma dell'email
+      const nextPath = pendingBookId ? `/book-detail.html?id=${pendingBookId}&loan=1` : '/profile.html';
+      if (pendingBookId) {
+        document.getElementById('login-link').href = `login.html?next=${encodeURIComponent(nextPath)}`;
+      }
+
+      /* ----- Categorie dell'ente (stesse chiavi del server) ----- */
+      const orgCategory = document.getElementById('org_category');
+      Object.entries(window.LB_UI.ORG_CATEGORIES).forEach(([key, label]) => {
+        orgCategory.add(new Option(label, key));
       });
 
-      /* ----- Mostra/nascondi i campi in base al tipo account ----- */
+      /* ----- Generi dei volumi, raggruppati per macro-area ----- */
+      const bkCategory = document.getElementById('bk_category');
+      window.LB_API.categories
+        .all()
+        .then((list) => {
+          const roots = list.filter((c) => !c.parentId);
+          roots.forEach((root) => {
+            const children = list.filter((c) => c.parentId === root.id);
+            if (!children.length) {
+              bkCategory.add(new Option(root.name, root.id));
+              return;
+            }
+            const group = document.createElement('optgroup');
+            group.label = root.name;
+            children.forEach((c) => group.appendChild(new Option(c.name, c.id)));
+            bkCategory.appendChild(group);
+          });
+        })
+        .catch(() => {
+          bkCategory.add(new Option('Generi non disponibili: riprova più tardi', ''));
+        });
+
+      /* ----- Campi in base al tipo di account ----- */
       const orgFields = document.getElementById('org-fields');
-      const borrowerHint = document.getElementById('borrower-hint'); // v1.9: element removed; null-safe below
       const step3Indicator = document.querySelector('.wizard-step[data-step="3"]');
 
-      // Il "lettore" è una persona che per ora vuole solo prendere in
-      // prestito: salta lo step dei primi volumi e parte con library_role
-      // 'borrower'. Resta una persona a livello di account_type.
-      // v1.8: con `?intent=borrow` salta ANCHE lo step della libreria
-      // (bio/motto/theme), passando direttamente al login + creazione
-      // automatica del prestito → singolo step di registrazione.
-      function isBorrower() { return form.account_type.value === 'borrower'; }
-      function lastStep()   {
-        if (window.__isBorrowIntent) return 1;     // fast-track
+      // Il "lettore" e' una persona che per ora vuole solo prendere in
+      // prestito: salta i primi volumi e parte con ruolo 'borrower'
+      function isBorrower() {
+        return form.account_type.value === 'borrower';
+      }
+      function lastStep() {
+        if (isBorrowIntent) return 1;
         return isBorrower() ? 2 : 3;
       }
 
@@ -460,212 +502,159 @@
 
         orgFields.classList.toggle('is-visible', isOrg);
         orgFields.setAttribute('aria-hidden', String(!isOrg));
-        ['legal_name', 'org_category', 'contact_person', 'public_address', 'opening_hours']
-          .forEach(name => {
-            const f = form.elements[name];
-            if (f) f.required = isOrg;
-          });
-        // Etichette che cambiano fra persona/lettore ed ente
-        document.querySelectorAll('[data-label-person]').forEach(el => el.hidden = isOrg);
-        document.querySelectorAll('[data-label-org]').forEach(el => el.hidden = !isOrg);
+        ['legal_name', 'org_category', 'contact_person', 'public_address', 'opening_hours'].forEach((name) => {
+          const f = form.elements[name];
+          if (f) f.required = isOrg;
+        });
+        document.querySelectorAll('[data-label-person]').forEach((el) => (el.hidden = isOrg));
+        document.querySelectorAll('[data-label-org]').forEach((el) => (el.hidden = !isOrg));
 
-        // Suggerimento del lettore (rimosso in v1.9 perché ridondante col banner)
-        if (borrowerHint) borrowerHint.hidden = !borrower;
-
-        // Per il lettore lo step "Primi volumi" è facoltativo/saltato:
-        // lo segnaliamo nell'indicatore di avanzamento e rendiamo la
-        // biografia non obbligatoria (meno attrito per chi vuole solo leggere).
         step3Indicator.classList.toggle('is-skipped', borrower);
-        const bioField = form.elements['bio'];
-        if (bioField) {
-          bioField.required = !borrower;
-          // Aggiorna il testo di aiuto della bio
-          const help = bioField.parentElement.querySelector('.form__help');
-          if (help) help.textContent = borrower
-            ? 'Facoltativa per i lettori — scrivi due righe se vuoi presentarti.'
+        const bioField = form.elements.bio;
+        bioField.required = !borrower;
+        bioField.minLength = borrower ? 0 : 20;
+        const help = bioField.parentElement.querySelector('.form__help');
+        if (help) {
+          help.textContent = borrower
+            ? 'Facoltativa per i lettori: scrivi due righe se vuoi presentarti.'
             : 'Tra 20 e 500 caratteri.';
         }
+        if (currentStep) showStep(Math.min(currentStep, lastStep()));
       }
-      form.querySelectorAll('input[name="account_type"]').forEach(r =>
-        r.addEventListener('change', syncAccountType));
+      form.querySelectorAll('input[name="account_type"]').forEach((r) => r.addEventListener('change', syncAccountType));
 
-      /* ----- Intento "prestito": se l'utente arriva qui dopo aver
-         tentato di richiedere un prestito da non iscritto
-         (register.html?intent=borrow), pre-selezioniamo la card
-         "Lettore" e mostriamo un banner che spiega perché si trova qui.
-         v1.8: in questo flusso saltiamo ANCHE lo step 2 (libreria) per
-         portare l'utente al massimo in un solo passaggio. I consensi
-         GDPR vengono spostati nello step 1, e l'utente viene loggato
-         e portato direttamente alla pagina dei prestiti. */
-      const intent = new URLSearchParams(location.search).get('intent');
-      const isBorrowIntent = (intent === 'borrow');
-      window.__isBorrowIntent = isBorrowIntent;   // letto da lastStep()
       if (isBorrowIntent) {
-        const borrowerRadio = form.querySelector('input[value="borrower"]');
-        if (borrowerRadio) borrowerRadio.checked = true;
-        const banner = document.getElementById('intent-banner');
-        if (banner) banner.hidden = false;
-
-        // Nascondi del tutto la scelta del tipo account: è pre-selezionata
-        const accountTypeBlock = form.querySelector('.account-type-grid');
-        if (accountTypeBlock) accountTypeBlock.style.display = 'none';
-        const accountTypeLabel = form.querySelector('[data-account-type-label]');
-        if (accountTypeLabel) accountTypeLabel.hidden = true;
-
-        // Sposta i consensi (TOS, età, newsletter) dallo step 2 allo step 1
-        // così il Lettore può completare tutto in un unico passaggio.
-        const consentsBlock = document.getElementById('consent-block');
-        const step1Panel = document.querySelector('[data-panel="1"]');
-        const step1Footer = step1Panel.querySelector('.wizard-panel__footer');
-        if (consentsBlock && step1Panel) {
-          if (step1Footer) step1Panel.insertBefore(consentsBlock, step1Footer);
-          else step1Panel.appendChild(consentsBlock);
-        }
-
-        // Marca gli step 2 e 3 come saltati nell'indicatore di avanzamento
+        form.querySelector('input[value="borrower"]').checked = true;
+        document.getElementById('intent-banner').hidden = false;
+        form.querySelector('.account-type-grid').style.display = 'none';
+        form.querySelectorAll('[data-account-type-label]').forEach((el) => (el.hidden = true));
+        // Consensi nel primo (e unico) passo
+        document.querySelector('[data-panel="1"]').appendChild(document.getElementById('consent-block'));
         document.querySelector('.wizard-step[data-step="2"]').classList.add('is-skipped');
         document.querySelector('.wizard-step[data-step="3"]').classList.add('is-skipped');
-
-        // CRITICO: showStep(1) DOPO il setup del fast-track, così
-        // lastStep() ricalcola e finishBtn diventa visibile (nextBtn nascosto).
-        // Senza questa chiamata, il pulsante "Continua →" resta su perché
-        // lastStep era stato risolto a 2 al primo render.
       }
-      syncAccountType();
 
-      /* ----- Validazione live su tutti i campi del form ----- */
+      /* ----- Validazione live ----- */
       UI.attachLiveValidation(form, {
-        username: (v) => /^[a-z0-9._]+$/.test(v) || 'Solo minuscole, numeri, punto e underscore.',
+        username: (v) =>
+          /^[a-z0-9._]{3,30}$/.test(v) || 'Da 3 a 30 caratteri: minuscole, numeri, punto e underscore.',
         password: (v) => v.length >= 8 || 'La password deve avere almeno 8 caratteri.',
         bio: (v) => {
           const len = v.trim().length;
+          if (isBorrower() && len === 0) return true;
           if (len < 20) return `Ancora ${20 - len} caratteri al minimo.`;
           if (len > 500) return 'Massimo 500 caratteri.';
           return true;
-        }
+        },
       });
 
-      /* ----- Naviga fra gli step ----- */
+      /* ----- Nome utente libero? (controllo sul server all'uscita dal campo) ----- */
+      const usernameInput = document.getElementById('username');
+      async function checkUsername() {
+        const value = usernameInput.value.trim().toLowerCase();
+        usernameInput.value = value;
+        usernameInput.setCustomValidity('');
+        usernameInput.classList.remove('is-invalid-unique');
+        usernameInput.parentElement.querySelector('.form__error-unique')?.remove();
+        if (!/^[a-z0-9._]{3,30}$/.test(value)) return true;
+        try {
+          const res = await auth.checkUsername(value);
+          if (res.available) return true;
+          usernameInput.setCustomValidity('Nome utente già in uso.');
+          usernameInput.classList.add('is-invalid-unique');
+          const msg = document.createElement('span');
+          msg.className = 'form__error-unique';
+          msg.textContent = 'Nome utente già in uso: scegline un altro.';
+          usernameInput.parentElement.appendChild(msg);
+          return false;
+        } catch (_) {
+          return true; // controllo non disponibile: decide il server all'invio
+        }
+      }
+      usernameInput.addEventListener('blur', checkUsername);
+
+      /* ----- Navigazione fra i passi ----- */
       function showStep(n) {
         currentStep = n;
-        panels.forEach(p => p.classList.toggle('is-active', +p.dataset.panel === n));
-        steps.forEach(s => {
+        panels.forEach((p) => p.classList.toggle('is-active', +p.dataset.panel === n));
+        steps.forEach((s) => {
           const sn = +s.dataset.step;
           s.classList.toggle('is-active', sn === n);
           s.classList.toggle('is-done', sn < n);
         });
-        /* Logica della wizard-nav, adattata al tipo account:
-           - L'ultimo step è il 3 per persone/enti, il 2 per i lettori.
-           - Primo step: solo "Continua →"
-           - Step intermedio: "← Indietro" + "Continua →"
-           - Ultimo step: solo "Crea la libreria" (per i lettori
-             l'etichetta diventa "Completa l'iscrizione").
-           "Indietro" e il pulsante finale non coesistono mai. */
         const last = lastStep();
-        backBtn.hidden   = (n === 1) || (n === last);
-        nextBtn.hidden   = (n >= last);
-        finishBtn.hidden = (n !== last);
+        backBtn.hidden = n === 1 || n === last;
+        nextBtn.hidden = n >= last;
+        finishBtn.hidden = n !== last;
         finishBtn.textContent = isBorrower() ? "Completa l'iscrizione" : 'Crea la libreria';
         errorBox.hidden = true;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
 
-      // v1.8: per il fast-track Lettore, forza un re-render dello step 1
-      // così la nav mostri "Completa l'iscrizione" invece di "Continua →"
-      // (lastStep() ora restituisce 1 perché __isBorrowIntent è true).
-      if (isBorrowIntent) showStep(1);
-
-      // v2.1: check live di univocità su blur — dà feedback immediato
-      // prima del submit finale. La validazione "vera" resta in createUser.
-      function attachLiveUniqueCheck(fieldId, errorReason) {
-        const input = document.getElementById(fieldId);
-        if (!input) return;
-        input.addEventListener('blur', () => {
-          const value = input.value.trim().toLowerCase();
-          if (!value) return;
-          const users = API.getUsers();
-          const taken = users.some(u => {
-            const stored = (u[fieldId] || '').trim().toLowerCase();
-            return stored === value;
-          });
-          // Annulla eventuale precedente errore visuale
-          input.setCustomValidity('');
-          input.classList.remove('is-invalid-unique');
-          // Cerca/rimuove un eventuale messaggio già presente
-          const existingMsg = input.parentElement.querySelector('.form__error-unique');
-          if (existingMsg) existingMsg.remove();
-          if (taken) {
-            input.setCustomValidity(errorReason);
-            input.classList.add('is-invalid-unique');
-            const msg = document.createElement('span');
-            msg.className = 'form__error-unique';
-            msg.textContent = errorReason;
-            input.parentElement.appendChild(msg);
-          }
-        });
-      }
-      attachLiveUniqueCheck('username', 'Nome utente già in uso.');
-      attachLiveUniqueCheck('email', 'Email già registrata.');
-
-      /* Valida i campi visibili dello step corrente */
       function validateStep(n) {
         const panel = panels[n - 1];
-        const fields = [...panel.querySelectorAll('input, select, textarea')]
-          .filter(f => f.offsetParent !== null);   // solo campi visibili
+        const fields = [...panel.querySelectorAll('input, select, textarea')].filter((f) => f.offsetParent !== null);
         const errors = [];
-        fields.forEach(f => {
+        fields.forEach((f) => {
+          if (f.type === 'checkbox') return;
           f.classList.add('touched');
           f.dispatchEvent(new Event('blur'));
           if (!f.checkValidity()) {
-            const label = f.closest('.form__group')?.querySelector('.form__label')?.innerText
-                          || f.previousElementSibling?.innerText || f.name;
+            const label =
+              f.closest('.form__group')?.querySelector('.form__label')?.innerText || f.name;
             errors.push(label.replace(/\s*\*$/, '').trim());
           }
         });
-        // Step 2: i checkbox di consenso obbligatori
-        if (n === 2) {
-          if (!document.getElementById('consent_tos').checked)
-            errors.push('Accettazione dei termini di servizio');
-          if (!document.getElementById('consent_age').checked)
-            errors.push('Dichiarazione dei 18 anni');
+        const consentsHere = panel.contains(document.getElementById('consent-block'));
+        if (consentsHere) {
+          if (!document.getElementById('consent_tos').checked) errors.push('Accettazione di termini e privacy');
+          if (!document.getElementById('consent_age').checked) errors.push('Dichiarazione dei 18 anni');
         }
         return errors;
       }
 
-      function showErrors(errors) {
-        if (!errors.length) { errorBox.hidden = true; return false; }
+      function showErrors(errors, title = 'Controlla questi campi:') {
+        if (!errors.length) {
+          errorBox.hidden = true;
+          return false;
+        }
         errorBox.hidden = false;
-        errorBox.innerHTML = `<strong>Controlla questi campi:</strong>
+        errorBox.innerHTML = `<strong>${esc(title)}</strong>
           <ul style="margin: .5rem 0 0; padding-left: 1.4rem;">
-            ${errors.map(e => `<li>${e}</li>`).join('')}
+            ${errors.map((e) => `<li>${esc(e)}</li>`).join('')}
           </ul>`;
         errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return true;
       }
 
-      nextBtn.addEventListener('click', () => {
+      nextBtn.addEventListener('click', async () => {
         const errors = validateStep(currentStep);
+        if (currentStep === 1 && !errors.length && !(await checkUsername())) {
+          errors.push('Nome utente già in uso');
+        }
         if (showErrors(errors)) return;
         showStep(currentStep + 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       });
       backBtn.addEventListener('click', () => showStep(currentStep - 1));
 
-      /* ----- Step 3: aggiunta volumi ----- */
+      /* ----- Passo 3: primi volumi ----- */
       const booksList = document.getElementById('onboarding-books');
       const emptyMsg = document.getElementById('onboarding-empty');
       const bookCount = document.getElementById('book-count');
+      const addBookBtn = document.getElementById('add-book-btn');
 
       function renderBooks() {
         bookCount.textContent = addedBooks.length;
         emptyMsg.style.display = addedBooks.length ? 'none' : 'block';
-        // rimuove le righe esistenti (tranne il messaggio vuoto)
-        booksList.querySelectorAll('.onboarding-book').forEach(el => el.remove());
+        addBookBtn.disabled = addedBooks.length >= MAX_BOOKS;
+        booksList.querySelectorAll('.onboarding-book').forEach((el) => el.remove());
         addedBooks.forEach((b, i) => {
           const row = document.createElement('div');
           row.className = 'onboarding-book';
           row.innerHTML = `
-            <span><strong>${b.title}</strong> — ${b.author}, ${b.year} <em style="color:var(--color-ink-soft)">(${b.category})</em></span>
-            <button type="button" class="onboarding-book__remove" aria-label="Rimuovi ${b.title}">✕</button>`;
+            <span><strong>${esc(b.title)}</strong> — ${esc(b.author)}${b.year ? `, ${b.year}` : ''}
+              <em style="color:var(--color-ink-soft)">(${esc(b.categoryName)})</em></span>
+            <button type="button" class="onboarding-book__remove" aria-label="Rimuovi ${esc(b.title)}">✕</button>`;
           row.querySelector('button').addEventListener('click', () => {
             addedBooks.splice(i, 1);
             renderBooks();
@@ -674,251 +663,160 @@
         });
       }
 
-      document.getElementById('add-book-btn').addEventListener('click', () => {
+      addBookBtn.addEventListener('click', () => {
         const title = document.getElementById('bk_title').value.trim();
         const author = document.getElementById('bk_author').value.trim();
-        const year = parseInt(document.getElementById('bk_year').value, 10);
-        const category = document.getElementById('bk_category').value;
+        const yearRaw = document.getElementById('bk_year').value.trim();
+        const year = yearRaw ? parseInt(yearRaw, 10) : null;
+        const categoryId = parseInt(bkCategory.value, 10);
 
-        if (!title || !author || !category || !year) {
-          showErrors(['Compila titolo, autore, anno e categoria del volume da aggiungere.']);
+        if (!title || !author || !categoryId) {
+          showErrors(['Compila titolo, autore e genere del volume da aggiungere.'], 'Volume incompleto:');
           return;
         }
-        if (year < 1400 || year > 2030) {
-          showErrors(['Anno del volume non plausibile (1400–2030).']);
+        if (year !== null && (!(year >= 1400) || year > 2100)) {
+          showErrors(["L'anno deve essere compreso fra 1400 e 2100."], 'Volume incompleto:');
           return;
         }
+        if (addedBooks.length >= MAX_BOOKS) return;
         errorBox.hidden = true;
-        addedBooks.push({ title, author, year, category });
+        addedBooks.push({
+          title,
+          author,
+          year,
+          categoryId,
+          categoryName: bkCategory.selectedOptions[0]?.textContent || '',
+        });
         renderBooks();
-        // pulisce i campi per il prossimo inserimento
-        ['bk_title', 'bk_author', 'bk_year'].forEach(id => document.getElementById(id).value = '');
-        document.getElementById('bk_category').value = '';
+        ['bk_title', 'bk_author', 'bk_year'].forEach((id) => (document.getElementById(id).value = ''));
+        bkCategory.value = '';
         document.getElementById('bk_title').focus();
       });
 
-      /* ----- Submit finale: crea utente + (eventuali) volumi + login ----- */
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const borrower = isBorrower();
-
-        // Rivalida tutti gli step necessari (per i lettori solo 1 e 2)
-        for (let n = 1; n <= lastStep(); n++) {
-          const errs = validateStep(n);
-          if (errs.length) { showStep(n); showErrors(errs); return; }
-        }
-        // v1.3: i volumi non sono più obbligatori al momento dell'iscrizione.
-        // L'utente può completare ora e aggiungere libri in seguito; gliene
-        // diamo memoria con due notifiche di onboarding e con un banner
-        // evidente sul profilo (vedi API.createUser → seedOnboardingNotifications).
-
-        const choice = form.account_type.value;   // person | borrower | organization
-        // Il lettore è una persona con ruolo 'borrower'; tutti gli altri
-        // sono curatori della propria libreria.
-        const accountType = choice === 'organization' ? 'organization' : 'person';
-        const libraryRole = borrower ? 'borrower' : 'curator';
-
-        // Costruisce il payload per API.createUser
-        const payload = {
-          account_type: accountType,
-          library_role: libraryRole,
-          username: form.username.value.trim(),
-          display_name: form.display_name.value.trim(),
+      /* ----- Invio ----- */
+      function payload() {
+        const choice = form.account_type.value; // person | borrower | organization
+        const isOrg = choice === 'organization';
+        const text = (name) => form.elements[name].value.trim() || undefined;
+        const body = {
           email: form.email.value.trim(),
-          city: form.city.value.trim(),
-          bio: form.bio.value.trim(),
-          motto: form.motto.value.trim(),
-          theme: form.theme.value
+          password: form.password.value,
+          name: form.display_name.value.trim(),
+          username: form.username.value.trim().toLowerCase(),
+          accountType: isOrg ? 'organization' : 'person',
+          libraryRole: choice === 'borrower' ? 'borrower' : 'curator',
+          acceptTerms: document.getElementById('consent_tos').checked,
+          confirmAge: document.getElementById('consent_age').checked,
+          callbackURL: auth.verifyPageUrl(nextPath),
         };
-
-        if (choice === 'organization') {
-          payload.org_profile = {
-            legal_name: form.legal_name.value.trim(),
-            org_category: form.org_category.value,
-            contact_person: form.contact_person.value.trim(),
-            website: form.website.value.trim(),
-            public_email: form.email.value.trim(),
-            public_phone: form.public_phone.value.trim(),
-            public_address: form.public_address.value.trim(),
-            opening_hours: form.opening_hours.value.trim()
+        if (!isBorrowIntent) {
+          Object.assign(body, {
+            bio: text('bio'),
+            city: text('city'),
+            motto: text('motto'),
+            theme: form.theme.value,
+          });
+        }
+        if (isOrg) {
+          body.organization = {
+            legalName: form.legal_name.value.trim(),
+            orgCategory: form.org_category.value,
+            contactPerson: text('contact_person'),
+            website: text('website'),
+            publicPhone: text('public_phone'),
+            publicAddress: text('public_address'),
+            openingHours: text('opening_hours'),
           };
         }
-
-        // ================================================================
-        // Fase 3.2: registrazione via Better Auth (se backend UP)
-        // ================================================================
-        // Il signup Better Auth:
-        //   - Crea User + Account credential + invia email verify a Mailpit
-        //   - Setta cookie httpOnly `better-auth.session_token`
-        //   - autoSignIn=true → l'utente e' subito loggato
-        //
-        // I dati extra (bio, org_profile, motto, theme) restano nel legacy
-        // localStorage per compat con pagine ancora non migrate (profile.html
-        // legge da Storage). In Fase 3.3 tutto va al backend.
-        let newUser;
-        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-          try {
-            const password = form.password.value;
-            const authResult = await window.LB_API.authClient.signUp({
-              email: payload.email,
-              password: password,
-              name: payload.display_name,
-              username: payload.username,
-              bio: payload.bio || undefined,
-              city: payload.city || undefined,
-              accountType: payload.account_type,
-            });
-            // authResult.user ha l'id backend (CUID). Costruisco un oggetto
-            // legacy-compatible per il flow rimanente (add books, redirect).
-            const be = authResult.user;
-            newUser = {
-              id: be.id,
-              username: be.username || payload.username,
-              display_name: be.name || payload.display_name,
-              email: be.email,
-              account_type: payload.account_type,
-              library_role: payload.library_role,
-              city: payload.city,
-              bio: payload.bio,
-              motto: payload.motto,
-              theme: payload.theme,
-            };
-            // Salva anche in Storage per compat pagine legacy
-            try {
-              // Beta 2: current_user_id non piu' sincronizzato
-              localStorage.setItem('auth_state', JSON.stringify('user'));
-              // Merge anche i dati extra nella tabella users legacy (per profile.html)
-              const legacyUsers = JSON.parse(localStorage.getItem('users') || '[]');
-              legacyUsers.push(newUser);
-              localStorage.setItem('users', JSON.stringify(legacyUsers));
-              if (payload.org_profile) {
-                const orgs = JSON.parse(localStorage.getItem('org_profiles') || '[]');
-                orgs.push({ user_id: be.id, ...payload.org_profile });
-                localStorage.setItem('org_profiles', JSON.stringify(orgs));
-              }
-            } catch (_) { /* quota o incognito, ignora */ }
-          } catch (authErr) {
-            // Errori Better Auth normalizzati
-            const errorMap = {
-              'USER_ALREADY_EXISTS': 'email-taken',
-              'EMAIL_TAKEN': 'email-taken',
-              'USERNAME_TAKEN': 'username-taken',
-              'INVALID_EMAIL': 'invalid-email',
-              'INVALID_PASSWORD': 'password-too-short',
-              'RATE_LIMITED': 'rate-limited',
-            };
-            const legacyReason = errorMap[authErr.code] || 'signup-failed';
-            const messages = {
-              'email-taken': 'Questa email e\' gia\' registrata. Se sei tu, accedi invece di registrarti.',
-              'username-taken': 'Questo nome utente e\' gia\' in uso. Scegline uno diverso.',
-              'invalid-email': 'L\'email inserita non e\' valida.',
-              'password-too-short': 'La password deve avere almeno 8 caratteri.',
-              'rate-limited': 'Troppi tentativi. Riprova tra qualche minuto.',
-              'signup-failed': 'Errore di registrazione: ' + (authErr.message || authErr.code),
-            };
-            showErrors([messages[legacyReason]]);
-            showStep(1);
-            const focusField = legacyReason === 'email-taken' ? 'email'
-                             : legacyReason === 'username-taken' ? 'username'
-                             : legacyReason === 'password-too-short' ? 'password'
-                             : 'email';
-            setTimeout(() => document.getElementById(focusField)?.focus(), 300);
-            return;
-          }
-        } else {
-          // Fallback: backend giu' → registrazione legacy (localStorage)
-          const createResult = API.createUser(payload);
-          if (!createResult.ok) {
-            const messages = {
-              'username-taken': 'Questo nome utente e\' gia\' in uso. Scegline uno diverso.',
-              'email-taken': 'Questa email e\' gia\' registrata. Se sei tu, accedi invece di registrarti.',
-              'username-empty': 'Il nome utente e\' obbligatorio.'
-            };
-            showErrors([messages[createResult.reason] || ('Errore: ' + createResult.reason)]);
-            showStep(1);
-            const focusField = createResult.reason === 'email-taken' ? 'email' : 'username';
-            setTimeout(() => document.getElementById(focusField)?.focus(), 300);
-            return;
-          }
-          newUser = createResult.user;
+        if (lastStep() === 3 && addedBooks.length) {
+          body.books = addedBooks.map(({ title, author, year, categoryId }) => ({
+            title,
+            author,
+            ...(year && { year }),
+            categoryId,
+          }));
         }
+        return body;
+      }
 
-        // Aggiunge gli eventuali volumi dell'onboarding alla sua libreria
-        addedBooks.forEach(b => {
-          API.addBook({
-            title: b.title,
-            author: b.author,
-            year: b.year,
-            category: b.category,
-            language: 'Italiano',
-            isbn: '—',
-            pages: null,
-            condition: 'buone condizioni',
-            description: `Volume della libreria di ${newUser.display_name}.`,
-            owner_id: newUser.id
-          });
+      function showCheckEmail(email) {
+        document.querySelectorAll('.wizard-steps, #wizard-form, #intent-banner, .auth-switch--top').forEach((el) => {
+          el.hidden = true;
         });
+        errorBox.hidden = true;
+        document.getElementById('check-email-address').textContent = email;
+        document.getElementById('check-email-next').textContent = pendingBookId
+          ? ': poi tornerai al volume per completare la richiesta di prestito'
+          : '';
+        const panel = document.getElementById('check-email');
+        panel.hidden = false;
+        panel.focus();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
 
-        // Login automatico come nuovo utente (per compat pagine legacy)
-        API.setAuthState('user');
-        API.setCurrentUser(newUser.id);
-
-        // v1.8: per il Lettore fast-track con un prestito in sospeso,
-        // creiamo automaticamente la richiesta e portiamo direttamente
-        // alla pagina dei prestiti — niente passaggio intermedio.
-        const pendingBook = sessionStorage.getItem('pending_loan_book');
-        const pendingDays = parseInt(sessionStorage.getItem('pending_loan_days'), 10) || 14;
-        const pendingMessage = sessionStorage.getItem('pending_loan_message') || '';
-
-        if (isBorrowIntent && pendingBook) {
-          sessionStorage.removeItem('pending_loan_book');
-          sessionStorage.removeItem('pending_loan_days');
-          sessionStorage.removeItem('pending_loan_message');
-
-          const r = API.requestLoan(+pendingBook, newUser.id, pendingMessage, pendingDays);
-
-          // Notifica onboarding: suggerisci di aprire la libreria
-          API.addNotification(newUser.id, {
-            type: 'onboarding',
-            onboarding_action: 'open-library',
-            message: '<strong>Vuoi condividere i tuoi libri?</strong> Apri la tua libreria con un click — diventerai un curatore a tutti gli effetti.',
-            created_at: new Date().toISOString()
-          });
-
-          if (r.ok) {
-            UI.toast('Iscrizione completata e richiesta di prestito inviata!', 'success');
-            setTimeout(() => location.href = `loans.html?id=${r.loan.id}`, 1400);
-          } else {
-            UI.toast('Iscrizione fatta, ma la richiesta non è andata: ' + r.reason, 'error');
-            setTimeout(() => location.href = `loans.html`, 1400);
+        const resendBtn = document.getElementById('resend-btn');
+        const resendMsg = document.getElementById('resend-msg');
+        resendBtn.addEventListener('click', async () => {
+          resendBtn.disabled = true;
+          try {
+            await auth.sendVerificationEmail({ email, callbackURL: auth.verifyPageUrl(nextPath) });
+            resendMsg.textContent = 'Email inviata di nuovo.';
+          } catch (err) {
+            resendMsg.textContent =
+              err.code === 'RATE_LIMITED'
+                ? 'Hai già chiesto diversi invii: riprova fra qualche minuto.'
+                : 'Invio non riuscito. Riprova tra poco.';
           }
-          return;
+          setTimeout(() => (resendBtn.disabled = false), 30000);
+        });
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        for (let n = 1; n <= lastStep(); n++) {
+          const errs = validateStep(n);
+          if (errs.length) {
+            showStep(n);
+            showErrors(errs);
+            return;
+          }
         }
 
-        // Fallback: l'utente è arrivato qui senza un prestito in sospeso
-        // (cambio idea, o registrazione "tradizionale" da Lettore).
-        if (pendingBook) {
-          sessionStorage.removeItem('pending_loan_book');
-          UI.toast('Iscrizione completata! Ora puoi richiedere il prestito.', 'info');
-          setTimeout(() => location.href = `book-detail.html?id=${pendingBook}&loan=1`, 1400);
-          return;
-        }
-
-        if (borrower) {
-          UI.toast('Iscrizione completata. Benvenuto fra i lettori!', 'info');
-          setTimeout(() => location.href = `library.html?id=${newUser.id}`, 1400);
-        } else {
-          UI.toast('Libreria creata con successo. Benvenuto!', 'info');
-          setTimeout(() => location.href = `library.html?id=${newUser.id}`, 1400);
+        finishBtn.disabled = true;
+        const label = finishBtn.textContent;
+        finishBtn.textContent = 'Invio in corso…';
+        try {
+          const body = payload();
+          await auth.register(body);
+          showCheckEmail(body.email);
+        } catch (err) {
+          const messages = {
+            USERNAME_TAKEN: ['Questo nome utente è già in uso: scegline un altro.', 1, 'username'],
+            INVALID_EMAIL: ["L'email inserita non è valida.", 1, 'email'],
+            INVALID_PASSWORD: ['La password deve avere da 8 a 128 caratteri.', 1, 'password'],
+            INVALID_CATEGORY: ['Uno dei generi scelti non esiste più: ricontrolla i volumi.', lastStep(), null],
+            RATE_LIMITED: ['Troppi tentativi di iscrizione. Riprova fra qualche minuto.', currentStep, null],
+            NETWORK_ERROR: ['Server non raggiungibile. Riprova tra poco.', currentStep, null],
+          };
+          const [text, step, focus] = messages[err.code] || [
+            'Iscrizione non riuscita: ' + (err.message || 'riprova tra poco.'),
+            currentStep,
+            null,
+          ];
+          showStep(step);
+          showErrors([text], 'Iscrizione non completata:');
+          if (focus) setTimeout(() => document.getElementById(focus)?.focus(), 300);
+        } finally {
+          finishBtn.disabled = false;
+          finishBtn.textContent = label;
         }
       });
 
-      /* Effetto "ripple" sui bottoni del wizard (e su tutti i btn--lg
-         della pagina). Crea un'onda concentrica sul punto del click,
-         tipico delle interfacce mobile moderne. Rispetta automatica-
-         mente prefers-reduced-motion (l'animazione CSS è disattivata). */
-      document.querySelectorAll('.wizard-nav .btn, .btn--lg').forEach(btn => {
+      syncAccountType();
+      showStep(1);
+
+      /* Effetto "ripple" sui pulsanti del wizard (disattivato con
+         prefers-reduced-motion dal CSS) */
+      document.querySelectorAll('.wizard-nav .btn, .btn--lg').forEach((btn) => {
         btn.addEventListener('click', (e) => {
           const rect = btn.getBoundingClientRect();
           const size = Math.max(rect.width, rect.height);
@@ -926,7 +824,7 @@
           ripple.className = 'btn-ripple';
           ripple.style.width = ripple.style.height = `${size}px`;
           ripple.style.left = `${e.clientX - rect.left - size / 2}px`;
-          ripple.style.top  = `${e.clientY - rect.top  - size / 2}px`;
+          ripple.style.top = `${e.clientY - rect.top - size / 2}px`;
           btn.appendChild(ripple);
           setTimeout(() => ripple.remove(), 600);
         });

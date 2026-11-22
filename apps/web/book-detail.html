@@ -349,8 +349,21 @@
         daysPill.textContent = `${daysSlider.value} giorni`;
       });
 
-      // Ritorno dalla registrazione (register → ?loan=1): riapre la richiesta
+      // Ritorno dall'iscrizione (link di conferma → ?loan=1): riapre la
+      // richiesta, con durata e messaggio scritti prima se il link e' stato
+      // aperto sullo stesso dispositivo
       if (new URLSearchParams(location.search).get('loan') === '1' && document.getElementById('request-loan-btn')) {
+        if (sessionStorage.getItem('pending_loan_book') === String(id)) {
+          const days = sessionStorage.getItem('pending_loan_days');
+          const message = sessionStorage.getItem('pending_loan_message');
+          if (days) {
+            const range = document.getElementById('loan-days');
+            range.value = days;
+            range.dispatchEvent(new Event('input'));
+          }
+          if (message) document.getElementById('loan-message').value = message;
+        }
+        ['pending_loan_book', 'pending_loan_days', 'pending_loan_message'].forEach((k) => sessionStorage.removeItem(k));
         setTimeout(() => document.getElementById('loan-dialog').showModal(), 400);
       }
 
