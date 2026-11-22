@@ -432,7 +432,7 @@ model PostReport {
   id          Int      @id @default(autoincrement())
   postId      String   @map("post_id") @db.VarChar(40)
   reporterId  String   @map("reporter_id")
-  reason      String   @db.VarChar(40)         // off-topic | spam | harassment | other
+  reason      String   @db.VarChar(40)         // offensive | spam | off-topic | violence | other (harassment: storico)
   note        String?  @db.Text
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
 

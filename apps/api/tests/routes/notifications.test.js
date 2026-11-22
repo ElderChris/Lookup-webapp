@@ -93,7 +93,7 @@ describe('Emissione cross-cutting da altri endpoint', () => {
       method: 'POST',
       url: `/api/posts/${post.json().id}/reactions`,
       headers: await authHeaders(SEED.USER_MARCO),
-      payload: { emoji: 'like' },
+      payload: { emoji: '👍' },
     });
     const res = await app.inject({
       method: 'GET',
