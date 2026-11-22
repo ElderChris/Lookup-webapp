@@ -13,6 +13,11 @@
 
   <title>Personalizza il tuo profilo — Lookup</title>
   <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <!-- Leaflet per scegliere la posizione sulla mappa -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
 <body>
 
@@ -294,6 +299,28 @@
             </div>
           </section>
 
+          <!-- =========== Posizione =========== -->
+          <section class="builder-section" aria-labelledby="sec-location">
+            <h3 id="sec-location">La tua posizione</h3>
+            <p class="builder-section__lead">
+              Clicca sulla mappa nel punto in cui si trova la tua libreria. Gli altri
+              membri vedranno la posizione secondo il livello di privacy scelto qui sotto.
+            </p>
+            <div class="library-map-wrap">
+              <div class="library-map" id="location-map" style="height: 280px;"
+                   aria-label="Mappa per scegliere la posizione"></div>
+              <div class="library-map__caption" id="location-caption">Nessuna posizione impostata.</div>
+            </div>
+            <div class="form__row" style="gap: .75rem; flex-wrap: wrap;">
+              <button type="button" class="btn btn--ghost btn--small" id="location-gps">
+                <span aria-hidden="true">📍</span> Usa la mia posizione attuale
+              </button>
+              <button type="button" class="btn btn--ghost btn--small" id="location-clear" hidden>
+                Rimuovi la posizione
+              </button>
+            </div>
+          </section>
+
           <!-- =========== Privacy =========== -->
           <section class="builder-section" aria-labelledby="sec-privacy">
             <h3 id="sec-privacy">Privacy della posizione</h3>
@@ -305,34 +332,30 @@
 
             <div class="privacy-slider" role="radiogroup" aria-label="Livello di precisione della posizione">
               <label>
-                <input type="radio" name="privacy_level" value="0" disabled />
+                <input type="radio" name="privacy_level" value="0" />
                 <strong>Nascosta</strong>
-                Non comparirà sulla mappa
+                Né mappa né città visibili agli altri
               </label>
               <label>
-                <input type="radio" name="privacy_level" value="1" disabled />
+                <input type="radio" name="privacy_level" value="1" />
                 <strong>Città</strong>
                 Solo il nome del comune
               </label>
               <label>
-                <input type="radio" name="privacy_level" value="2" disabled checked />
+                <input type="radio" name="privacy_level" value="2" checked />
                 <strong>Zona</strong>
                 Imprecisione di ~200 m
               </label>
               <label>
-                <input type="radio" name="privacy_level" value="3" disabled />
+                <input type="radio" name="privacy_level" value="3" />
                 <strong>Esatta</strong>
-                Indirizzo preciso
+                Il punto scelto sulla mappa
               </label>
             </div>
 
             <p style="font-size: var(--fs-xs); color: var(--color-ink-soft); margin-top: var(--sp-3); font-style: italic;">
               Il livello consigliato è <strong>«Zona»</strong>: offre un buon equilibrio
               tra utilità della mappa e tutela della privacy.
-            </p>
-            <p class="alert alert--info" style="margin-top: var(--sp-3);">
-              <strong>In arrivo.</strong> La scelta della precisione sarà disponibile
-              con un prossimo aggiornamento.
             </p>
           </section>
 
@@ -443,11 +466,14 @@
       // Preferenze e libri dal server
       let prefs;
       let userBooks;
+      let myProfile;
       try {
-        const [bePrefs, booksRes] = await Promise.all([
+        const [bePrefs, booksRes, beMe] = await Promise.all([
           window.LB_API.prefs.getMe(),
           window.LB_API.books.listAll({ ownerId: userId }),
+          window.LB_API.users.getMe(),
         ]);
+        myProfile = beMe;
         // Adapter backend camelCase → snake_case usato dalla pagina
         prefs = {
           view_mode: bePrefs.viewMode,
@@ -465,6 +491,81 @@
         UI.toast('Server non raggiungibile: impossibile caricare le impostazioni.', 'error');
         document.getElementById('save-btn').disabled = true;
         return;
+      }
+
+      /* ----- Posizione sulla mappa e livello di privacy ----- */
+      setRadioValue('privacy_level', String(myProfile.locationPrecision ?? 2));
+      let myLocation = myProfile.lat != null && myProfile.lng != null
+        ? { lat: myProfile.lat, lng: myProfile.lng }
+        : null;
+      let locationChanged = false;
+      const PRECISION_TEXT = {
+        0: 'gli altri non vedranno né la posizione né la città',
+        1: 'gli altri vedranno solo la città',
+        2: 'gli altri vedranno un punto approssimato entro circa 200 m',
+        3: 'gli altri vedranno questo punto esatto',
+      };
+      function selectedPrecision() {
+        return parseInt(document.querySelector('input[name="privacy_level"]:checked').value, 10);
+      }
+      function paintLocationCaption() {
+        const caption = document.getElementById('location-caption');
+        document.getElementById('location-clear').hidden = !myLocation;
+        caption.textContent = myLocation
+          ? `Posizione impostata (${myLocation.lat.toFixed(4)}, ${myLocation.lng.toFixed(4)}): ${PRECISION_TEXT[selectedPrecision()]}.`
+          : 'Nessuna posizione impostata: la tua libreria non comparirà sulla mappa.';
+      }
+      document.querySelectorAll('input[name="privacy_level"]').forEach((r) =>
+        r.addEventListener('change', paintLocationCaption));
+
+      let locationMarker = null;
+      const locationMap = (typeof L !== 'undefined')
+        ? L.map('location-map', { scrollWheelZoom: false }).setView(
+            myLocation ? [myLocation.lat, myLocation.lng] : [40.8518, 14.2681], // Napoli
+            myLocation ? 16 : 12)
+        : null;
+      if (locationMap) {
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19, attribution: '© OpenStreetMap'
+        }).addTo(locationMap);
+        locationMap.on('click', (e) => setLocation(e.latlng.lat, e.latlng.lng));
+      } else {
+        document.getElementById('location-map').innerHTML =
+          '<p style="padding: 1rem;">Mappa non disponibile: controlla la connessione.</p>';
+      }
+      function setLocation(lat, lng) {
+        myLocation = lat == null ? null : { lat: +lat.toFixed(6), lng: +lng.toFixed(6) };
+        locationChanged = true;
+        if (locationMap) {
+          if (locationMarker) { locationMarker.remove(); locationMarker = null; }
+          if (myLocation) locationMarker = L.marker([myLocation.lat, myLocation.lng]).addTo(locationMap);
+        }
+        paintLocationCaption();
+      }
+      if (myLocation && locationMap) {
+        locationMarker = L.marker([myLocation.lat, myLocation.lng]).addTo(locationMap);
+      }
+      paintLocationCaption();
+
+      document.getElementById('location-clear').addEventListener('click', () => setLocation(null));
+      document.getElementById('location-gps').addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          UI.toast('Il browser non permette di leggere la posizione.', 'error');
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setLocation(pos.coords.latitude, pos.coords.longitude);
+            if (locationMap) locationMap.setView([myLocation.lat, myLocation.lng], 16);
+          },
+          () => UI.toast('Posizione non disponibile: scegli il punto sulla mappa.', 'error'),
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      });
+
+      function setRadioValue(name, value) {
+        const r = document.querySelector(`input[name="${name}"][value="${value}"]`);
+        if (r) r.checked = true;
       }
 
       /* ----- Pre-popolamento dei campi con i valori esistenti ----- */
@@ -699,7 +800,14 @@
         const saveBtn = document.getElementById('save-btn');
         saveBtn.disabled = true;
         try {
-          await window.LB_API.users.updateMe({ displayName, bio, city });
+          // Livello di privacy sempre; coordinate solo se cambiate
+          const profilePatch = { displayName, bio, city, locationPrecision: selectedPrecision() };
+          if (locationChanged) {
+            profilePatch.lat = myLocation ? myLocation.lat : null;
+            profilePatch.lng = myLocation ? myLocation.lng : null;
+          }
+          await window.LB_API.users.updateMe(profilePatch);
+          locationChanged = false;
           await window.LB_API.prefs.updateMe({
             viewMode: newPrefs.view_mode,
             theme: newPrefs.theme,
