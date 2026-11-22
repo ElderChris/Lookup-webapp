@@ -149,4 +149,12 @@ export const loans = {
       body: { body },
     });
   },
+
+  /**
+   * POST /api/loans/:id/read — segna come letti i messaggi della chat per
+   * l'utente corrente (azzera `unreadCount`).
+   */
+  markRead(loanId) {
+    return apiClient.post(`/api/loans/${encodeURIComponent(loanId)}/read`);
+  },
 };

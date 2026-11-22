@@ -271,6 +271,11 @@ model LoanRequest {
   // del rientro. Idempotenza: un solo pre-reminder per prestito.
   preReminderSentAt DateTime? @map("pre_reminder_sent_at") @db.Timestamptz
 
+  // Ultima lettura della chat per ciascun partecipante: i messaggi
+  // dell'altro piu' recenti di questo istante sono "non letti".
+  requesterLastReadAt DateTime? @map("requester_last_read_at") @db.Timestamptz
+  lenderLastReadAt    DateTime? @map("lender_last_read_at") @db.Timestamptz
+
   // Fase 1g.2: motivazione del rifiuto, richiesta dal frontend in UX
   // (min 10 char lato client, opzionale ma raccomandato). NULL quando lo
   // stato non e' "rejected" o quando il rifiuto e' stato fatto da

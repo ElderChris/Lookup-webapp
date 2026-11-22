@@ -357,3 +357,68 @@ describe('POST /api/loans/:id/messages', () => {
     expect(msgs.json().data.length).toBe(1);
   });
 });
+
+describe('Messaggi non letti (unreadCount + POST /api/loans/:id/read)', () => {
+  it("conta i messaggi dell'altro partecipante e si azzera con la lettura", async () => {
+    const app = await buildTestApp();
+    const marco = await authHeaders(SEED.USER_MARCO); // requester
+    const chiara = await authHeaders(SEED.USER_CHIARA); // lender
+    const created = await app.inject({
+      method: 'POST',
+      url: `/api/books/${SEED.BOOK_GATTOPARDO}/loan-requests`,
+      headers: marco,
+      payload: {},
+    });
+    const loanId = created.json().id;
+    const send = (headers, body) =>
+      app.inject({
+        method: 'POST',
+        url: `/api/loans/${loanId}/messages`,
+        headers,
+        payload: { body },
+      });
+    const unreadOf = async (headers, list) => {
+      const res = await app.inject({ method: 'GET', url: `/api/me/loans/${list}`, headers });
+      return res.json().data.find((l) => l.id === loanId).unreadCount;
+    };
+
+    await send(marco, 'Primo');
+    await send(marco, 'Secondo');
+    expect(await unreadOf(chiara, 'received')).toBe(2);
+    expect(await unreadOf(marco, 'sent')).toBe(0); // i propri messaggi non contano
+
+    const read = await app.inject({
+      method: 'POST',
+      url: `/api/loans/${loanId}/read`,
+      headers: chiara,
+    });
+    expect(read.statusCode).toBe(200);
+    const detail = await app.inject({
+      method: 'GET',
+      url: `/api/loans/${loanId}`,
+      headers: chiara,
+    });
+    expect(detail.json().unreadCount).toBe(0);
+
+    await send(marco, 'Terzo');
+    expect(await unreadOf(chiara, 'received')).toBe(1);
+    await send(chiara, 'Risposta');
+    expect(await unreadOf(marco, 'sent')).toBe(1);
+  });
+
+  it('solo i partecipanti possono segnare come letto', async () => {
+    const app = await buildTestApp();
+    const created = await app.inject({
+      method: 'POST',
+      url: `/api/books/${SEED.BOOK_GATTOPARDO}/loan-requests`,
+      headers: await authHeaders(SEED.USER_MARCO),
+      payload: {},
+    });
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/loans/${created.json().id}/read`,
+      headers: await authHeaders(SEED.USER_LUCA),
+    });
+    expect(res.statusCode).toBe(403);
+  });
+});

@@ -553,8 +553,11 @@ export const UI = {
 
   /** Chat di un prestito (messaggi dal backend: /api/loans/:id/messages).
       `loan` e' l'oggetto restituito dall'API (book, requester, lender,
-      role, messagesCount). Restituisce { refresh } per ricaricare i
-      messaggi quando arriva una notifica in tempo reale. */
+      role, status, unreadCount). Con la chat aperta i messaggi vengono
+      segnati come letti (POST /api/loans/:id/read) e si chiama
+      `opts.onRead`. Per i prestiti rifiutati o annullati la chat resta
+      utilizzabile ma appare attenuata, con lo stato del prestito.
+      Restituisce { refresh } per ricaricare i messaggi su notifica. */
   renderLoanChat(container, loan, opts = {}) {
     const me = window.LB_UI.currentUser();
     const isParticipant = me && (me.id === loan.requester?.id || me.id === loan.lender?.id);
@@ -565,12 +568,17 @@ export const UI = {
     const other = me.id === loan.requester.id ? loan.lender : loan.requester;
     const initial = (name) => (name || '?').trim().charAt(0).toUpperCase();
     const startOpen = opts.startOpen !== false;
+    const CLOSED_LABEL = { rejected: 'Prestito rifiutato', cancelled: 'Prestito annullato' };
+    const closedLabel = CLOSED_LABEL[loan.status];
+    let unread = loan.unreadCount || 0;
 
     container.innerHTML = `
-      <div class="loan-chat ${startOpen ? 'is-open' : ''}">
+      <div class="loan-chat ${startOpen ? 'is-open' : ''} ${closedLabel ? 'loan-chat--closed' : ''}">
         <button type="button" class="loan-chat__toggle" aria-expanded="${startOpen}">
           <span aria-hidden="true">💬</span>
           <span class="loan-chat__toggle-label">Chat con ${this._escapeHtml(other?.displayName || 'utente')}</span>
+          ${closedLabel ? `<span class="loan-listitem__status loan-listitem__status--${loan.status} loan-chat__state">${closedLabel}</span>` : ''}
+          ${unread > 0 ? `<span class="loan-chat__unread-badge">${unread} nuov${unread === 1 ? 'o' : 'i'}</span>` : ''}
           <span class="loan-chat__caret" aria-hidden="true">▾</span>
         </button>
         <div class="loan-chat__panel" ${startOpen ? '' : 'hidden'}>
@@ -611,14 +619,29 @@ export const UI = {
       messagesEl.scrollTop = messagesEl.scrollHeight;
     };
 
-    async function refresh() {
+    // Con la chat aperta, i messaggi arrivati risultano letti
+    async function markReadIfOpen() {
+      if (!root.classList.contains('is-open') || unread === 0) return;
+      try {
+        await window.LB_API.loans.markRead(loan.id);
+        unread = 0;
+        toggle.querySelector('.loan-chat__unread-badge')?.remove();
+        if (typeof opts.onRead === 'function') opts.onRead(loan.id);
+      } catch {
+        /* resta non letto: si riprova al prossimo aggiornamento */
+      }
+    }
+
+    async function refresh({ incoming = false } = {}) {
       try {
         const res = await window.LB_API.loans.listMessages(loan.id, { limit: 100 });
         const list = res.data || [];
+        if (incoming) unread = Math.max(unread, 1);
         messagesEl.innerHTML = list.length
           ? list.map(bubble).join('')
           : '<p class="loan-chat__status">Nessun messaggio. Scrivi tu per primo.</p>';
         scrollToEnd();
+        markReadIfOpen();
       } catch {
         messagesEl.innerHTML =
           '<p class="loan-chat__status">Impossibile caricare i messaggi. Riprova tra poco.</p>';
@@ -632,6 +655,7 @@ export const UI = {
       if (isOpen) {
         scrollToEnd();
         input.focus();
+        markReadIfOpen();
       }
     });
 
@@ -667,7 +691,7 @@ export const UI = {
     });
 
     refresh();
-    return { refresh };
+    return { refresh: () => refresh({ incoming: true }) };
   },
 
   renderBookCard(book, user, options = {}) {
