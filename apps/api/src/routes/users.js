@@ -35,7 +35,8 @@ function userSummaryDto(u) {
     id: u.id,
     username: u.username,
     displayName: u.displayName,
-    city: u.city,
+    // Citta' come la vedono gli altri (assente se la posizione e' nascosta)
+    city: u.publicCity ?? null,
     accountType: u.accountType,
     avatarUrl: u.avatarUrl,
   };
@@ -51,9 +52,10 @@ function userPublicDto(u, counts = {}) {
     username: u.username,
     displayName: u.displayName,
     bio: u.bio,
-    city: u.city,
-    lat: u.lat,
-    lng: u.lng,
+    // Posizione pubblica secondo la privacy scelta (vedi location_precision)
+    city: u.publicCity ?? null,
+    lat: u.publicLat ?? null,
+    lng: u.publicLng ?? null,
     accountType: u.accountType,
     avatarUrl: u.avatarUrl,
     libraryRole: u.libraryRole,
@@ -76,6 +78,11 @@ function userPublicDto(u, counts = {}) {
 function userPrivateDto(u, counts = {}) {
   return {
     ...userPublicDto(u, counts),
+    // Al proprietario: posizione reale e livello di privacy scelto
+    city: u.city,
+    lat: u.lat,
+    lng: u.lng,
+    locationPrecision: u.locationPrecision,
     email: u.email,
     emailVerified: u.emailVerified,
     role: u.role,
@@ -129,7 +136,7 @@ const REVIEW_USER_SELECT = {
   id: true,
   username: true,
   displayName: true,
-  city: true,
+  publicCity: true,
   accountType: true,
   avatarUrl: true,
 };
@@ -257,15 +264,19 @@ export default async function usersRoutes(fastify) {
             displayName: { type: 'string', minLength: 1, maxLength: 100 },
             bio: { type: 'string', maxLength: 5000 },
             city: { type: 'string', maxLength: 150 },
-            lat: { type: 'number', minimum: -90, maximum: 90 },
-            lng: { type: 'number', minimum: -180, maximum: 180 },
+            // Posizione: lat e lng insieme; null su entrambe la rimuove
+            // Tipi multipli e non anyOf: con la coercizione di Fastify, anyOf
+            // trasformerebbe null in 0 (o in stringa vuota)
+            lat: { type: ['number', 'null'], minimum: -90, maximum: 90 },
+            lng: { type: ['number', 'null'], minimum: -180, maximum: 180 },
+            // Privacy della posizione: 0 nascosta, 1 citta', 2 zona, 3 esatta
+            locationPrecision: { type: 'integer', minimum: 0, maximum: 3 },
             avatarUrl: { type: 'string', format: 'uri', maxLength: 500 },
             // Foto profilo come data URL (JPEG/PNG/WebP); null la rimuove
             avatarDataUrl: {
-              anyOf: [
-                { type: 'string', maxLength: 1_000_000, pattern: AVATAR_DATA_URL.source },
-                { type: 'null' },
-              ],
+              type: ['string', 'null'],
+              maxLength: 1_000_000,
+              pattern: AVATAR_DATA_URL.source,
             },
             // Lettore (borrower) o curatore della propria libreria
             libraryRole: { type: 'string', enum: ['borrower', 'curator'] },
@@ -293,6 +304,17 @@ export default async function usersRoutes(fastify) {
     async (request, reply) => {
       const userId = await requireUserId(request);
       const { organization, ...userPatch } = request.body;
+
+      const hasLat = 'lat' in userPatch;
+      const hasLng = 'lng' in userPatch;
+      if (hasLat !== hasLng || (userPatch.lat === null) !== (userPatch.lng === null)) {
+        return reply.status(400).send({
+          error: {
+            code: 'INVALID_LOCATION',
+            message: 'Latitudine e longitudine vanno indicate insieme',
+          },
+        });
+      }
 
       // La foto e' salvata nel database e servita da /api/users/:id/avatar:
       // avatarUrl punta a quell'indirizzo, con una versione per la cache.
@@ -771,7 +793,7 @@ export default async function usersRoutes(fastify) {
                 id: true,
                 username: true,
                 displayName: true,
-                city: true,
+                publicCity: true,
                 accountType: true,
                 avatarUrl: true,
               },
@@ -826,7 +848,7 @@ export default async function usersRoutes(fastify) {
                 id: true,
                 username: true,
                 displayName: true,
-                city: true,
+                publicCity: true,
                 accountType: true,
                 avatarUrl: true,
               },

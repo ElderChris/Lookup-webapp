@@ -305,6 +305,9 @@ describe('Foto profilo e ruolo', () => {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().avatarUrl).toBeNull();
+    // null resta null nel database (non stringa vuota)
+    const row = await prisma.user.findUnique({ where: { id: SEED.USER_LUCA } });
+    expect(row.avatarDataUrl).toBeNull();
     const img = await app.inject({ method: 'GET', url: `/api/users/${SEED.USER_LUCA}/avatar` });
     expect(img.statusCode).toBe(404);
   });

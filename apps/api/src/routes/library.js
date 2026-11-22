@@ -54,6 +54,10 @@ export default async function libraryRoutes(fastify) {
             libraryRole: true,
             lat: true,
             lng: true,
+            locationPrecision: true,
+            publicCity: true,
+            publicLat: true,
+            publicLng: true,
             role: true,
             status: true,
             createdAt: true,
@@ -102,18 +106,21 @@ export default async function libraryRoutes(fastify) {
       const loanRow = loansAgg[0] || { completed: 0, active: 0 };
       const reviewRow = reviewsAgg[0] || { cnt: 0, avg_rating: null };
 
-      // Reuse dto helpers (inline per semplicita')
+      // Il proprietario vede la propria posizione reale; gli altri quella
+      // pubblica, secondo la privacy scelta
+      const isOwner = currentUserId === id;
       const dtoUser = {
         id: user.id,
         username: user.username,
         displayName: user.displayName,
         accountType: user.accountType,
         bio: user.bio,
-        city: user.city,
+        city: isOwner ? user.city : user.publicCity,
         avatarUrl: user.avatarUrl,
         libraryRole: user.libraryRole,
-        lat: user.lat,
-        lng: user.lng,
+        lat: isOwner ? user.lat : user.publicLat,
+        lng: isOwner ? user.lng : user.publicLng,
+        ...(isOwner ? { locationPrecision: user.locationPrecision } : {}),
         role: user.role,
         status: user.status,
         createdAt: user.createdAt.toISOString(),
