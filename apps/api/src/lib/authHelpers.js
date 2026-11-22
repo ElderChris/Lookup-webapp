@@ -1,12 +1,9 @@
 // =============================================================================
 // src/lib/authHelpers.js
 // =============================================================================
-// Beta 6: SOLO cookie session Better Auth. Rimosso il fallback dev header
-// X-Lookup-User-Id (attivo solo in NODE_ENV=test) — i test ora fanno vero
-// login via signInAs() e riusano il cookie. Vedi tests/authTestHelpers.mjs.
-//
-// Il vantaggio: nessuna divergenza test/prod possibile per costruzione.
-// Se auth.api.getSession() smette di funzionare, i test se ne accorgono.
+// Identita' dell'utente dalla sessione Better Auth (cookie httpOnly). I test
+// fanno un vero accesso e riusano il cookie (tests/authTestHelpers.mjs),
+// quindi provano lo stesso percorso della produzione.
 //
 // getCurrentUserId: ritorna string (CUID) | null (utente anonimo)
 // =============================================================================

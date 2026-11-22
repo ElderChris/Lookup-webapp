@@ -129,7 +129,7 @@ export async function buildApp(opts = {}) {
   fastify.setErrorHandler(errorHandler);
   fastify.setNotFoundHandler(notFoundHandler);
 
-  // --- OpenAPI doc (Fase 1g) ---
+  // --- Documentazione OpenAPI ---
   // @fastify/swagger legge automaticamente i JSON Schema attaccati ad ogni route
   // (params/querystring/body/response) e genera una spec OpenAPI 3.1.
   // Ogni endpoint puo' arricchirla con schema.tags + schema.summary +
@@ -146,13 +146,16 @@ export async function buildApp(opts = {}) {
         version: API_VERSION,
         license: { name: 'GPL-3.0', url: 'https://www.gnu.org/licenses/gpl-3.0.html' },
       },
-      servers: [{ url: 'http://localhost:3000', description: 'Sviluppo locale' }],
+      servers: [
+        { url: '/', description: 'Stessa origine del sito (API dietro nginx)' },
+        { url: 'http://localhost:3000', description: 'API diretta, sviluppo locale' },
+      ],
       tags: [
         { name: 'Health', description: 'Health check e ping' },
         {
           name: 'Auth',
           description:
-            'Autenticazione (Better Auth): sign-up, sign-in, sign-out, verify-email, reset-password, get-session',
+            "Iscrizione (POST /api/register) e autenticazione con Better Auth sotto /api/auth: sign-in, sign-out, verify-email, send-verification-email, request-password-reset, reset-password, get-session. Si accede solo dopo aver confermato l'email.",
         },
         { name: 'Books', description: 'Catalogo libri (CRUD + filtri + like + views + nearby)' },
         { name: 'Categories', description: 'Categorie BISAC (lista flat per dropdown UI)' },
@@ -167,14 +170,15 @@ export async function buildApp(opts = {}) {
       ],
       components: {
         securitySchemes: {
-          // In alpha: header X-Lookup-User-Id (dev stub). In Fase 3 sara' session cookie via lucia-auth.
-          devAuth: {
+          // Sessione di Better Auth: cookie httpOnly impostato da sign-in o
+          // dalla conferma dell'email
+          sessionCookie: {
             type: 'apiKey',
-            in: 'header',
-            name: 'X-Lookup-User-Id',
+            in: 'cookie',
+            name: 'better-auth.session_token',
             description:
-              "Auth dev stub: passa l'ID intero dell'utente (es. \"1\") nell'header per simulare login. " +
-              "In produzione (Fase 3) sara' sostituito da session cookie lucia-auth.",
+              'Cookie di sessione httpOnly impostato da POST /api/auth/sign-in/email o dalla ' +
+              "conferma dell'email. Con HTTPS il nome ha il prefisso __Secure-.",
           },
         },
       },

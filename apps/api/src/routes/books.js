@@ -11,7 +11,7 @@
 //   POST   /api/books/:id/views Incrementa view (debounce 60s via Redis)
 //
 // Validazione: JSON Schema nativo di Fastify (verra' migrato a Zod in 1g).
-// Auth: dev stub via X-Lookup-User-Id header (verra' sostituito in Fase 3).
+// Auth: sessione Better Auth (cookie), vedi lib/authHelpers.js.
 // =============================================================================
 
 import { getCurrentUserId, requireUserId, requireOwner } from '../lib/authHelpers.js';

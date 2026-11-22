@@ -48,7 +48,7 @@ describe('GET /api/categories', () => {
   });
 
   it('endpoint pubblico (no auth richiesto)', async () => {
-    // Nessun header X-Lookup-User-Id, deve comunque ritornare 200
+    // Senza sessione deve comunque ritornare 200
     const res = await app.inject({ method: 'GET', url: '/api/categories' });
     expect(res.statusCode).toBe(200);
   });
