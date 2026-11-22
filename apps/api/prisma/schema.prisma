@@ -60,6 +60,18 @@ model User {
   lng            Float?
   location       Unsupported("geography(Point, 4326)")?
 
+  // Privacy della posizione: 0 nascosta (niente coordinate ne' citta'),
+  // 1 solo citta', 2 zona (~200 m), 3 esatta. Predefinito dal trigger:
+  // 2 per le persone, 3 per gli enti.
+  // public_*: cio' che vedono gli altri utenti, calcolato dal trigger
+  // (migrazione 20261122140000_location_privacy). Le risposte pubbliche e
+  // le ricerche per distanza usano solo questi campi.
+  locationPrecision Int?    @map("location_precision") @db.SmallInt
+  publicCity     String?   @map("public_city") @db.VarChar(150)
+  publicLat      Float?    @map("public_lat")
+  publicLng      Float?    @map("public_lng")
+  publicLocation Unsupported("geography(Point, 4326)")? @map("public_location")
+
   // Ruolo libreria (curator / co-curator / viewer — per gestione condivisa futura)
   libraryRole    String    @default("curator") @map("library_role") @db.VarChar(20)
 
@@ -104,6 +116,7 @@ model User {
   // Indice GIST per le query PostGIS; funzione e trigger che popolano
   // location sono nella migrazione 20261120090000_postgis_users_location
   @@index([location], type: Gist, map: "users_location_gist")
+  @@index([publicLocation], type: Gist, map: "users_public_location_gist")
   @@map("users")
 }
 

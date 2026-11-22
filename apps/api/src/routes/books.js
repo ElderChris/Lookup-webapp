@@ -58,7 +58,7 @@ function toDto(book) {
     dto.owner = {
       id: book.owner.id,
       displayName: book.owner.displayName,
-      city: book.owner.city,
+      city: book.owner.publicCity ?? null,
       accountType: book.owner.accountType,
       avatarUrl: book.owner.avatarUrl,
     };
@@ -78,8 +78,9 @@ export default async function booksRoutes(fastify) {
   // ===========================================================================
   // Variante PostGIS dell'esistente filtro geo su /api/books. Usa
   // ST_DWithin per match esatto su sfera (vs bounding box approssimato), e
-  // ordina per distanza ascendente. Richiede indice GIST su users.location
-  // (creato da seed.mjs).
+  // ordina per distanza ascendente. Usa users.public_location (posizione
+  // secondo la privacy scelta, con indice GIST): la distanza non rivela mai
+  // la posizione reale.
   //
   // La distanza e' restituita in metri come campo extra `distanceMeters`
   // per ogni libro.
@@ -105,7 +106,7 @@ export default async function booksRoutes(fastify) {
       const { lat, lng, radius, limit, offset } = request.query;
 
       // Query raw con ST_DWithin (filtro) + ST_Distance (per ordering + output).
-      // L'indice GIST su users.location rende ST_DWithin molto veloce.
+      // L'indice GIST su users.public_location rende ST_DWithin molto veloce.
       const rows = await fastify.prisma.$queryRawUnsafe(
         `
         SELECT
@@ -122,19 +123,19 @@ export default async function booksRoutes(fastify) {
           u.id AS "ownerId",
           u.username AS "ownerUsername",
           u.display_name AS "ownerDisplayName",
-          u.city AS "ownerCity",
+          u.public_city AS "ownerCity",
           u.account_type AS "ownerAccountType",
           u.avatar_url AS "ownerAvatarUrl",
           ROUND(ST_Distance(
-            u.location,
+            u.public_location,
             ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
           )::numeric, 0)::int AS "distanceMeters"
         FROM books b
         JOIN users u ON u.id = b.owner_id
         WHERE b.status = 'active'
-          AND u.location IS NOT NULL
+          AND u.public_location IS NOT NULL
           AND ST_DWithin(
-            u.location,
+            u.public_location,
             ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
             $3
           )
@@ -154,9 +155,9 @@ export default async function booksRoutes(fastify) {
         FROM books b
         JOIN users u ON u.id = b.owner_id
         WHERE b.status = 'active'
-          AND u.location IS NOT NULL
+          AND u.public_location IS NOT NULL
           AND ST_DWithin(
-            u.location,
+            u.public_location,
             ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
             $3
           )
@@ -250,9 +251,11 @@ export default async function booksRoutes(fastify) {
         // ~1 grado lat = 111km; ~1 grado lng = 111km * cos(lat)
         const deltaLat = radius / 111000;
         const deltaLng = radius / (111000 * Math.cos((lat * Math.PI) / 180));
+        // Coordinate pubbliche: chi ha la posizione nascosta o solo la
+        // citta' non compare nelle ricerche per distanza
         where.owner = {
-          lat: { gte: lat - deltaLat, lte: lat + deltaLat },
-          lng: { gte: lng - deltaLng, lte: lng + deltaLng },
+          publicLat: { gte: lat - deltaLat, lte: lat + deltaLat },
+          publicLng: { gte: lng - deltaLng, lte: lng + deltaLng },
         };
       }
 
@@ -276,7 +279,7 @@ export default async function booksRoutes(fastify) {
               select: {
                 id: true,
                 displayName: true,
-                city: true,
+                publicCity: true,
                 accountType: true,
                 avatarUrl: true,
               },
@@ -321,7 +324,7 @@ export default async function booksRoutes(fastify) {
               id: true,
               displayName: true,
               username: true,
-              city: true,
+              publicCity: true,
               accountType: true,
               avatarUrl: true,
               bio: true,
@@ -416,7 +419,13 @@ export default async function booksRoutes(fastify) {
         },
         include: {
           owner: {
-            select: { id: true, displayName: true, city: true, accountType: true, avatarUrl: true },
+            select: {
+              id: true,
+              displayName: true,
+              publicCity: true,
+              accountType: true,
+              avatarUrl: true,
+            },
           },
           categories: { include: { category: { select: { id: true, name: true, slug: true } } } },
         },
@@ -512,7 +521,7 @@ export default async function booksRoutes(fastify) {
               select: {
                 id: true,
                 displayName: true,
-                city: true,
+                publicCity: true,
                 accountType: true,
                 avatarUrl: true,
               },

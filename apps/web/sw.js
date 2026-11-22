@@ -25,7 +25,7 @@
  * =============================================================================
  */
 
-const CACHE_VERSION = 'lookup-v7'; // v7: profilo, impostazioni e libreria dal server
+const CACHE_VERSION = 'lookup-v8'; // v8: posizione e privacy della posizione
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;

@@ -35,7 +35,7 @@ function userSummaryDto(u) {
     id: u.id,
     username: u.username,
     displayName: u.displayName,
-    city: u.city,
+    city: u.publicCity ?? null,
     accountType: u.accountType,
     avatarUrl: u.avatarUrl,
   };
@@ -74,7 +74,7 @@ const POST_INCLUDE = {
       id: true,
       username: true,
       displayName: true,
-      city: true,
+      publicCity: true,
       accountType: true,
       avatarUrl: true,
     },

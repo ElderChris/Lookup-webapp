@@ -23,7 +23,7 @@ function userSummaryDto(u) {
     id: u.id,
     username: u.username,
     displayName: u.displayName,
-    city: u.city,
+    city: u.publicCity ?? null,
     accountType: u.accountType,
     avatarUrl: u.avatarUrl,
   };
@@ -91,7 +91,13 @@ export default async function statsRoutes(fastify) {
         where: { status: 'active' },
         include: {
           owner: {
-            select: { id: true, displayName: true, city: true, accountType: true, avatarUrl: true },
+            select: {
+              id: true,
+              displayName: true,
+              publicCity: true,
+              accountType: true,
+              avatarUrl: true,
+            },
           },
           categories: {
             where: { isPrimary: true },
@@ -330,7 +336,7 @@ export default async function statsRoutes(fastify) {
             u.id,
             u.username,
             u.display_name,
-            u.city,
+            u.public_city AS city,
             u.account_type,
             u.avatar_url,
             (
