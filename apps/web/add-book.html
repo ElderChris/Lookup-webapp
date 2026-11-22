@@ -106,7 +106,7 @@
             <label class="form__label" for="isbn">ISBN</label>
             <input type="text" id="isbn" name="isbn" class="form__input"
                    pattern="^\d{10}(\d{3})?$" aria-describedby="isbn-help" autocomplete="off" />
-            <span class="form__help" id="isbn-help">10 o 13 cifre, senza trattini né spazi.</span>
+            <span class="form__help" id="isbn-help">10 o 13 cifre, senza trattini né spazi. Con l'ISBN la copertina viene presa da Open Library, se disponibile.</span>
           </div>
           <div class="form__group">
             <label class="form__label" for="pages">Pagine</label>
@@ -132,25 +132,6 @@
                     aria-required="true" aria-describedby="desc-help"
                     placeholder="Trama, note, perché consigli questo libro…"></textarea>
           <span class="form__help" id="desc-help">Minimo 20 caratteri, massimo 1000.</span>
-        </div>
-
-        <!-- Upload copertina con anteprima -->
-        <div class="form__group">
-          <label class="form__label" for="cover">Copertina (facoltativa)</label>
-          <label class="form__file" for="cover">
-            <input type="file" id="cover" name="cover" accept="image/jpeg,image/png,image/webp" />
-            <span class="form__file-label">
-              <strong>Trascina qui</strong> o clicca per selezionare un'immagine
-              <br /><small>JPG, PNG o WebP — massimo 5 MB</small>
-            </span>
-            <div class="form__file-preview" id="cover-preview">
-              <img src="" alt="Anteprima copertina caricata" />
-            </div>
-          </label>
-          <span class="form__help">
-            L'immagine verrà automaticamente ridimensionata a più formati
-            (thumbnail 160×240, medium 400×600) per ottimizzare la visualizzazione.
-          </span>
         </div>
 
         <!-- Consenso pubblicazione -->
@@ -244,42 +225,6 @@
           return (n >= 1 && n <= 10000) || 'Numero di pagine non plausibile.';
         }
       });
-
-      /* ----- Anteprima copertina ----- */
-      const coverInput = document.getElementById('cover');
-      const preview = document.getElementById('cover-preview');
-
-      coverInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        if (file.size > 5 * 1024 * 1024) {
-          UI.toast('Il file supera il limite di 5 MB', 'error');
-          coverInput.value = '';
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          preview.style.display = 'block';
-          preview.querySelector('img').src = ev.target.result;
-          generateThumbnail(ev.target.result, 160, 240);
-        };
-        reader.readAsDataURL(file);
-      });
-
-      /** Genera una thumbnail ridimensionata via Canvas */
-      function generateThumbnail(dataUrl, w, h) {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          const ratio = Math.max(w/img.width, h/img.height);
-          const newW = img.width * ratio, newH = img.height * ratio;
-          const dx = (w - newW)/2, dy = (h - newH)/2;
-          ctx.drawImage(img, dx, dy, newW, newH);
-        };
-        img.src = dataUrl;
-      }
 
       /* ----- Submit con riepilogo errori -----
          Marca tutti i campi come "touched" per forzare la validazione
