@@ -304,3 +304,36 @@ describe('GET /api/books/nearby (PostGIS)', () => {
     expect(res.statusCode).toBe(400);
   });
 });
+
+describe('GET /api/books: preferiti e librerie seguite', () => {
+  const prisma2 = createTestPrisma();
+  afterAll(async () => {
+    await prisma2.like.deleteMany({ where: { userId: SEED.USER_LUCA } });
+    await prisma2.follow.deleteMany({ where: { followerId: SEED.USER_LUCA } });
+    await prisma2.$disconnect();
+  });
+
+  it('liked=true: solo i volumi con il proprio "mi piace"', async () => {
+    const app = await buildTestApp();
+    const headers = await authHeaders(SEED.USER_LUCA);
+    await app.inject({ method: 'POST', url: `/api/books/${SEED.BOOK_GADDA}/like`, headers });
+    const res = await app.inject({ method: 'GET', url: '/api/books?liked=true', headers });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.map((b) => b.id)).toEqual([SEED.BOOK_GADDA]);
+  });
+
+  it('following=true: solo i volumi delle librerie seguite', async () => {
+    const app = await buildTestApp();
+    const headers = await authHeaders(SEED.USER_LUCA);
+    await app.inject({ method: 'POST', url: `/api/users/${SEED.USER_ANNA}/follow`, headers });
+    const res = await app.inject({ method: 'GET', url: '/api/books?following=true', headers });
+    const owners = new Set(res.json().data.map((b) => b.owner.id));
+    expect([...owners]).toEqual([SEED.USER_ANNA]);
+  });
+
+  it('senza accesso: 401', async () => {
+    const app = await buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/books?liked=true' });
+    expect(res.statusCode).toBe(401);
+  });
+});
