@@ -20,20 +20,26 @@
 // Welcome message rotation
 // -----------------------------------------------------------------------------
 
-/** 12 messaggi di benvenuto — rotation basata su user.welcomeIndex */
+/** Messaggi di benvenuto, neutri rispetto al genere (niente
+    "Bentornato/Bentornata"); rotazione basata su user.welcomeIndex. */
 export const WELCOME_MESSAGES = [
-  'Bentornato, {name}.',
   'Ciao {name}, buona lettura.',
-  'Ci fa piacere rivederti, {name}.',
-  'Bentornato tra i libri, {name}.',
-  'Salve {name}, cosa leggi oggi?',
-  'Ciao {name}, che piacere.',
-  'Salve {name}, buona sfogliata.',
-  'Bentornato in libreria, {name}.',
-  'Ciao {name}, un caffe' + ' e via.',
-  'Bentornato {name}, si comincia?',
-  'Salve {name}, buon proseguimento.',
-  'Ciao {name}, oggi cosa si legge?',
+  'Eccoti, {name}.',
+  'Rieccoti nella tua libreria, {name}.',
+  'È bello rivederti, {name}.',
+  'Si riapre il libro, {name}.',
+  'Pronti a scoprire qualcosa, {name}?',
+  'Avanti tutta, {name}.',
+  'La pagina ti aspettava, {name}.',
+  'Un nuovo capitolo ti attende, {name}.',
+  'Quale libro ti chiamerà oggi, {name}?',
+  'I tuoi libri ti hanno cercato, {name}.',
+  "Tra gli scaffali c'è movimento, {name}.",
+  'Lookup ti dà il benvenuto, {name}.',
+  'Si torna a sfogliare, {name}.',
+  'Buon ritorno fra le pagine, {name}.',
+  'Quante storie da scoprire oggi, {name}.',
+  'La tua biblioteca ti riaccoglie, {name}.',
 ];
 
 /**
