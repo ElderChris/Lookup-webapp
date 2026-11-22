@@ -29,6 +29,32 @@ export const books = {
   },
 
   /**
+   * Tutti i libri che soddisfano la query, letti a pagine di 100 (il massimo
+   * accettato dal server). Ritorna { data, pagination: { total } }.
+   * maxItems limita il numero di richieste in caso di cataloghi enormi.
+   */
+  async listAll(query = {}, { maxItems = 2000, ...options } = {}) {
+    const PAGE = 100;
+    const data = [];
+    let total = Infinity;
+    for (let offset = 0; offset < total && data.length < maxItems; offset += PAGE) {
+      // Con la cache, una chiave per pagina
+      const cache = options.cache?.key
+        ? { ...options.cache, key: `${options.cache.key}:offset=${offset}` }
+        : options.cache;
+      const res = await apiClient.get('/api/books', {
+        query: { ...query, limit: PAGE, offset },
+        ...options,
+        cache,
+      });
+      data.push(...res.data);
+      total = res.pagination?.total ?? data.length;
+      if (res.data.length < PAGE) break;
+    }
+    return { data, pagination: { total: Number.isFinite(total) ? total : data.length } };
+  },
+
+  /**
    * GET /api/books/:id — dettaglio di un libro.
    * @param {number} id
    * @param {object} [options] - {cache: {ttlMs, key?}} per cache trasparente (Fase 2c.1+)

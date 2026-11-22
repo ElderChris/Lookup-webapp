@@ -6,8 +6,10 @@
 //   GET    /api/users/me                      Profilo completo current user
 //   GET    /api/users/:id                     Profilo pubblico
 //   PATCH  /api/users/me                      Aggiorna profilo (incl. OrgProfile)
+//   GET    /api/users/:id/avatar              Foto profilo (immagine)
 //
-//   GET    /api/users/:id/reviews             Recensioni ricevute (paginated)
+//   GET    /api/users/:id/reviews             Recensioni ricevute o scritte (paginated)
+//   GET    /api/users/:id/reviews/me          Propria recensione + se si puo' recensire
 //   POST   /api/users/:id/reviews             Crea/aggiorna recensione (upsert)
 //   DELETE /api/users/:targetId/reviews/me    Cancella propria recensione
 //
@@ -92,12 +94,45 @@ function reviewDto(r) {
     id: r.id,
     targetUserId: r.targetUserId,
     reviewer: r.reviewer ? userSummaryDto(r.reviewer) : null,
+    target: r.target ? userSummaryDto(r.target) : null,
     rating: r.rating,
     text: r.text,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   };
 }
+
+// Foto profilo: data URL accettati (immagine gia' ritagliata dal client)
+const AVATAR_DATA_URL = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/;
+
+// Recensioni: testo minimo (dopo trim)
+const REVIEW_MIN_TEXT = 20;
+
+/**
+ * Si puo' recensire un utente solo dopo almeno un prestito concluso
+ * (stato `returned`) con lui, in una qualsiasi delle due direzioni.
+ */
+async function hasCompletedLoan(prisma, a, b) {
+  const n = await prisma.loanRequest.count({
+    where: {
+      status: 'returned',
+      OR: [
+        { requesterId: a, lenderId: b },
+        { requesterId: b, lenderId: a },
+      ],
+    },
+  });
+  return n > 0;
+}
+
+const REVIEW_USER_SELECT = {
+  id: true,
+  username: true,
+  displayName: true,
+  city: true,
+  accountType: true,
+  avatarUrl: true,
+};
 
 // -----------------------------------------------------------------------------
 // Helper: query counts + averageRating in parallelo per un user
@@ -225,7 +260,15 @@ export default async function usersRoutes(fastify) {
             lat: { type: 'number', minimum: -90, maximum: 90 },
             lng: { type: 'number', minimum: -180, maximum: 180 },
             avatarUrl: { type: 'string', format: 'uri', maxLength: 500 },
-            avatarDataUrl: { type: 'string', maxLength: 1_000_000 },
+            // Foto profilo come data URL (JPEG/PNG/WebP); null la rimuove
+            avatarDataUrl: {
+              anyOf: [
+                { type: 'string', maxLength: 1_000_000, pattern: AVATAR_DATA_URL.source },
+                { type: 'null' },
+              ],
+            },
+            // Lettore (borrower) o curatore della propria libreria
+            libraryRole: { type: 'string', enum: ['borrower', 'curator'] },
             publicProfile: { type: 'boolean' },
             // Campi OrganizationProfile (validi solo se accountType=='organization')
             organization: {
@@ -250,6 +293,14 @@ export default async function usersRoutes(fastify) {
     async (request, reply) => {
       const userId = await requireUserId(request);
       const { organization, ...userPatch } = request.body;
+
+      // La foto e' salvata nel database e servita da /api/users/:id/avatar:
+      // avatarUrl punta a quell'indirizzo, con una versione per la cache.
+      if ('avatarDataUrl' in userPatch) {
+        userPatch.avatarUrl = userPatch.avatarDataUrl
+          ? `/api/users/${userId}/avatar?v=${Date.now()}`
+          : null;
+      }
 
       const current = await fastify.prisma.user.findUnique({
         where: { id: userId },
@@ -316,6 +367,48 @@ export default async function usersRoutes(fastify) {
   );
 
   // ===========================================================================
+  // GET /api/users/:id/avatar — Foto profilo
+  // ===========================================================================
+  // L'indirizzo con ?v= cambia a ogni nuova foto: la risposta e' immutabile.
+  fastify.get(
+    '/api/users/:id/avatar',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          properties: { id: { type: 'string', minLength: 1, maxLength: 40 } },
+          required: ['id'],
+        },
+        querystring: {
+          type: 'object',
+          properties: { v: { type: 'string', maxLength: 20 } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const user = await fastify.prisma.user.findUnique({
+        where: { id: request.params.id },
+        select: { avatarDataUrl: true, status: true },
+      });
+      const match =
+        user && user.status !== 'deleted' ? AVATAR_DATA_URL.exec(user.avatarDataUrl || '') : null;
+      if (!match) {
+        return reply.status(404).send({
+          error: { code: 'NOT_FOUND', message: 'Foto profilo non presente' },
+        });
+      }
+      return reply
+        .type(match[1])
+        .header(
+          'Cache-Control',
+          request.query.v ? 'public, max-age=31536000, immutable' : 'no-cache'
+        )
+        .header('X-Content-Type-Options', 'nosniff')
+        .send(Buffer.from(match[2], 'base64'));
+    }
+  );
+
+  // ===========================================================================
   // GET /api/users/:id/reviews — Recensioni ricevute (paginated)
   // ===========================================================================
   fastify.get(
@@ -346,23 +439,15 @@ export default async function usersRoutes(fastify) {
       //                     role='written'  → reviews scritte da questo utente
       const whereClause = role === 'written' ? { reviewerId: id } : { targetUserId: id };
 
-      const [reviews, total, agg] = await Promise.all([
+      const [reviews, total, agg, byRating] = await Promise.all([
         fastify.prisma.review.findMany({
           where: whereClause,
           skip: offset,
           take: limit,
           orderBy: { createdAt: 'desc' },
           include: {
-            reviewer: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                city: true,
-                accountType: true,
-                avatarUrl: true,
-              },
-            },
+            reviewer: { select: REVIEW_USER_SELECT },
+            target: { select: REVIEW_USER_SELECT },
           },
         }),
         fastify.prisma.review.count({ where: whereClause }),
@@ -370,12 +455,22 @@ export default async function usersRoutes(fastify) {
           where: whereClause,
           _avg: { rating: true },
         }),
+        fastify.prisma.review.groupBy({
+          by: ['rating'],
+          where: whereClause,
+          _count: { _all: true },
+        }),
       ]);
+
+      // Numero di recensioni per voto (1..5), su tutte e non solo sulla pagina
+      const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      for (const row of byRating) distribution[row.rating] = row._count._all;
 
       return {
         data: reviews.map(reviewDto),
         pagination: { total, limit, offset },
         averageRating: agg._avg.rating != null ? Math.round(agg._avg.rating * 10) / 10 : null,
+        distribution,
       };
     }
   );
@@ -406,7 +501,8 @@ export default async function usersRoutes(fastify) {
     async (request, reply) => {
       const targetUserId = request.params.id;
       const reviewerId = await requireUserId(request);
-      const { rating, text } = request.body;
+      const { rating } = request.body;
+      const text = request.body.text.trim();
 
       if (reviewerId === targetUserId) {
         return reply.status(400).send({
@@ -424,22 +520,33 @@ export default async function usersRoutes(fastify) {
         });
       }
 
+      if (text.length < REVIEW_MIN_TEXT) {
+        return reply.status(400).send({
+          error: {
+            code: 'TEXT_TOO_SHORT',
+            message: `La recensione deve contenere almeno ${REVIEW_MIN_TEXT} caratteri`,
+          },
+        });
+      }
+
+      // Le recensioni sono ancorate a uno scambio reale
+      if (!(await hasCompletedLoan(fastify.prisma, reviewerId, targetUserId))) {
+        return reply.status(403).send({
+          error: {
+            code: 'NO_COMPLETED_LOAN',
+            message: 'Puoi recensire solo dopo aver concluso un prestito con questo utente',
+          },
+        });
+      }
+
       // Upsert: crea o aggiorna basandosi su unique (targetUserId, reviewerId)
       const review = await fastify.prisma.review.upsert({
         where: { targetUserId_reviewerId: { targetUserId, reviewerId } },
         create: { targetUserId, reviewerId, rating, text },
         update: { rating, text },
         include: {
-          reviewer: {
-            select: {
-              id: true,
-              username: true,
-              displayName: true,
-              city: true,
-              accountType: true,
-              avatarUrl: true,
-            },
-          },
+          reviewer: { select: REVIEW_USER_SELECT },
+          target: { select: REVIEW_USER_SELECT },
         },
       });
 
@@ -455,6 +562,47 @@ export default async function usersRoutes(fastify) {
       );
 
       return reply.status(201).send(reviewDto(review));
+    }
+  );
+
+  // ===========================================================================
+  // GET /api/users/:id/reviews/me — Propria recensione e permesso
+  // ===========================================================================
+  // canReview: false con reason 'self' (propria libreria) o
+  // 'no-completed-loan' (nessun prestito concluso con l'utente).
+  fastify.get(
+    '/api/users/:id/reviews/me',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          properties: { id: { type: 'string', minLength: 1, maxLength: 40 } },
+          required: ['id'],
+        },
+      },
+    },
+    async (request) => {
+      const targetUserId = request.params.id;
+      const reviewerId = await requireUserId(request);
+
+      if (reviewerId === targetUserId) {
+        return { review: null, canReview: false, reason: 'self' };
+      }
+      const [review, completed] = await Promise.all([
+        fastify.prisma.review.findUnique({
+          where: { targetUserId_reviewerId: { targetUserId, reviewerId } },
+          include: {
+            reviewer: { select: REVIEW_USER_SELECT },
+            target: { select: REVIEW_USER_SELECT },
+          },
+        }),
+        hasCompletedLoan(fastify.prisma, reviewerId, targetUserId),
+      ]);
+      return {
+        review: review ? reviewDto(review) : null,
+        canReview: completed,
+        reason: completed ? null : 'no-completed-loan',
+      };
     }
   );
 

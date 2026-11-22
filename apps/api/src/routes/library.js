@@ -51,7 +51,7 @@ export default async function libraryRoutes(fastify) {
             bio: true,
             city: true,
             avatarUrl: true,
-            avatarDataUrl: true,
+            libraryRole: true,
             lat: true,
             lng: true,
             role: true,
@@ -87,7 +87,8 @@ export default async function libraryRoutes(fastify) {
         currentUserId && currentUserId !== id
           ? fastify.prisma.follow.findFirst({
               where: { followerId: currentUserId, followedId: id },
-              select: { id: true },
+              // Follow ha chiave composta (followerId, followedId): niente id
+              select: { followerId: true },
             })
           : Promise.resolve(null),
       ]);
@@ -109,7 +110,8 @@ export default async function libraryRoutes(fastify) {
         accountType: user.accountType,
         bio: user.bio,
         city: user.city,
-        avatarUrl: user.avatarUrl || user.avatarDataUrl,
+        avatarUrl: user.avatarUrl,
+        libraryRole: user.libraryRole,
         lat: user.lat,
         lng: user.lng,
         role: user.role,

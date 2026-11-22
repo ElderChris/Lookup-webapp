@@ -305,22 +305,22 @@
 
             <div class="privacy-slider" role="radiogroup" aria-label="Livello di precisione della posizione">
               <label>
-                <input type="radio" name="privacy_level" value="0" />
+                <input type="radio" name="privacy_level" value="0" disabled />
                 <strong>Nascosta</strong>
                 Non comparirà sulla mappa
               </label>
               <label>
-                <input type="radio" name="privacy_level" value="1" />
+                <input type="radio" name="privacy_level" value="1" disabled />
                 <strong>Città</strong>
                 Solo il nome del comune
               </label>
               <label>
-                <input type="radio" name="privacy_level" value="2" checked />
+                <input type="radio" name="privacy_level" value="2" disabled checked />
                 <strong>Zona</strong>
                 Imprecisione di ~200 m
               </label>
               <label>
-                <input type="radio" name="privacy_level" value="3" />
+                <input type="radio" name="privacy_level" value="3" disabled />
                 <strong>Esatta</strong>
                 Indirizzo preciso
               </label>
@@ -329,6 +329,10 @@
             <p style="font-size: var(--fs-xs); color: var(--color-ink-soft); margin-top: var(--sp-3); font-style: italic;">
               Il livello consigliato è <strong>«Zona»</strong>: offre un buon equilibrio
               tra utilità della mappa e tutela della privacy.
+            </p>
+            <p class="alert alert--info" style="margin-top: var(--sp-3);">
+              <strong>In arrivo.</strong> La scelta della precisione sarà disponibile
+              con un prossimo aggiornamento.
             </p>
           </section>
 
@@ -431,39 +435,37 @@
          login; non è possibile personalizzare la libreria di altri.
          La pagina non accetta parametri ?user= proprio per evitare
          che qualcuno tenti di editare un profilo altrui.
-
-         Fase 3.2: aspetto il session lookup di bootstrap. Se non c'e'
-         sessione valida (nessun cookie Better Auth + nessun current_user_id
-         legacy), redirect al login. Altrimenti sync con LB_AUTH_USER
-         quando disponibile (backend), altrimenti fallback Storage. */
+         Senza sessione valida (cookie Better Auth) si va al login. */
       const currentUser = await window.LB_UI.requireUser('login.html');
       if (!currentUser) return;            // requireUser ha già reindirizzato
       const userId = currentUser.id;
 
-      // Beta 3: prefs dal backend con fallback graceful
+      // Preferenze e libri dal server
       let prefs;
-      let prefsSource = 'legacy';
-      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-        try {
-          const bePrefs = await window.LB_API.prefs.getMe();
-          // Adapter backend camelCase → legacy snake_case
-          prefs = {
-            view_mode: bePrefs.viewMode,
-            theme: bePrefs.theme,
-            avatar_style: bePrefs.avatarStyle,
-            avatar_symbol: bePrefs.avatarSymbol,
-            motto: bePrefs.motto,
-            sort_by: bePrefs.sortBy,
-            cover_design: bePrefs.coverDesign,
-            show_email: bePrefs.showEmail,
-          };
-          prefsSource = 'backend';
-        } catch (err) {
-          console.debug(`[profile-setup] prefs fallback legacy: ${err.code || err.message}`);
-        }
+      let userBooks;
+      try {
+        const [bePrefs, booksRes] = await Promise.all([
+          window.LB_API.prefs.getMe(),
+          window.LB_API.books.listAll({ ownerId: userId }),
+        ]);
+        // Adapter backend camelCase → snake_case usato dalla pagina
+        prefs = {
+          view_mode: bePrefs.viewMode,
+          theme: bePrefs.theme,
+          avatar_style: bePrefs.avatarStyle,
+          avatar_symbol: bePrefs.avatarSymbol,
+          motto: bePrefs.motto,
+          sort_by: bePrefs.sortBy,
+          cover_design: bePrefs.coverDesign,
+          show_email: bePrefs.showEmail,
+        };
+        userBooks = booksRes.data.map(window.LB_API.bookToLegacy);
+      } catch (err) {
+        console.debug(`[profile-setup] caricamento fallito: ${err.code || err.message}`);
+        UI.toast('Server non raggiungibile: impossibile caricare le impostazioni.', 'error');
+        document.getElementById('save-btn').disabled = true;
+        return;
       }
-      if (!prefs) prefs = API.getProfilePrefs(userId);
-      console.debug(`[profile-setup] prefs source: ${prefsSource}`);
 
       /* ----- Pre-popolamento dei campi con i valori esistenti ----- */
       document.getElementById('display-name').value = currentUser.display_name || '';
@@ -472,7 +474,7 @@
       document.getElementById('city').value          = currentUser.city || '';
       document.getElementById('email-pub').value     = String(prefs.show_email);
 
-      // Radio: avatar_style, theme, view_mode, privacy_level
+      // Radio: avatar_style, theme, view_mode
       function setRadio(name, value) {
         const r = document.querySelector(`input[name="${name}"][value="${value}"]`);
         if (r) r.checked = true;
@@ -481,7 +483,6 @@
       setRadio('avatar_symbol', prefs.avatar_symbol);
       setRadio('theme',        prefs.theme);
       setRadio('view_mode',    prefs.view_mode);
-      setRadio('privacy_level', String(prefs.privacy_level));
       document.getElementById('sort-by').value = prefs.sort_by;
 
       /* ----- Picker delle 15 grafiche cover (v1.1) -----
@@ -568,8 +569,7 @@
         document.getElementById('preview-theme').textContent = themeLabels[theme];
         document.getElementById('preview-view').textContent  = viewLabels[viewMode];
 
-        // Statistiche reali dell'utente
-        const userBooks = API.getBooksByUser(userId);
+        // Statistiche reali dell'utente (libri caricati all'avvio)
         document.getElementById('preview-books').textContent = userBooks.length;
         document.getElementById('preview-views').textContent =
           userBooks.reduce((s, b) => s + b.views, 0).toLocaleString('it-IT');
@@ -692,49 +692,33 @@
           cover_design: selectedCover,
           motto:     document.getElementById('motto').value.trim(),
           sort_by:   document.getElementById('sort-by').value,
-          privacy_level: parseInt(document.querySelector('input[name="privacy_level"]:checked').value, 10),
           show_email: document.getElementById('email-pub').value === 'true'
         };
 
-        // Beta 3: salva sul backend (users.updateMe + prefs.updateMe)
-        // Fallback graceful legacy in caso di errore.
-        let savedBackend = false;
-        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-          try {
-            await window.LB_API.users.updateMe({
-              displayName,
-              bio,
-              city,
-            });
-            await window.LB_API.prefs.updateMe({
-              viewMode: newPrefs.view_mode,
-              theme: newPrefs.theme,
-              avatarStyle: newPrefs.avatar_style,
-              avatarSymbol: newPrefs.avatar_symbol,
-              motto: newPrefs.motto,
-              sortBy: newPrefs.sort_by,
-              coverDesign: newPrefs.cover_design,
-              showEmail: newPrefs.show_email,
-            });
-            savedBackend = true;
-          } catch (err) {
-            console.debug(`[profile-setup] backend save fallback legacy: ${err.code || err.message}`);
-          }
-        }
-        // Aggiorna anche il legacy Storage (per compat immediata pagine legacy)
+        // Salvataggio sul server: profilo e preferenze
+        const saveBtn = document.getElementById('save-btn');
+        saveBtn.disabled = true;
         try {
-          API.updateUser(userId, { display_name: displayName, bio, city });
-          API.setProfilePrefs(userId, newPrefs);
+          await window.LB_API.users.updateMe({ displayName, bio, city });
+          await window.LB_API.prefs.updateMe({
+            viewMode: newPrefs.view_mode,
+            theme: newPrefs.theme,
+            avatarStyle: newPrefs.avatar_style,
+            avatarSymbol: newPrefs.avatar_symbol,
+            motto: newPrefs.motto || null,
+            sortBy: newPrefs.sort_by,
+            coverDesign: newPrefs.cover_design,
+            showEmail: newPrefs.show_email,
+          });
+          // Nome nella barra di navigazione aggiornato subito
+          await window.LB_UI.refreshCurrentUser();
+          if (UI._refreshAvatar) UI._refreshAvatar();
+          UI.toast('Profilo salvato.', 'success');
         } catch (err) {
-          if (!savedBackend) {
-            UI.toast(err.message, 'error');
-            return;
-          }
+          UI.toast(err.message || 'Salvataggio non riuscito. Riprova tra poco.', 'error');
+        } finally {
+          saveBtn.disabled = false;
         }
-
-        UI.toast(savedBackend
-          ? 'Profilo salvato sul server.'
-          : 'Profilo salvato (offline).', 'info');
       });
 
       // =====================================================================

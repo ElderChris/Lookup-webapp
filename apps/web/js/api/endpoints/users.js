@@ -70,6 +70,14 @@ export const users = {
   },
 
   /**
+   * GET /api/users/:id/reviews/me — propria recensione (o null) e se si
+   * puo' recensire: { review, canReview, reason: 'self'|'no-completed-loan'|null }.
+   */
+  getMyReview(targetUserId) {
+    return apiClient.get(`/api/users/${encodeURIComponent(targetUserId)}/reviews/me`);
+  },
+
+  /**
    * DELETE /api/users/:id/reviews/me — cancella la propria review.
    */
   deleteMyReview(targetUserId) {

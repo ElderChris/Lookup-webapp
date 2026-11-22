@@ -25,7 +25,7 @@
  * =============================================================================
  */
 
-const CACHE_VERSION = 'lookup-v6'; // v6: messaggi non letti, chat dei prestiti chiusi
+const CACHE_VERSION = 'lookup-v7'; // v7: profilo, impostazioni e libreria dal server
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;

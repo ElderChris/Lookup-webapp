@@ -113,153 +113,153 @@ export const UI = {
       <path d="${path}"/></svg>`;
   },
 
-  /** Renderizza la lista delle recensioni ricevute da un utente. */
-  renderReviewsList(container, targetUserId) {
-    const reviews = API.getReviewsForUser(targetUserId);
-    if (!reviews.length) {
-      container.innerHTML = `<p class="alert alert--info">
-        Ancora nessuna recensione per questa libreria. Sii il primo a lasciarne una.
-      </p>`;
-      return;
-    }
-    container.innerHTML = reviews
-      .map((r) => {
-        const reviewer = API.getUser(r.reviewer_id);
-        if (!reviewer) return '';
-        const prefs = API.getProfilePrefs(reviewer.id) || {};
-        const themeClass = `cover--${prefs.theme || 'classic'}`;
-        const symbol =
-          prefs.avatar_style === 'symbol' && prefs.avatar_symbol
-            ? prefs.avatar_symbol
-            : (reviewer.display_name || reviewer.username || '?').trim()[0].toUpperCase();
-        const dateLabel = new Date(r.created_at).toLocaleDateString('it-IT', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        });
-        const relative = UI.timeAgo(r.created_at);
-        return `
-        <article class="review-card">
+  /** Card di una recensione. `person` e' chi mostrare: l'autore per le
+      ricevute, il destinatario per le scritte. */
+  _reviewCard(r, person, { lead = '', href = '', footer = '', extraClass = '' } = {}) {
+    const esc = (v) => this._escapeHtml(v);
+    const name = person?.displayName || person?.username || 'Utente';
+    const avatar = person?.avatarUrl
+      ? `<img src="${esc(person.avatarUrl)}" alt="">`
+      : esc(name.trim()[0].toUpperCase());
+    const dateLabel = new Date(r.createdAt).toLocaleDateString('it-IT', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    return `
+        <article class="review-card ${extraClass}">
           <div class="review-card__head">
-            <a href="library.html?id=${reviewer.id}" class="review-card__author">
-              <span class="review-card__avatar ${themeClass}" aria-hidden="true">${symbol}</span>
+            <a href="${esc(href)}" class="review-card__author">
+              <span class="review-card__avatar cover--classic" aria-hidden="true">${avatar}</span>
               <span class="review-card__author-info">
-                <span class="review-card__name">${reviewer.display_name}</span>
-                <span class="review-card__user">@${reviewer.username}</span>
+                ${lead ? `<span class="review-card__lead">${lead}</span>` : ''}
+                <span class="review-card__name">${esc(name)}</span>
+                <span class="review-card__user">@${esc(person?.username || '')}</span>
               </span>
             </a>
             <div class="review-card__meta">
               ${UI.renderStars(r.rating, { size: 'sm', showAverage: false })}
-              <time class="review-card__date" datetime="${r.created_at}">
-                <span class="review-card__date-rel">${relative}</span>
+              <time class="review-card__date" datetime="${esc(r.createdAt)}">
+                <span class="review-card__date-rel">${UI.timeAgo(r.createdAt)}</span>
                 <span class="review-card__date-abs">${dateLabel}</span>
               </time>
             </div>
           </div>
-          <p class="review-card__text">${this._escapeHtml(r.text)}</p>
+          <p class="review-card__text">${esc(r.text)}</p>
+          ${footer}
         </article>`;
-      })
+  },
+
+  /** Recensioni ricevute da un utente (dal server). `reviews` evita una
+      seconda richiesta quando la pagina le ha gia' caricate. */
+  async renderReviewsList(container, targetUserId, { reviews } = {}) {
+    let list = reviews;
+    if (!list) {
+      try {
+        list = (await window.LB_API.users.listReviews(targetUserId, { limit: 100 })).data;
+      } catch (_err) {
+        container.innerHTML = `<p class="alert alert--error">
+          Server non raggiungibile: impossibile caricare le recensioni.</p>`;
+        return;
+      }
+    }
+    if (!list.length) {
+      container.innerHTML = `<p class="alert alert--info">
+        Ancora nessuna recensione per questa libreria.
+      </p>`;
+      return;
+    }
+    container.innerHTML = list
+      .map((r) =>
+        this._reviewCard(r, r.reviewer, {
+          href: r.reviewer ? `library.html?id=${encodeURIComponent(r.reviewer.id)}` : '#',
+        })
+      )
       .join('');
   },
 
-  /** v1.6: lista delle recensioni SCRITTE da un utente. Stesso layout
-      di renderReviewsList ma mostra il destinatario (a chi è rivolta)
-      invece dell'autore, con un pulsante "Modifica" che porta alla
-      libreria target nella sezione recensioni. */
-  renderReviewsByReviewerList(container, reviewerId) {
-    const reviews = API.getReviewsByReviewer(reviewerId);
-    if (!reviews.length) {
+  /** Recensioni SCRITTE da un utente (dal server), con il destinatario e
+      i pulsanti Modifica (porta alla sua libreria) e Cancella. */
+  async renderReviewsByReviewerList(container, reviewerId) {
+    let list;
+    try {
+      list = (await window.LB_API.users.listReviewsWritten(reviewerId, { limit: 100 })).data;
+    } catch (_err) {
+      container.innerHTML = `<p class="alert alert--error">
+        Server non raggiungibile: impossibile caricare le recensioni.</p>`;
+      return;
+    }
+    if (!list.length) {
       container.innerHTML = `<p class="alert alert--info">
         Non hai ancora scritto nessuna recensione. Dopo aver concluso un
         prestito potrai valutare la libreria del prestatore.
       </p>`;
       return;
     }
-    container.innerHTML = reviews
+    container.innerHTML = list
       .map((r) => {
-        const target = API.getUser(r.target_user_id);
-        if (!target) return '';
-        const prefs = API.getProfilePrefs(target.id) || {};
-        const themeClass = `cover--${prefs.theme || 'classic'}`;
-        const symbol =
-          prefs.avatar_style === 'symbol' && prefs.avatar_symbol
-            ? prefs.avatar_symbol
-            : (target.display_name || target.username || '?').trim()[0].toUpperCase();
-        const dateLabel = new Date(r.created_at).toLocaleDateString('it-IT', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        });
-        const relative = UI.timeAgo(r.created_at);
-        return `
-        <article class="review-card review-card--written">
-          <div class="review-card__head">
-            <a href="library.html?id=${target.id}#recensioni" class="review-card__author">
-              <span class="review-card__avatar ${themeClass}" aria-hidden="true">${symbol}</span>
-              <span class="review-card__author-info">
-                <span class="review-card__lead">Hai recensito</span>
-                <span class="review-card__name">${target.display_name}</span>
-                <span class="review-card__user">@${target.username}</span>
-              </span>
-            </a>
-            <div class="review-card__meta">
-              ${UI.renderStars(r.rating, { size: 'sm', showAverage: false })}
-              <time class="review-card__date" datetime="${r.created_at}">
-                <span class="review-card__date-rel">${relative}</span>
-                <span class="review-card__date-abs">${dateLabel}</span>
-              </time>
-            </div>
-          </div>
-          <p class="review-card__text">${this._escapeHtml(r.text)}</p>
+        const targetHref = r.target
+          ? `library.html?id=${encodeURIComponent(r.target.id)}#recensioni`
+          : '#';
+        return this._reviewCard(r, r.target, {
+          lead: 'Hai recensito',
+          href: targetHref,
+          extraClass: 'review-card--written',
+          footer: `
           <div class="review-card__footer">
-            <a href="library.html?id=${target.id}#recensioni" class="btn btn--ghost btn--small">
-              ✎ Modifica
-            </a>
+            <a href="${targetHref}" class="btn btn--ghost btn--small">✎ Modifica</a>
             <button type="button" class="btn btn--ghost btn--small"
-                    data-review-delete="${r.id}">
+                    data-review-delete="${this._escapeHtml(r.targetUserId)}">
               🗑 Cancella
             </button>
-          </div>
-        </article>`;
+          </div>`,
+        });
       })
       .join('');
 
-    // Wiring del bottone cancella
-    container.addEventListener('click', (e) => {
+    // Un solo gestore anche se la lista viene ridisegnata
+    container.onclick = async (e) => {
       const btn = e.target.closest('[data-review-delete]');
       if (!btn) return;
       if (!confirm('Cancellare definitivamente questa recensione?')) return;
-      const r = API.deleteReview(+btn.dataset.reviewDelete);
-      if (r.ok) {
+      try {
+        await window.LB_API.users.deleteMyReview(btn.dataset.reviewDelete);
         UI.toast('Recensione cancellata.', 'info');
         UI.renderReviewsByReviewerList(container, reviewerId);
-      } else {
-        UI.toast('Errore: ' + r.reason, 'error');
+      } catch (err) {
+        UI.toast(err.message || 'Impossibile cancellare la recensione.', 'error');
       }
-    });
+    };
   },
 
-  /** Form per scrivere una recensione (5 stelle cliccabili + testo).
-      Mostra il messaggio appropriato se l'utente non può recensire:
-      - guest → invito al login
-      - proprietario → non visibile
-      - già recensito → pre-popola e permette modifica */
-  renderReviewForm(container, targetUserId, onSubmit) {
-    const check = API.canReview(targetUserId);
-    if (!check.ok && check.reason === 'self') {
-      container.innerHTML = `<p class="alert alert--info" style="margin: 0;">
-        Questa è la tua libreria — qui leggi le recensioni che gli altri lasciano per te.
-      </p>`;
-      return;
-    }
-    if (!check.ok && check.reason === 'not-authenticated') {
+  /** Form per scrivere o aggiornare la propria recensione (5 stelle +
+      testo). Il server decide se si puo' recensire: serve un prestito
+      concluso con l'utente, e non si recensisce se stessi. */
+  async renderReviewForm(container, targetUserId, onSubmit) {
+    const me = window.LB_UI.currentUser();
+    if (!me) {
       container.innerHTML = `<p class="alert alert--info" style="margin: 0;">
         <a href="login.html">Accedi</a> o <a href="register.html">registrati</a>
         per lasciare una recensione a questa libreria.
       </p>`;
       return;
     }
-    if (!check.ok && check.reason === 'no-completed-loan') {
+
+    let state;
+    try {
+      state = await window.LB_API.users.getMyReview(targetUserId);
+    } catch (_err) {
+      container.innerHTML = `<p class="alert alert--error" style="margin: 0;">
+        Server non raggiungibile: impossibile verificare se puoi recensire.</p>`;
+      return;
+    }
+    if (state.reason === 'self') {
+      container.innerHTML = `<p class="alert alert--info" style="margin: 0;">
+        Questa è la tua libreria — qui leggi le recensioni che gli altri lasciano per te.
+      </p>`;
+      return;
+    }
+    if (!state.canReview) {
       container.innerHTML = `<p class="alert alert--info" style="margin: 0;">
         Per recensire questa libreria devi prima aver concluso almeno un prestito.
         Le recensioni sono ancorate a un'esperienza reale di scambio: prendi in prestito
@@ -269,8 +269,7 @@ export const UI = {
       return;
     }
 
-    const me = window.LB_UI.currentUser();
-    const existing = API.getReviewByPair(targetUserId, me.id);
+    const existing = state.review;
     const initialRating = existing ? existing.rating : 0;
     const initialText = existing ? existing.text : '';
 
@@ -301,7 +300,7 @@ export const UI = {
           <label class="form__label" for="review-text">La tua recensione</label>
           <textarea id="review-text" class="form__input" rows="4"
                     placeholder="Com'è stata l'esperienza? Cortesia, cura dei volumi, puntualità…"
-                    minlength="20" required>${this._escapeHtml(initialText)}</textarea>
+                    minlength="20" maxlength="2000" required>${this._escapeHtml(initialText)}</textarea>
           <small class="form__help">
             <span id="review-char-count">${initialText.length}</span>/20 minimi
           </small>
@@ -352,7 +351,7 @@ export const UI = {
       charCount.textContent = textArea.value.length;
     });
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       errBox.hidden = true;
       if (currentRating === 0) {
@@ -360,33 +359,40 @@ export const UI = {
         errBox.textContent = 'Scegli una valutazione da 1 a 5 stelle.';
         return;
       }
-      if (textArea.value.trim().length < 20) {
+      const text = textArea.value.trim();
+      if (text.length < 20) {
         errBox.hidden = false;
         errBox.textContent = 'Il testo della recensione deve essere lungo almeno 20 caratteri.';
         return;
       }
-      const result = API.submitReview(targetUserId, currentRating, textArea.value);
-      if (!result.ok) {
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      try {
+        const review = await window.LB_API.users.createReview(targetUserId, {
+          rating: currentRating,
+          text,
+        });
+        UI.toast(existing ? 'Recensione aggiornata.' : 'Recensione pubblicata. Grazie!', 'success');
+        if (typeof onSubmit === 'function') onSubmit({ review, updated: !!existing });
+      } catch (err) {
         errBox.hidden = false;
-        errBox.textContent = 'Errore: ' + result.reason;
-        return;
+        errBox.textContent = err.message || 'Impossibile salvare la recensione.';
+        submitBtn.disabled = false;
       }
-      UI.toast(
-        result.updated ? 'Recensione aggiornata.' : 'Recensione pubblicata. Grazie!',
-        'success'
-      );
-      if (typeof onSubmit === 'function') onSubmit(result);
     });
 
     // pulsante elimina (solo se esiste già la recensione)
     const delBtn = form.querySelector('#review-delete-btn');
     if (delBtn) {
-      delBtn.addEventListener('click', () => {
+      delBtn.addEventListener('click', async () => {
         if (!confirm('Eliminare definitivamente la tua recensione?')) return;
-        const r = API.deleteReview(existing.id);
-        if (r.ok) {
+        try {
+          await window.LB_API.users.deleteMyReview(targetUserId);
           UI.toast('Recensione eliminata.', 'info');
-          if (typeof onSubmit === 'function') onSubmit({ ok: true, deleted: true });
+          if (typeof onSubmit === 'function') onSubmit({ deleted: true });
+        } catch (err) {
+          errBox.hidden = false;
+          errBox.textContent = err.message || 'Impossibile eliminare la recensione.';
         }
       });
     }
@@ -926,14 +932,27 @@ export const UI = {
         • "Carica foto…" → apre file input
         • "Rimuovi foto" → resetta (visibile solo se foto esistente)
       Dopo l'upload, l'immagine viene ridimensionata/crop in un quadrato
-      di 320px e salvata come data URL JPEG nello user.avatar_data_url.
+      di 320px e salvata sul server (PATCH /api/users/me, avatarDataUrl).
       `onChange` viene invocato dopo il salvataggio (es. per ricaricare). */
   wireAvatarMenu(avatarEl, onChange) {
     if (!avatarEl || avatarEl.dataset.wired === '1') return;
     avatarEl.dataset.wired = '1';
     const me = window.LB_UI.currentUser();
     if (!me) return;
-    const hasPhoto = !!me.avatar_data_url;
+    const hasPhoto = !!me.avatar_url;
+
+    // Salva (o rimuove con null) la foto sul server, poi rilegge la sessione
+    // perche' la barra di navigazione mostri subito la foto nuova
+    async function saveAvatar(avatarDataUrl, okMessage) {
+      try {
+        await window.LB_API.users.updateMe({ avatarDataUrl });
+        await window.LB_UI.refreshCurrentUser();
+        UI.toast(okMessage, avatarDataUrl ? 'success' : 'info');
+        if (onChange) onChange();
+      } catch (err) {
+        UI.toast(err.message || 'Impossibile aggiornare la foto profilo.', 'error');
+      }
+    }
 
     // Crea il menu (rimosso quando si chiude)
     function buildMenu() {
@@ -980,11 +999,7 @@ export const UI = {
         closeMenu();
         if (action === 'remove') {
           if (!confirm('Vuoi davvero rimuovere la foto profilo?')) return;
-          const r = API.clearUserAvatar();
-          if (r.ok) {
-            UI.toast('Foto profilo rimossa.', 'info');
-            if (onChange) onChange();
-          }
+          saveAvatar(null, 'Foto profilo rimossa.');
         } else if (action === 'upload') {
           // Crea input file nascosto
           const input = document.createElement('input');
@@ -1001,13 +1016,7 @@ export const UI = {
             reader.onload = async (re) => {
               try {
                 const cropped = await UI.cropImageToSquare(re.target.result, 320, 0.85);
-                const r = API.setUserAvatar(cropped);
-                if (r.ok) {
-                  UI.toast('Foto profilo aggiornata.', 'success');
-                  if (onChange) onChange();
-                } else {
-                  UI.toast('Errore: ' + r.reason, 'error');
-                }
+                await saveAvatar(cropped, 'Foto profilo aggiornata.');
               } catch (err) {
                 UI.toast("Impossibile elaborare l'immagine.", 'error');
               }
@@ -1081,8 +1090,8 @@ export const UI = {
       <form class="post-composer" id="post-composer-form">
         <div class="post-composer__avatar" aria-hidden="true">
           ${
-            me.avatar_data_url
-              ? `<img class="post-composer__avatar-img" src="${me.avatar_data_url}" alt="">`
+            me.avatar_url
+              ? `<img class="post-composer__avatar-img" src="${this._escapeHtml(me.avatar_url)}" alt="">`
               : (me.display_name || '?')
                   .split(' ')
                   .map((s) => s[0])
@@ -1861,20 +1870,30 @@ export const UI = {
     const userEl = wrap.querySelector('.nav-avatar__menu-user');
     const logoutBtn = wrap.querySelector('#nav-logout-btn');
 
+    // Preferenze (tema, simbolo) lette dal server una volta per pagina
+    let prefs = {};
+    async function loadPrefs() {
+      if (!window.LB_UI.currentUser()) return;
+      try {
+        prefs = (await window.LB_API.prefs.getMe()) || {};
+        paint();
+      } catch (_) {
+        /* restano tema e iniziali predefiniti */
+      }
+    }
+
     function paint() {
       const me = window.LB_UI.currentUser();
       if (!me) return;
-      const prefs = API.getProfilePrefs(me.id) || {};
       const themeClass = `cover--${prefs.theme || 'classic'}`;
-      // v2.5: se l'utente ha una foto profilo, mostrarla come <img>
-      // dentro lo span glyph; altrimenti fallback alle iniziali/simbolo.
-      if (me.avatar_data_url) {
+      // Foto profilo se presente, altrimenti iniziale o simbolo scelto
+      if (me.avatar_url) {
         button.className = `nav-avatar nav-avatar--photo ${themeClass}`;
-        glyph.innerHTML = `<img class="nav-avatar__img" src="${me.avatar_data_url}" alt="">`;
+        glyph.innerHTML = `<img class="nav-avatar__img" src="${UI._escapeHtml(me.avatar_url)}" alt="">`;
       } else {
         const symbol =
-          prefs.avatar_style === 'symbol' && prefs.avatar_symbol
-            ? prefs.avatar_symbol
+          prefs.avatarStyle === 'symbol' && prefs.avatarSymbol
+            ? prefs.avatarSymbol
             : (me.display_name || me.username || '?').trim()[0].toUpperCase();
         button.className = `nav-avatar ${themeClass}`;
         glyph.textContent = symbol;
@@ -1936,6 +1955,7 @@ export const UI = {
     });
 
     paint();
+    loadPrefs();
     document.addEventListener('auth:change', paint);
     UI._refreshAvatar = paint;
   },

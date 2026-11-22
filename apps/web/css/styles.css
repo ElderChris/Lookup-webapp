@@ -4150,6 +4150,8 @@ a:hover { color: var(--color-burgundy-dk); }
   flex-shrink: 0;
 }
 /* Riusa le palette dei temi (definite altrove come .cover--*) */
+.review-card__avatar { overflow: hidden; }
+.review-card__avatar img { width: 100%; height: 100%; object-fit: cover; }
 .review-card__avatar.cover--classic   { background: linear-gradient(135deg, #7a1e2b, #5a141f); }
 .review-card__avatar.cover--bordeaux  { background: linear-gradient(135deg, #7a1e2b, #3d342e); }
 .review-card__avatar.cover--sage      { background: linear-gradient(135deg, #6e7a5a, #3d342e); }
