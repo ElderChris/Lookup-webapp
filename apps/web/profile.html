@@ -690,13 +690,13 @@
         const list = document.getElementById('my-posts-list');
 
         async function paint() {
-          UI.renderPostComposer(composer, { onPublished: paint });
+          UI.renderPostComposer(composer, { onPublished: paint, canPublish: books.length > 0 });
 
           let myPosts;
           const canPublish = books.length > 0;   // si pubblica con almeno un volume
           try {
             const res = await window.LB_API.posts.list({ authorId: userId, limit: 100 });
-            myPosts = res.data.map((p) => window.LB_API.postToLegacy(p));
+            myPosts = res.data;
           } catch (err) {
             list.innerHTML = `<p class="alert alert--error">
               Server non raggiungibile: impossibile caricare i post.</p>`;
@@ -834,11 +834,10 @@
         });
       });
 
-      // Apri direttamente la tab Recensioni se l'anchor è #panel-reviews
-      // (così le stelle nell'header funzionano come scorciatoia)
-      if (location.hash === '#panel-reviews') {
-        document.getElementById('tab-reviews').click();
-      }
+      // Apri direttamente la scheda indicata dall'ancora (#panel-reviews
+      // dalle stelle o dalle notifiche, #panel-posts dalle reazioni, ...)
+      const hashTab = location.hash.match(/^#panel-([a-z]+)$/);
+      if (hashTab) document.getElementById(`tab-${hashTab[1]}`)?.click();
 
       // Esportazione dei dati (GDPR): GET /api/me/export, scaricato come JSON
       const exportBtn = document.getElementById('gdpr-export-btn');

@@ -402,7 +402,7 @@
             let posts;
             try {
               const res = await window.LB_API.posts.list({ authorId: user.id, limit: 100 });
-              posts = res.data.map((p) => window.LB_API.postToLegacy(p));
+              posts = res.data;
             } catch (err) {
               container.innerHTML = `<p class="alert alert--error">
                 Server non raggiungibile: impossibile caricare gli aggiornamenti.</p>`;

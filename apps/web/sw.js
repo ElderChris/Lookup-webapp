@@ -25,7 +25,7 @@
  * =============================================================================
  */
 
-const CACHE_VERSION = 'lookup-v9'; // v9: stato di accesso prima del primo disegno (auth-hint.js)
+const CACHE_VERSION = 'lookup-v10'; // v10: post, notifiche e home dal server
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;

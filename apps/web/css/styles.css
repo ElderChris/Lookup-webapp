@@ -994,6 +994,26 @@ a:hover { color: var(--color-burgundy-dk); }
    contenuti personalizzati (novità, preferiti, librerie vicine). */
 [data-auth-state="user"] .guest-presentation { display: none !important; }
 
+/* Segnaposto dei contenuti personali in arrivo dal server: visibile solo
+   finche' il contenitore e' vuoto (aria-busy viene tolto dagli script). */
+[aria-busy="true"]:empty {
+  display: block;
+  min-height: 7rem;
+  border-radius: var(--radius);
+  background: linear-gradient(90deg,
+    var(--color-paper-dark) 25%, var(--color-paper) 50%, var(--color-paper-dark) 75%);
+  background-size: 200% 100%;
+  animation: lb-skeleton 1.4s ease-in-out infinite;
+}
+.home-welcome__title[aria-busy="true"]:empty { min-height: 2.6rem; max-width: 22rem; }
+@keyframes lb-skeleton {
+  from { background-position: 100% 0; }
+  to   { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [aria-busy="true"]:empty { animation: none; }
+}
+
 /* ---- 23.2 Card "Libreria utente" ---------------------------------- */
 /* Sostituisce la lista chip delle categorie con una vetrina di
    utenti / mini-biblioteche. Stile coerente con .book-card ma
