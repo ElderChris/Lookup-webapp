@@ -311,7 +311,7 @@
               ${prefs.motto ? `<p class="library-hero__motto">«${esc(prefs.motto)}»</p>` : ''}
               <p class="library-hero__bio">${user.bio ? esc(user.bio) : 'Questa libreria non ha ancora una descrizione.'}</p>
               <div class="library-hero__meta">
-                <span>📍 <strong>${esc(user.city || '—')}</strong></span>
+                ${user.city ? `<span>📍 <strong>${esc(user.city)}</strong></span>` : ''}
                 ${distLabel ? `<span>${distLabel}</span>` : ''}
                 <span class="follower-count"><strong id="follower-count">${followerCount}</strong> follower</span>
                 <span>Su Lookup dal <strong>${formatDate(user.joined)}</strong></span>
@@ -331,9 +331,9 @@
             </div>
           </div>
 
-          <!-- Mini-mappa della libreria: un solo pin, controlli ridotti,
-               serve a "dare un volto" al luogo senza distrarre dal catalogo.
-               (Verrà inizializzata da Leaflet dopo il render.) -->
+          <!-- Mini-mappa della libreria: un solo pin, controlli ridotti.
+               Solo se il proprietario mostra la posizione (zona o esatta). -->
+          ${user.lat != null && user.lng != null ? `
           <div class="library-map-wrap" aria-label="Posizione della libreria sulla mappa">
             <div class="library-map" id="library-map"></div>
             <div class="library-map__caption">
@@ -341,7 +341,7 @@
               ${org_profile && org_profile.public_address
                 ? ` · ${esc(org_profile.public_address)}` : ''}
             </div>
-          </div>
+          </div>` : ''}
 
           ${orgPanel}
 
