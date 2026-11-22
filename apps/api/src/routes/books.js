@@ -406,16 +406,26 @@ export default async function booksRoutes(fastify) {
         },
       });
 
-      if (!book) {
-        return reply.status(404).send({
+      const notFound = () =>
+        reply.status(404).send({
           error: { code: 'NOT_FOUND', message: `Libro con id ${id} non trovato` },
         });
+      if (!book) return notFound();
+
+      // Un volume non pubblicato (in attesa della conferma email del
+      // proprietario, nascosto o rimosso) lo vedono solo il proprietario e
+      // gli amministratori
+      const userId = await getCurrentUserId(request);
+      if (book.status !== 'active' && userId !== book.ownerId) {
+        const viewer = userId
+          ? await fastify.prisma.user.findUnique({ where: { id: userId }, select: { role: true } })
+          : null;
+        if (viewer?.role !== 'admin') return notFound();
       }
 
       const dto = toDto(book);
       dto.likesCount = book._count?.likes ?? 0;
       // Stato del "mi piace" per l'utente autenticato (false per gli ospiti)
-      const userId = await getCurrentUserId(request);
       dto.likedByMe = userId
         ? (await fastify.prisma.like.count({ where: { userId, bookId: id } })) > 0
         : false;

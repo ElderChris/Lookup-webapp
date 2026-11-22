@@ -77,8 +77,11 @@ model User {
 
   // Stato account
   role           String    @default("user") @db.VarChar(20)         // user | moderator | admin
+  // pending: iscritto che non ha ancora confermato l'email
   status         String    @default("active") @db.VarChar(20)       // active | pending | suspended | deleted
   emailVerified  Boolean   @default(false) @map("email_verified")
+  // Accettazione di termini e privacy al momento dell'iscrizione
+  termsAcceptedAt DateTime? @map("terms_accepted_at") @db.Timestamptz
   publicProfile  Boolean   @default(true) @map("public_profile")
 
   // Welcome message rotation (Fase 2 v2.6)
@@ -212,7 +215,9 @@ model Book {
 
   // Moderazione
   status        String    @default("active") @db.VarChar(20)
-  // 'active' | 'pending_review' | 'hidden' | 'removed'
+  // 'active' | 'pending_email' | 'pending_review' | 'hidden' | 'removed'
+  // pending_email: volumi inseriti all'iscrizione, pubblicati quando il
+  // proprietario conferma l'email
 
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz

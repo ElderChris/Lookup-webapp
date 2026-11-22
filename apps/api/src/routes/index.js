@@ -7,6 +7,7 @@
 import healthRoutes from './health.js';
 import booksRoutes from './books.js';
 import usersRoutes from './users.js';
+import registerRoutes from './register.js';
 import loansRoutes from './loans.js';
 import postsRoutes from './posts.js';
 import notificationsRoutes from './notifications.js';
@@ -27,6 +28,7 @@ import metricsRoutes from './metrics.js';
 export default async function routes(fastify) {
   await fastify.register(healthRoutes);
   await fastify.register(booksRoutes);
+  await fastify.register(registerRoutes);
   await fastify.register(usersRoutes);
   await fastify.register(loansRoutes);
   await fastify.register(postsRoutes);

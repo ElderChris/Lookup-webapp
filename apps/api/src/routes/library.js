@@ -66,8 +66,8 @@ export default async function libraryRoutes(fastify) {
         }),
         fastify.prisma.organizationProfile.findUnique({ where: { userId: id } }),
         fastify.prisma.userPreference.findUnique({ where: { userId: id } }),
-        fastify.prisma.book.count({ where: { ownerId: id } }),
-        fastify.prisma.book.count({ where: { ownerId: id, available: true } }),
+        fastify.prisma.book.count({ where: { ownerId: id, status: 'active' } }),
+        fastify.prisma.book.count({ where: { ownerId: id, status: 'active', available: true } }),
         // Aggregate loans as either lender (owner) or requester
         fastify.prisma.$queryRawUnsafe(
           `
