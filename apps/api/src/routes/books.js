@@ -138,6 +138,7 @@ export default async function booksRoutes(fastify) {
         FROM books b
         JOIN users u ON u.id = b.owner_id
         WHERE b.status = 'active'
+          AND u.status = 'active'
           AND u.public_location IS NOT NULL
           AND ST_DWithin(
             u.public_location,
@@ -160,6 +161,7 @@ export default async function booksRoutes(fastify) {
         FROM books b
         JOIN users u ON u.id = b.owner_id
         WHERE b.status = 'active'
+          AND u.status = 'active'
           AND u.public_location IS NOT NULL
           AND ST_DWithin(
             u.public_location,
@@ -260,7 +262,8 @@ export default async function booksRoutes(fastify) {
       const meId = liked || following ? await requireUserId(request) : null;
 
       // --- Costruzione WHERE clause ---
-      const where = { status: 'active' };
+      // Solo volumi pubblicati di account attivi
+      const where = { status: 'active', owner: { status: 'active' } };
 
       // Testo: titolo, autore e luogo (citta' pubblica del proprietario,
       // indirizzo pubblico degli enti)
@@ -391,6 +394,7 @@ export default async function booksRoutes(fastify) {
           owner: {
             select: {
               id: true,
+              status: true,
               displayName: true,
               username: true,
               publicCity: true,
@@ -413,10 +417,10 @@ export default async function booksRoutes(fastify) {
       if (!book) return notFound();
 
       // Un volume non pubblicato (in attesa della conferma email del
-      // proprietario, nascosto o rimosso) lo vedono solo il proprietario e
-      // gli amministratori
+      // proprietario, nascosto o rimosso) o di un account sospeso lo vedono
+      // solo il proprietario e gli amministratori
       const userId = await getCurrentUserId(request);
-      if (book.status !== 'active' && userId !== book.ownerId) {
+      if ((book.status !== 'active' || book.owner.status !== 'active') && userId !== book.ownerId) {
         const viewer = userId
           ? await fastify.prisma.user.findUnique({ where: { id: userId }, select: { role: true } })
           : null;

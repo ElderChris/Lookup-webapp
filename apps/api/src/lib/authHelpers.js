@@ -25,8 +25,10 @@ export async function getCurrentUserId(request) {
     for (const [key, value] of Object.entries(request.headers)) {
       if (typeof value === 'string') headers.set(key, value);
     }
-    const session = await auth.api.getSession({ headers });
-    if (session?.user?.id) return session.user.id;
+    // Senza la copia della sessione nel cookie: una sessione chiusa (uscita,
+    // account sospeso o eliminato) smette di valere subito
+    const session = await auth.api.getSession({ headers, query: { disableCookieCache: true } });
+    if (session?.user?.id && session.user.status === 'active') return session.user.id;
   } catch (err) {
     request.log?.debug({ err: err.message }, '[auth] session lookup failed');
   }

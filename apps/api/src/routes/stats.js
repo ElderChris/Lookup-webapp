@@ -88,7 +88,7 @@ export default async function statsRoutes(fastify) {
       // Carica tutti i libri attivi con counts aggregati dalle relazioni
       // del periodo recente. Query Prisma con groupBy + lookup.
       const books = await fastify.prisma.book.findMany({
-        where: { status: 'active' },
+        where: { status: 'active', owner: { status: 'active' } },
         include: {
           owner: {
             select: {
@@ -498,11 +498,11 @@ export default async function statsRoutes(fastify) {
         // Contatori pubblici della home: solo volumi attivi e utenti attivi
         fastify.prisma.$queryRawUnsafe(`
           SELECT
-            (SELECT COUNT(*) FROM books WHERE status = 'active')::int AS books,
+            (SELECT COUNT(*) FROM books WHERE status = 'active' AND owner_id IN (SELECT id FROM users WHERE status = 'active'))::int AS books,
             (SELECT COUNT(*) FROM users WHERE status = 'active' AND role <> 'admin')::int AS readers,
             (SELECT COUNT(DISTINCT bc.category_id) FROM book_categories bc
-               JOIN books b ON b.id = bc.book_id AND b.status = 'active')::int AS categories,
-            (SELECT COALESCE(SUM(view_count), 0) FROM books WHERE status = 'active')::int AS views
+               JOIN books b ON b.id = bc.book_id AND b.status = 'active' AND b.owner_id IN (SELECT id FROM users WHERE status = 'active'))::int AS categories,
+            (SELECT COALESCE(SUM(view_count), 0) FROM books WHERE status = 'active' AND owner_id IN (SELECT id FROM users WHERE status = 'active'))::int AS views
         `),
       ]);
 
@@ -778,7 +778,7 @@ export default async function statsRoutes(fastify) {
       const [kpiRows, activity, macroRows, childRows, coRows, macros, users] = await Promise.all([
         q(`
           SELECT
-            (SELECT COUNT(*) FROM books WHERE status = 'active')::int AS total_books,
+            (SELECT COUNT(*) FROM books WHERE status = 'active' AND owner_id IN (SELECT id FROM users WHERE status = 'active'))::int AS total_books,
             (SELECT COUNT(*) FROM users WHERE status = 'active' AND role <> 'admin')::int AS total_users,
             (SELECT COUNT(*) FROM users WHERE status = 'active' AND role <> 'admin'
                AND library_role = 'curator')::int AS curators_count,
@@ -792,7 +792,7 @@ export default async function statsRoutes(fastify) {
             (SELECT ROUND(AVG(rating)::numeric, 2) FROM reviews)::float AS avg_rating,
             (SELECT COUNT(*) FROM loan_messages)::int AS total_messages,
             (SELECT COUNT(*) FROM notifications)::int AS total_notifications,
-            (SELECT COALESCE(SUM(view_count), 0) FROM books WHERE status = 'active')::int AS total_views
+            (SELECT COALESCE(SUM(view_count), 0) FROM books WHERE status = 'active' AND owner_id IN (SELECT id FROM users WHERE status = 'active'))::int AS total_views
         `),
         // 12 settimane (da lunedi'), la corrente compresa
         q(`
@@ -804,7 +804,7 @@ export default async function statsRoutes(fastify) {
             ) AS w
           )
           SELECT w AS "weekStart",
-            (SELECT COUNT(*) FROM books b WHERE b.status = 'active'
+            (SELECT COUNT(*) FROM books b WHERE b.status = 'active' AND b.owner_id IN (SELECT id FROM users WHERE status = 'active')
                AND b.created_at >= w AND b.created_at < w + interval '1 week')::int AS books,
             (SELECT COUNT(*) FROM loan_requests l
                WHERE l.requested_at >= w AND l.requested_at < w + interval '1 week')::int AS loans,
@@ -821,7 +821,7 @@ export default async function statsRoutes(fastify) {
             FROM books b
             JOIN book_categories x ON x.book_id = b.id
             JOIN categories c ON c.id = x.category_id
-            WHERE b.status = 'active'
+            WHERE b.status = 'active' AND b.owner_id IN (SELECT id FROM users WHERE status = 'active')
           )
           SELECT m.name, COUNT(DISTINCT bc.book_id)::int AS count
           FROM bc JOIN categories m ON m.id = bc.macro_id
@@ -834,7 +834,7 @@ export default async function statsRoutes(fastify) {
           JOIN book_categories x ON x.book_id = b.id
           JOIN categories c ON c.id = x.category_id AND c.parent_id IS NOT NULL
           JOIN categories m ON m.id = c.parent_id
-          WHERE b.status = 'active'
+          WHERE b.status = 'active' AND b.owner_id IN (SELECT id FROM users WHERE status = 'active')
           GROUP BY m.name, c.name ORDER BY count DESC, c.name
         `),
         // Intersezioni fra macro-aree nello stesso libro (diagonale: totale)
@@ -844,7 +844,7 @@ export default async function statsRoutes(fastify) {
             FROM books b
             JOIN book_categories x ON x.book_id = b.id
             JOIN categories c ON c.id = x.category_id
-            WHERE b.status = 'active'
+            WHERE b.status = 'active' AND b.owner_id IN (SELECT id FROM users WHERE status = 'active')
           )
           SELECT ma.name AS a, mb.name AS b, COUNT(*)::int AS count
           FROM bm a1 JOIN bm b1 ON a1.book_id = b1.book_id
@@ -856,7 +856,7 @@ export default async function statsRoutes(fastify) {
         // Utenti attivi con le metriche delle classifiche
         q(`
           SELECT u.id, u.display_name AS name, u.username, u.public_city AS city,
-            (SELECT COUNT(*) FROM books b WHERE b.owner_id = u.id AND b.status = 'active')::int AS books_count,
+            (SELECT COUNT(*) FROM books b WHERE b.owner_id = u.id AND b.status = 'active' AND b.owner_id IN (SELECT id FROM users WHERE status = 'active'))::int AS books_count,
             (SELECT COUNT(*) FROM loan_requests l WHERE l.status = 'returned'
                AND (l.requester_id = u.id OR l.lender_id = u.id))::int AS completed_loans,
             (SELECT COUNT(*) FROM reviews r WHERE r.reviewer_id = u.id)::int AS reviews_written,
@@ -911,7 +911,7 @@ export default async function statsRoutes(fastify) {
              AND l.status IN ('requested','confirmed','borrowed','returning'))::int AS active_loans,
           (SELECT COUNT(*) FROM book_likes k WHERE k.book_id = b.id)::int AS total_likes
         FROM books b
-        WHERE b.status = 'active'
+        WHERE b.status = 'active' AND b.owner_id IN (SELECT id FROM users WHERE status = 'active')
         ORDER BY total_interactions DESC, b.view_count DESC, b.id
         LIMIT $1
       `,

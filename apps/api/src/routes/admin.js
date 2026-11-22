@@ -10,6 +10,8 @@
 
 import { requireUserId } from '../lib/authHelpers.js';
 import { logAdminAction } from '../lib/adminAudit.js';
+import { activateVerifiedAccount, revokeSessions, deleteAccount } from '../lib/accountStatus.js';
+import { sendAccountDeletedEmail } from '../lib/accountEmails.js';
 
 /**
  * Middleware admin: verifica che l'utente autenticato abbia role='admin'.
@@ -127,7 +129,8 @@ export default async function adminRoutes(fastify) {
             bio: { type: ['string', 'null'] },
             city: { type: ['string', 'null'], maxLength: 150 },
             role: { type: 'string', enum: ['user', 'moderator', 'admin'] },
-            status: { type: 'string', enum: ['active', 'pending', 'suspended', 'deleted'] },
+            // active | pending (email da confermare) | suspended
+            status: { type: 'string', enum: ['active', 'pending', 'suspended'] },
             emailVerified: { type: 'boolean' },
           },
         },
@@ -139,12 +142,27 @@ export default async function adminRoutes(fastify) {
       const patch = request.body;
       const existing = await fastify.prisma.user.findUnique({
         where: { id },
-        select: { id: true },
+        select: { id: true, status: true, emailVerified: true },
       });
       if (!existing)
         return reply
           .code(404)
           .send({ error: { code: 'NOT_FOUND', message: 'Utente non trovato' } });
+      // Un amministratore non puo' sospendere se stesso ne' togliersi il ruolo
+      if (
+        id === adminId &&
+        ((patch.status && patch.status !== 'active') || (patch.role && patch.role !== 'admin'))
+      ) {
+        return reply.code(400).send({
+          error: {
+            code: 'CANNOT_CHANGE_SELF',
+            message: 'Non puoi sospendere il tuo account né toglierti il ruolo di amministratore',
+          },
+        });
+      }
+      // Conferma dell'email fatta dall'amministratore: come se l'utente
+      // avesse aperto il link (account attivo, volumi pubblicati)
+      const confirming = patch.emailVerified === true && !existing.emailVerified;
       const updated = await fastify.prisma.user.update({
         where: { id },
         data: patch,
@@ -161,6 +179,14 @@ export default async function adminRoutes(fastify) {
           emailVerified: true,
         },
       });
+      if (confirming) {
+        await activateVerifiedAccount(fastify.prisma, id);
+        updated.status = (
+          await fastify.prisma.user.findUnique({ where: { id }, select: { status: true } })
+        ).status;
+      }
+      // Sospensione: le sessioni aperte si chiudono subito
+      if (patch.status === 'suspended') await revokeSessions(fastify.prisma, id);
       await logAdminAction(fastify, request, {
         adminId,
         action: 'user.update',
@@ -180,7 +206,7 @@ export default async function adminRoutes(fastify) {
     {
       schema: {
         tags: ['Users'],
-        summary: '[ADMIN] Elimina utente (cross-user)',
+        summary: '[ADMIN] Elimina definitivamente un utente e i suoi dati',
         params: {
           type: 'object',
           properties: { id: { type: 'string', minLength: 1, maxLength: 40 } },
@@ -199,19 +225,14 @@ export default async function adminRoutes(fastify) {
           },
         });
       }
-      const existing = await fastify.prisma.user.findUnique({
-        where: { id },
-        select: { id: true },
-      });
-      if (!existing)
+      // Cancellazione definitiva: account e dati collegati (vedi
+      // lib/accountStatus.js). Per sospendere si usa PATCH con status.
+      const deleted = await deleteAccount(fastify.prisma, id);
+      if (!deleted)
         return reply
           .code(404)
           .send({ error: { code: 'NOT_FOUND', message: 'Utente non trovato' } });
-      // Soft delete: mark as deleted invece di cascade fisico (preservazione dati sociali)
-      await fastify.prisma.user.update({
-        where: { id },
-        data: { status: 'deleted' },
-      });
+      await sendAccountDeletedEmail(deleted, { byAdmin: true });
       await logAdminAction(fastify, request, {
         adminId,
         action: 'user.delete',

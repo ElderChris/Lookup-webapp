@@ -148,10 +148,10 @@ const REVIEW_USER_SELECT = {
 async function fetchUserCounts(prisma, userId) {
   const [books, followers, following, reviewsAgg] = await Promise.all([
     prisma.book.count({ where: { ownerId: userId, status: 'active' } }),
-    prisma.follow.count({ where: { followedId: userId } }),
-    prisma.follow.count({ where: { followerId: userId } }),
+    prisma.follow.count({ where: { followedId: userId, follower: { status: 'active' } } }),
+    prisma.follow.count({ where: { followerId: userId, followed: { status: 'active' } } }),
     prisma.review.aggregate({
-      where: { targetUserId: userId },
+      where: { targetUserId: userId, reviewer: { status: 'active' } },
       _count: { _all: true },
       _avg: { rating: true },
     }),
@@ -459,7 +459,11 @@ export default async function usersRoutes(fastify) {
 
       // Beta 3 (Opzione W): role='received' → reviews su questo utente (default)
       //                     role='written'  → reviews scritte da questo utente
-      const whereClause = role === 'written' ? { reviewerId: id } : { targetUserId: id };
+      // Solo recensioni con l'altra parte attiva (non sospesa)
+      const whereClause =
+        role === 'written'
+          ? { reviewerId: id, target: { status: 'active' } }
+          : { targetUserId: id, reviewer: { status: 'active' } };
 
       const [reviews, total, agg, byRating] = await Promise.all([
         fastify.prisma.review.findMany({
@@ -783,7 +787,7 @@ export default async function usersRoutes(fastify) {
 
       const [follows, total] = await Promise.all([
         fastify.prisma.follow.findMany({
-          where: { followedId: id },
+          where: { followedId: id, follower: { status: 'active' } },
           skip: offset,
           take: limit,
           orderBy: { createdAt: 'desc' },
@@ -800,7 +804,7 @@ export default async function usersRoutes(fastify) {
             },
           },
         }),
-        fastify.prisma.follow.count({ where: { followedId: id } }),
+        fastify.prisma.follow.count({ where: { followedId: id, follower: { status: 'active' } } }),
       ]);
 
       return {
@@ -838,7 +842,7 @@ export default async function usersRoutes(fastify) {
 
       const [follows, total] = await Promise.all([
         fastify.prisma.follow.findMany({
-          where: { followerId: id },
+          where: { followerId: id, followed: { status: 'active' } },
           skip: offset,
           take: limit,
           orderBy: { createdAt: 'desc' },
@@ -855,7 +859,7 @@ export default async function usersRoutes(fastify) {
             },
           },
         }),
-        fastify.prisma.follow.count({ where: { followerId: id } }),
+        fastify.prisma.follow.count({ where: { followerId: id, followed: { status: 'active' } } }),
       ]);
 
       return {

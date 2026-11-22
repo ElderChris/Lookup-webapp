@@ -14,6 +14,7 @@
 // =============================================================================
 
 import { betterAuth } from 'better-auth';
+import { APIError } from 'better-auth/api';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { prisma } from './prisma.js';
 import { smtpTransport, SMTP_FROM } from './mailer.js';
@@ -23,14 +24,9 @@ import {
   verifyEmailLink,
   resetPasswordLink,
 } from './authLinks.js';
+import { activateVerifiedAccount, BLOCKED_STATUSES } from './accountStatus.js';
 
-/** Escape minimo per i valori inseriti nell'HTML delle email. */
-function esc(value) {
-  return String(value ?? '').replace(
-    /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
-  );
-}
+import { escapeHtml as esc } from './accountEmails.js';
 
 async function sendMail({ to, subject, text, html }) {
   try {
@@ -100,6 +96,11 @@ export const auth = betterAuth({
     },
   },
 
+  // L'iscrizione diretta di Better Auth e' chiusa: si passa solo da
+  // POST /api/register, che controlla consensi e dati del profilo. La
+  // chiamata interna auth.api.signUpEmail resta disponibile.
+  disabledPaths: ['/sign-up/email'],
+
   // -- Verifica email --------------------------------------------------------
   emailVerification: {
     sendOnSignUp: true,
@@ -123,16 +124,29 @@ export const auth = betterAuth({
     // Email confermata: l'account diventa attivo e i volumi inseriti
     // all'iscrizione vengono pubblicati
     afterEmailVerification: async (user) => {
-      await prisma.$transaction([
-        prisma.user.updateMany({
-          where: { id: user.id, status: 'pending' },
-          data: { status: 'active' },
-        }),
-        prisma.book.updateMany({
-          where: { ownerId: user.id, status: 'pending_email' },
-          data: { status: 'active' },
-        }),
-      ]);
+      await activateVerifiedAccount(prisma, user.id);
+    },
+  },
+
+  // -- Account sospesi -------------------------------------------------------
+  // Nessuna nuova sessione per un account sospeso: vale per l'accesso con
+  // password e per quello automatico dopo la conferma email
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          const user = await prisma.user.findUnique({
+            where: { id: session.userId },
+            select: { status: true },
+          });
+          if (user && BLOCKED_STATUSES.includes(user.status)) {
+            throw new APIError('FORBIDDEN', {
+              code: 'ACCOUNT_SUSPENDED',
+              message: "Questo account è sospeso. Per informazioni scrivi all'amministrazione.",
+            });
+          }
+        },
+      },
     },
   },
 
@@ -140,9 +154,13 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 giorni
     updateAge: 60 * 60 * 24, // refresh giornaliero (sliding window)
+    // Copia firmata della sessione nel cookie, usata dalla lettura della
+    // sessione del sito (get-session) per evitare una query a ogni pagina.
+    // Breve, perche' un account sospeso o eliminato esca presto anche dalle
+    // pagine; le API invece la ignorano (authHelpers.getCurrentUserId).
     cookieCache: {
-      enabled: true, // cache in cookie firmato (evita lookup DB ad ogni request)
-      maxAge: 5 * 60, // 5 minuti
+      enabled: true,
+      maxAge: 60,
     },
   },
 
@@ -217,7 +235,6 @@ export const auth = betterAuth({
       // tanti dietro lo stesso IP, per risultare disconnessi
       '/get-session': { window: 60, max: 600 },
       '/sign-in/email': { window: 60, max: 5 }, // login piu' stretto
-      '/sign-up/email': { window: 300, max: 3 }, // signup ancora piu'
       '/request-password-reset': { window: 300, max: 3 },
       '/send-verification-email': { window: 300, max: 3 },
     },

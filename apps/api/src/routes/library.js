@@ -79,13 +79,18 @@ export default async function libraryRoutes(fastify) {
           id
         ),
         Promise.all([
-          fastify.prisma.follow.count({ where: { followedId: id } }),
-          fastify.prisma.follow.count({ where: { followerId: id } }),
+          fastify.prisma.follow.count({
+            where: { followedId: id, follower: { status: 'active' } },
+          }),
+          fastify.prisma.follow.count({
+            where: { followerId: id, followed: { status: 'active' } },
+          }),
         ]),
         fastify.prisma.$queryRawUnsafe(
           `
           SELECT COUNT(*)::int AS cnt, AVG(rating)::float AS avg_rating
-          FROM reviews WHERE target_user_id = $1
+          FROM reviews r JOIN users w ON w.id = r.reviewer_id AND w.status = 'active'
+          WHERE r.target_user_id = $1
         `,
           id
         ),

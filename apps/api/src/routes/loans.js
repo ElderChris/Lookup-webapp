@@ -249,9 +249,17 @@ export default async function loansRoutes(fastify) {
       // Carica book per validazione
       const book = await fastify.prisma.book.findUnique({
         where: { id: bookId },
-        select: { id: true, ownerId: true, status: true, loanPolicy: true, available: true },
+        select: {
+          id: true,
+          ownerId: true,
+          status: true,
+          loanPolicy: true,
+          available: true,
+          owner: { select: { status: true } },
+        },
       });
-      if (!book || book.status === 'removed') {
+      // Solo volumi pubblicati di account attivi
+      if (!book || book.status !== 'active' || book.owner.status !== 'active') {
         return reply.status(404).send({
           error: { code: 'NOT_FOUND', message: `Libro con id ${bookId} non trovato` },
         });

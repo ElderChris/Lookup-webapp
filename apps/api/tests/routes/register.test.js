@@ -234,6 +234,21 @@ describe('POST /api/register', () => {
   });
 });
 
+describe('iscrizione diretta di Better Auth', () => {
+  it('chiusa: 404', async () => {
+    const app = await buildTestApp();
+    const p = body();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      headers: { origin: 'http://localhost:8080' },
+      payload: { email: p.email, password: p.password, name: p.name, username: p.username },
+    });
+    expect(res.statusCode).toBe(404);
+    expect(await prisma.user.count({ where: { email: p.email } })).toBe(0);
+  });
+});
+
 describe('link delle email', () => {
   it('verifica: pagina del sito con i suoi parametri piu il token', () => {
     const url = `http://localhost:3001/api/auth/verify-email?token=T&callbackURL=${encodeURIComponent(CALLBACK)}`;
