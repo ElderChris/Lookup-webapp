@@ -155,11 +155,26 @@ export const auth = betterAuth({
   rateLimit: {
     enabled: process.env.NODE_ENV !== 'test',
     window: 60, // 60 secondi
-    max: 10, // 10 richieste per window per IP
+    max: 100, // richieste per window per IP sugli altri endpoint di auth
     customRules: {
+      // Letta a ogni caricamento di pagina: con un limite basso (prima 10/min,
+      // condiviso fra tutti gli endpoint) bastava navigare un po', o essere in
+      // tanti dietro lo stesso IP, per risultare disconnessi
+      '/get-session': { window: 60, max: 600 },
       '/sign-in/email': { window: 60, max: 5 }, // login piu' stretto
       '/sign-up/email': { window: 300, max: 3 }, // signup ancora piu'
       '/request-password-reset': { window: 300, max: 3 },
+    },
+  },
+
+  // -- IP del client per il rate limit ---------------------------------------
+  // L'API e' raggiungibile solo attraverso nginx, che imposta X-Real-IP con
+  // l'indirizzo del client. X-Forwarded-For resta come riserva: con piu'
+  // proxy in catena contiene piu' indirizzi e Better Auth non lo userebbe,
+  // finendo su un contatore unico per tutti gli utenti.
+  advanced: {
+    ipAddress: {
+      ipAddressHeaders: ['x-real-ip', 'x-forwarded-for'],
     },
   },
 
