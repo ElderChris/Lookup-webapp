@@ -22,6 +22,10 @@
 
 /** Messaggi di benvenuto, neutri rispetto al genere (niente
     "Bentornato/Bentornata"); rotazione basata su user.welcomeIndex. */
+// Disegni delle copertine (con le funzioni render) e le loro chiavi: un'unica
+// fonte in data.js, usata anche dal selettore delle impostazioni
+import { LIBRARY_COVER_DESIGN_MAP } from './data.js';
+
 export const WELCOME_MESSAGES = [
   'Ciao {name}, buona lettura.',
   'Eccoti, {name}.',
@@ -56,20 +60,6 @@ export function getWelcomeMessage(user) {
 // -----------------------------------------------------------------------------
 // Library cover graphics
 // -----------------------------------------------------------------------------
-
-/**
- * Mapping design keys → SVG configuration. Le chiavi sono referenziate
- * da UserPreference.coverDesign.
- * Se serve estendere: aggiungere qui + rendering in ui.js.
- */
-export const LIBRARY_COVER_DESIGN_MAP = {
-  'g-section': { name: 'Sezione Aurea', pattern: 'grid', accent: 'gold' },
-  'i-shelf': { name: 'Scaffale', pattern: 'shelves', accent: 'wood' },
-  monogram: { name: 'Monogramma', pattern: 'monogram', accent: 'bordeaux' },
-  stripes: { name: 'Righe', pattern: 'stripes', accent: 'ink' },
-  dots: { name: 'Punti', pattern: 'dots', accent: 'sepia' },
-  plain: { name: 'Semplice', pattern: 'none', accent: 'neutral' },
-};
 
 /**
  * Restituisce i dati grafici della cover libreria: theme class, glyph,
