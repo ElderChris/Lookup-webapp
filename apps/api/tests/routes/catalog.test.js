@@ -79,6 +79,8 @@ describe('GET /api/libraries', () => {
     const scored = libs.filter((l) => l.rankScore != null).map((l) => l.rankScore);
     expect(scored).toEqual([...scored].sort((a, b) => a - b));
     expect(libs.some((l) => l.accountType === 'organization')).toBe(true);
+    expect(chiara).toHaveProperty('reviewsCount');
+    expect(chiara).toHaveProperty('avgRating');
   });
 
   it("senza posizione: per attivita', senza distanze; esclude l'utente corrente", async () => {

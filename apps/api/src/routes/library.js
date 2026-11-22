@@ -227,6 +227,8 @@ export default async function libraryRoutes(fastify) {
           (COUNT(b.id) FILTER (WHERE b.available))::int AS "availableCount",
           COALESCE(SUM(b.view_count), 0)::int AS "totalViews",
           MAX(b.created_at) AS "lastAddedAt",
+          (SELECT COUNT(*) FROM reviews r WHERE r.target_user_id = u.id)::int AS "reviewsCount",
+          (SELECT AVG(r.rating) FROM reviews r WHERE r.target_user_id = u.id)::float AS "avgRating",
           CASE
             WHEN ${hasPoint} AND u.public_location IS NOT NULL THEN
               ST_Distance(
