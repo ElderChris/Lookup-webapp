@@ -369,7 +369,7 @@ export default async function statsRoutes(fastify) {
         const totalScore = loanScore + reviewScore + postScore + ratingBonus;
 
         return {
-          id: Number(r.id),
+          id: r.id,
           username: r.username,
           displayName: r.display_name,
           city: r.city,
@@ -477,6 +477,7 @@ export default async function statsRoutes(fastify) {
         totalFollows,
         totalLikes,
         loanCountsRaw,
+        publicRaw,
       ] = await Promise.all([
         fastify.prisma.user.count(),
         fastify.prisma.user.count({ where: { accountType: 'person' } }),
@@ -493,6 +494,15 @@ export default async function statsRoutes(fastify) {
         fastify.prisma.like.count(),
         fastify.prisma.$queryRawUnsafe(`
           SELECT status, COUNT(*)::int AS cnt FROM loan_requests GROUP BY status
+        `),
+        // Contatori pubblici della home: solo volumi attivi e utenti attivi
+        fastify.prisma.$queryRawUnsafe(`
+          SELECT
+            (SELECT COUNT(*) FROM books WHERE status = 'active')::int AS books,
+            (SELECT COUNT(*) FROM users WHERE status = 'active' AND role <> 'admin')::int AS readers,
+            (SELECT COUNT(DISTINCT bc.category_id) FROM book_categories bc
+               JOIN books b ON b.id = bc.book_id AND b.status = 'active')::int AS categories,
+            (SELECT COALESCE(SUM(view_count), 0) FROM books WHERE status = 'active')::int AS views
         `),
       ]);
 
@@ -520,6 +530,8 @@ export default async function statsRoutes(fastify) {
         totalReviews,
         totalFollows,
         totalLikes,
+        // Per i contatori della home
+        publicCounters: publicRaw[0],
       };
     }
   );

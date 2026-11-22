@@ -63,6 +63,11 @@ function toDto(book) {
       avatarUrl: book.owner.avatarUrl,
     };
     if (book.owner.bio !== undefined) dto.owner.bio = book.owner.bio;
+    // Posizione pubblica del proprietario (per la mappa), quando richiesta
+    if (book.owner.publicLat !== undefined) {
+      dto.owner.lat = book.owner.publicLat ?? null;
+      dto.owner.lng = book.owner.publicLng ?? null;
+    }
   }
 
   return dto;
@@ -211,6 +216,9 @@ export default async function booksRoutes(fastify) {
           properties: {
             q: { type: 'string', minLength: 1, maxLength: 200 },
             category: { type: 'integer', minimum: 1 },
+            // Piu' generi separati da virgola: libri con almeno uno di essi;
+            // una macro-area include i suoi sottogeneri
+            categories: { type: 'string', pattern: '^[0-9]+(,[0-9]+)*$', maxLength: 300 },
             ownerId: { type: 'string', minLength: 1, maxLength: 40 },
             available: { type: 'boolean' },
             // Solo per l'utente autenticato: volumi con il suo "mi piace" e
@@ -224,7 +232,7 @@ export default async function booksRoutes(fastify) {
             offset: { type: 'integer', minimum: 0, default: 0 },
             sort: {
               type: 'string',
-              enum: ['recent', 'title', 'author', 'year'],
+              enum: ['recent', 'title', 'author', 'year', 'requested'],
               default: 'recent',
             },
           },
@@ -236,6 +244,7 @@ export default async function booksRoutes(fastify) {
       const {
         q,
         category,
+        categories,
         ownerId,
         available,
         liked,
@@ -253,29 +262,49 @@ export default async function booksRoutes(fastify) {
       // --- Costruzione WHERE clause ---
       const where = { status: 'active' };
 
+      // Testo: titolo, autore e luogo (citta' pubblica del proprietario,
+      // indirizzo pubblico degli enti)
       if (q) {
         where.OR = [
           { title: { contains: q, mode: 'insensitive' } },
           { author: { contains: q, mode: 'insensitive' } },
+          { owner: { publicCity: { contains: q, mode: 'insensitive' } } },
+          {
+            owner: {
+              organizationProfile: { publicAddress: { contains: q, mode: 'insensitive' } },
+            },
+          },
         ];
       }
+      const and = [];
       if (typeof available === 'boolean') where.available = available;
       if (ownerId) where.ownerId = ownerId;
       if (category) where.categories = { some: { categoryId: category } };
-
-      // Geo filter: bounding box semplice (in 1f sarà ST_DWithin via PostGIS).
-      // Filtra prima i libri, poi i loro owner devono essere nel box.
-      if (lat != null && lng != null && radius != null) {
-        // ~1 grado lat = 111km; ~1 grado lng = 111km * cos(lat)
-        const deltaLat = radius / 111000;
-        const deltaLng = radius / (111000 * Math.cos((lat * Math.PI) / 180));
-        // Coordinate pubbliche: chi ha la posizione nascosta o solo la
-        // citta' non compare nelle ricerche per distanza
-        where.owner = {
-          publicLat: { gte: lat - deltaLat, lte: lat + deltaLat },
-          publicLng: { gte: lng - deltaLng, lte: lng + deltaLng },
-        };
+      if (categories) {
+        const ids = categories.split(',').map(Number);
+        const withChildren = await fastify.prisma.category.findMany({
+          where: { OR: [{ id: { in: ids } }, { parentId: { in: ids } }] },
+          select: { id: true },
+        });
+        and.push({
+          categories: { some: { categoryId: { in: withChildren.map((c) => c.id) } } },
+        });
       }
+
+      // Raggio: PostGIS sulla posizione pubblica dei proprietari. Chi ha la
+      // posizione nascosta o solo la citta' non compare.
+      if (lat != null && lng != null && radius != null) {
+        const near = await fastify.prisma.$queryRaw`
+          SELECT id FROM users
+          WHERE public_location IS NOT NULL
+            AND ST_DWithin(
+              public_location,
+              ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+              ${radius}
+            )`;
+        and.push({ ownerId: { in: near.map((r) => r.id) } });
+      }
+      if (and.length) where.AND = and;
 
       if (liked) where.likes = { some: { userId: meId } };
       if (following) {
@@ -288,6 +317,7 @@ export default async function booksRoutes(fastify) {
         title: { title: 'asc' },
         author: { author: 'asc' },
         year: { year: 'desc' },
+        requested: [{ requestCount: 'desc' }, { viewCount: 'desc' }],
       }[sort];
 
       // --- Query + count in parallelo ---
@@ -303,6 +333,8 @@ export default async function booksRoutes(fastify) {
                 id: true,
                 displayName: true,
                 publicCity: true,
+                publicLat: true,
+                publicLng: true,
                 accountType: true,
                 avatarUrl: true,
               },
@@ -315,8 +347,22 @@ export default async function booksRoutes(fastify) {
         fastify.prisma.book.count({ where }),
       ]);
 
+      // "Mi piace" dell'utente autenticato sui libri della pagina
+      const currentUserId = meId || (await getCurrentUserId(request));
+      let likedIds = new Set();
+      if (currentUserId && books.length) {
+        const likes = await fastify.prisma.like.findMany({
+          where: { userId: currentUserId, bookId: { in: books.map((b) => b.id) } },
+          select: { bookId: true },
+        });
+        likedIds = new Set(likes.map((l) => l.bookId));
+      }
+
       return {
-        data: books.map(toDto),
+        data: books.map((b) => ({
+          ...toDto(b),
+          ...(currentUserId ? { likedByMe: likedIds.has(b.id) } : {}),
+        })),
         pagination: { total, limit, offset },
       };
     }
