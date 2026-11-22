@@ -195,3 +195,60 @@ describe('cancellazione', () => {
     expect(res.statusCode).toBe(401);
   });
 });
+
+describe('volumi (amministrazione)', () => {
+  it('elenco completo con filtro per stato; solo per gli amministratori', async () => {
+    const app = await buildTestApp();
+    const u = await newUser({ verify: false });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/admin/books?status=pending_email&limit=200',
+      headers: await authHeaders(SEED.USER_ADMIN),
+    });
+    expect(res.statusCode).toBe(200);
+    const row = res.json().data.find((b) => b.id === u.bookId);
+    expect(row).toMatchObject({ status: 'pending_email', owner: { id: u.id, status: 'pending' } });
+
+    const asUser = await app.inject({
+      method: 'GET',
+      url: '/api/admin/books',
+      headers: await authHeaders(SEED.USER_MARCO),
+    });
+    expect(asUser.statusCode).toBe(403);
+  });
+
+  it('nascondere e ripubblicare; un volume in attesa di conferma non si pubblica a mano', async () => {
+    const app = await buildTestApp();
+    const admin = await authHeaders(SEED.USER_ADMIN);
+    const u = await newUser();
+    const hide = await app.inject({
+      method: 'PATCH',
+      url: `/api/admin/books/${u.bookId}`,
+      headers: admin,
+      payload: { status: 'hidden' },
+    });
+    expect(hide.statusCode).toBe(200);
+    expect((await app.inject({ method: 'GET', url: `/api/books/${u.bookId}` })).statusCode).toBe(
+      404
+    );
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/admin/books/${u.bookId}`,
+      headers: admin,
+      payload: { status: 'active' },
+    });
+    expect((await app.inject({ method: 'GET', url: `/api/books/${u.bookId}` })).statusCode).toBe(
+      200
+    );
+
+    const pending = await newUser({ verify: false });
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/admin/books/${pending.bookId}`,
+      headers: admin,
+      payload: { status: 'active' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('BOOK_PENDING_EMAIL');
+  });
+});

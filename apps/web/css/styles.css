@@ -3860,26 +3860,6 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 .empty-state__hint a { color: var(--color-burgundy); text-decoration: underline; }
 
-/* ---- "Email simulata" sulla pagina di reset password ----------- */
-.simulated-email {
-  margin-top: var(--sp-4);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius);
-  background: var(--color-paper-dark);
-  overflow: hidden;
-}
-.simulated-email__header {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px var(--sp-4);
-  background: rgba(176, 136, 64, 0.12);    /* oro pallido = "demo" */
-  border-bottom: 1px dashed var(--color-line);
-  font-size: 0.82rem;
-}
-.simulated-email__body {
-  padding: var(--sp-4);
-  background: var(--color-paper);
-}
-
 /* ---- Campo password con toggle "occhio" ------------------------ */
 .password-field { position: relative; }
 .password-field__toggle {
@@ -6251,11 +6231,14 @@ a:hover { color: var(--color-burgundy-dk); }
 .status-pill--ok  { background: rgba(110,122,90,.18); color: var(--color-sage); }
 .status-pill--off { background: var(--color-paper-dark); color: var(--color-ink-soft); }
 
-/* System pane */
-.admin-system-actions {
+/* Conteggio e "Mostra altri" sotto le tabelle del pannello admin */
+.admin-pager {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  color: var(--color-ink-soft);
+  font-size: .88rem;
 }
 
 /* ---- Modal ----------------------------------------------------- */
