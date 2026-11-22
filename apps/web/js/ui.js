@@ -1072,13 +1072,29 @@ export const UI = {
      Usato da profile.html (tab Post), library.html (tab Post sul
      profilo pubblico), index.html (aggiornamenti recenti). */
 
-  renderPostComposer(container, options = {}) {
+  /* Post delle librerie (dal server). Una reazione per utente, si
+     pubblica con almeno un volume, una segnalazione per post. */
+  POST_MAX_LENGTH: 500,
+  REACTION_EMOJI: ['👍', '❤️', '👏', '🤔'],
+
+  /** Composer dei post. options.canPublish: se l'utente ha almeno un
+      volume (se assente lo chiede al server); options.onPublished. */
+  async renderPostComposer(container, options = {}) {
     const me = window.LB_UI.currentUser();
     if (!me) {
       container.innerHTML = '';
       return;
     }
-    if (!API.canPublishPosts(me.id)) {
+    let canPublish = options.canPublish;
+    if (canPublish === undefined) {
+      try {
+        const res = await window.LB_API.books.list({ ownerId: me.id, limit: 1 });
+        canPublish = res.pagination.total > 0;
+      } catch (_err) {
+        canPublish = true; // decide il server alla pubblicazione
+      }
+    }
+    if (!canPublish) {
       container.innerHTML = `
         <div class="post-composer post-composer--locked">
           <p>📝 <strong>Pubblica almeno un volume</strong> per poter scrivere aggiornamenti
@@ -1086,26 +1102,22 @@ export const UI = {
         </div>`;
       return;
     }
+    const max = UI.POST_MAX_LENGTH;
     container.innerHTML = `
       <form class="post-composer" id="post-composer-form">
         <div class="post-composer__avatar" aria-hidden="true">
           ${
             me.avatar_url
               ? `<img class="post-composer__avatar-img" src="${this._escapeHtml(me.avatar_url)}" alt="">`
-              : (me.display_name || '?')
-                  .split(' ')
-                  .map((s) => s[0])
-                  .join('')
-                  .slice(0, 2)
-                  .toUpperCase()
+              : this._escapeHtml(UI._initials(me.display_name || me.username))
           }
         </div>
         <div class="post-composer__body">
           <textarea name="content" class="post-composer__textarea" rows="3"
-                    maxlength="${API.POST_MAX_LENGTH}"
+                    maxlength="${max}"
                     placeholder="Condividi un aggiornamento sulla tua libreria…" required></textarea>
           <div class="post-composer__bar">
-            <span class="post-composer__count" id="post-count">0 / ${API.POST_MAX_LENGTH}</span>
+            <span class="post-composer__count" id="post-count">0 / ${max}</span>
             <button type="submit" class="btn btn--primary btn--small">Pubblica</button>
           </div>
         </div>
@@ -1113,29 +1125,46 @@ export const UI = {
     const form = container.querySelector('#post-composer-form');
     const ta = form.querySelector('textarea');
     const counter = container.querySelector('#post-count');
+    const submitBtn = form.querySelector('button[type="submit"]');
     ta.addEventListener('input', () => {
-      counter.textContent = `${ta.value.length} / ${API.POST_MAX_LENGTH}`;
-      counter.classList.toggle('is-near-limit', ta.value.length > API.POST_MAX_LENGTH * 0.85);
+      counter.textContent = `${ta.value.length} / ${max}`;
+      counter.classList.toggle('is-near-limit', ta.value.length > max * 0.85);
     });
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const r = API.createPost(ta.value);
-      if (r.ok) {
+      const content = ta.value.trim();
+      if (!content) {
+        UI.toast('Il post non può essere vuoto.', 'error');
+        return;
+      }
+      submitBtn.disabled = true;
+      try {
+        await window.LB_API.posts.create({ content });
         UI.toast('Post pubblicato.', 'success');
         ta.value = '';
-        counter.textContent = `0 / ${API.POST_MAX_LENGTH}`;
+        counter.textContent = `0 / ${max}`;
         if (options.onPublished) options.onPublished();
-      } else {
-        const msgs = {
-          'no-books': 'Per pubblicare un post devi prima aggiungere almeno un volume.',
-          empty: 'Il post non può essere vuoto.',
-          'too-long': `Massimo ${API.POST_MAX_LENGTH} caratteri.`,
-        };
-        UI.toast(msgs[r.reason] || 'Errore: ' + r.reason, 'error');
+      } catch (err) {
+        UI.toast(err.message || 'Pubblicazione non riuscita. Riprova.', 'error');
+      } finally {
+        submitBtn.disabled = false;
       }
     });
   },
 
+  /** Iniziali (massimo due) da un nome. */
+  _initials(name) {
+    return String(name || '?')
+      .trim()
+      .split(/\s+/)
+      .map((w) => w[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  },
+
+  /** Elenco di post (DTO del server: author, reactionsByEmoji,
+      myReactions, reportedByMe, createdAt). */
   renderPostsFeed(container, posts, options = {}) {
     const me = window.LB_UI.currentUser();
     if (posts.length === 0) {
@@ -1147,70 +1176,51 @@ export const UI = {
   },
 
   _renderPostCard(post, me, options) {
-    const author = API.getUser(post.author_id) || { display_name: 'Sconosciuto', username: '?' };
-    const myReaction = me ? API.getUserReaction(post.id, me.id) : null;
-    const totalReactions = Object.values(post.reactions || {}).reduce(
-      (s, arr) => s + (arr || []).length,
-      0
-    );
-    const hasReported = me && (post.reports || []).some((r) => +r.reporter_id === +me.id);
+    const esc = (v) => this._escapeHtml(v);
+    const author = post.author || { id: '', displayName: 'Utente', username: '' };
+    const authorHref = `library.html?id=${encodeURIComponent(author.id)}`;
+    const isMine = !!me && author.id === me.id;
+    const myReaction = (post.myReactions || [])[0] || null;
     const showAuthor = options.showAuthor !== false;
-    const canDelete = me && (+post.author_id === +me.id || me.is_admin);
-    // v2.5: avatar dell'autore — foto se presente, altrimenti iniziali
-    const authorAvatarInner = author.avatar_data_url
-      ? `<img class="post-card__avatar-img" src="${author.avatar_data_url}" alt="">`
-      : (author.display_name || '?')
-          .split(' ')
-          .map((s) => s[0])
-          .join('')
-          .slice(0, 2)
-          .toUpperCase();
+    const authorAvatarInner = author.avatarUrl
+      ? `<img class="post-card__avatar-img" src="${esc(author.avatarUrl)}" alt="">`
+      : esc(UI._initials(author.displayName || author.username));
 
-    const reactionsHtml = API.REACTION_EMOJI.map((em) => {
-      const count = (post.reactions?.[em] || []).length;
-      const isMine = myReaction === em;
-      return `<button type="button" class="post-reaction ${isMine ? 'is-mine' : ''} ${count > 0 ? 'has-count' : ''}"
-                      data-post-react="${post.id}" data-emoji="${em}"
-                      aria-pressed="${isMine}" title="Reagisci con ${em}">
+    const reactionsHtml = UI.REACTION_EMOJI.map((em) => {
+      const count = (post.reactionsByEmoji || {})[em] || 0;
+      const mine = myReaction === em;
+      return `<button type="button" class="post-reaction ${mine ? 'is-mine' : ''} ${count > 0 ? 'has-count' : ''}"
+                      data-post-react="${esc(post.id)}" data-emoji="${em}" data-mine="${mine}"
+                      aria-pressed="${mine}" title="Reagisci con ${em}">
         <span class="post-reaction__emoji" aria-hidden="true">${em}</span>
         ${count > 0 ? `<span class="post-reaction__count">${count}</span>` : ''}
       </button>`;
     }).join('');
 
+    const deleteBtn = isMine
+      ? `<button type="button" class="post-card__delete" data-post-delete="${esc(post.id)}"
+                 title="Elimina post" aria-label="Elimina post">🗑</button>`
+      : '';
+
     return `
-      <article class="post-card" data-post-id="${post.id}">
+      <article class="post-card" data-post-id="${esc(post.id)}">
         ${
           showAuthor
             ? `
         <header class="post-card__head">
-          <a href="library.html?id=${author.id}" class="post-card__avatar" aria-hidden="true">
+          <a href="${authorHref}" class="post-card__avatar" aria-hidden="true">
             ${authorAvatarInner}
           </a>
           <div class="post-card__author">
-            <a href="library.html?id=${author.id}" class="post-card__name">${author.display_name}</a>
-            <span class="post-card__time">${UI.timeAgo(post.created_at)}</span>
+            <a href="${authorHref}" class="post-card__name">${esc(author.displayName || author.username)}</a>
+            <span class="post-card__time">${UI.timeAgo(post.createdAt)}</span>
           </div>
-          ${
-            canDelete
-              ? `
-            <button type="button" class="post-card__delete" data-post-delete="${post.id}"
-                    title="Elimina post" aria-label="Elimina post">🗑</button>
-          `
-              : ''
-          }
-        </header>
-        `
+          ${deleteBtn}
+        </header>`
             : `
         <header class="post-card__head post-card__head--anon">
-          <span class="post-card__time">${UI.timeAgo(post.created_at)}</span>
-          ${
-            canDelete
-              ? `
-            <button type="button" class="post-card__delete" data-post-delete="${post.id}"
-                    title="Elimina post" aria-label="Elimina post">🗑</button>
-          `
-              : ''
-          }
+          <span class="post-card__time">${UI.timeAgo(post.createdAt)}</span>
+          ${deleteBtn}
         </header>`
         }
         <p class="post-card__content">${UI._escapePostContent(post.content)}</p>
@@ -1219,15 +1229,14 @@ export const UI = {
             ${reactionsHtml}
           </div>
           ${
-            me && +post.author_id !== +me.id
+            me && !isMine
               ? `
-            <button type="button" class="post-card__report ${hasReported ? 'is-reported' : ''}"
-                    data-post-report="${post.id}"
-                    title="${hasReported ? 'Già segnalato' : 'Segnala come inappropriato'}"
-                    ${hasReported ? 'disabled' : ''}>
-              ${hasReported ? '⚐ Segnalato' : '⚐ Segnala'}
-            </button>
-          `
+            <button type="button" class="post-card__report ${post.reportedByMe ? 'is-reported' : ''}"
+                    data-post-report="${esc(post.id)}"
+                    title="${post.reportedByMe ? 'Già segnalato' : 'Segnala come inappropriato'}"
+                    ${post.reportedByMe ? 'disabled' : ''}>
+              ${post.reportedByMe ? '⚐ Segnalato' : '⚐ Segnala'}
+            </button>`
               : ''
           }
         </footer>
@@ -1242,38 +1251,41 @@ export const UI = {
   },
 
   _wirePostsFeed(container, options = {}) {
-    // Reactions
-    container.addEventListener('click', (e) => {
+    // Un solo gestore anche se l'elenco viene ridisegnato
+    container.onclick = async (e) => {
       const reactBtn = e.target.closest('[data-post-react]');
       const reportBtn = e.target.closest('[data-post-report]');
       const deleteBtn = e.target.closest('[data-post-delete]');
+      if (!reactBtn && !reportBtn && !deleteBtn) return;
 
-      if (reactBtn) {
-        const me = window.LB_UI.currentUser();
-        if (!me) {
-          UI.toast('Accedi per reagire ai post.', 'info');
-          return;
-        }
-        const r = API.togglePostReaction(reactBtn.dataset.postReact, reactBtn.dataset.emoji);
-        if (r.ok && options.onChange) options.onChange();
+      if ((reactBtn || reportBtn) && !window.LB_UI.currentUser()) {
+        UI.toast(
+          reactBtn ? 'Accedi per reagire ai post.' : 'Accedi per segnalare un post.',
+          'info'
+        );
+        return;
       }
-      if (reportBtn) {
-        const me = window.LB_UI.currentUser();
-        if (!me) {
-          UI.toast('Accedi per segnalare un post.', 'info');
-          return;
+      try {
+        if (reactBtn) {
+          const { postReact: id, emoji, mine } = reactBtn.dataset;
+          // Stessa emoji: la si toglie; un'altra: sostituisce la precedente
+          if (mine === 'true') await window.LB_API.posts.unreact(id, emoji);
+          else await window.LB_API.posts.react(id, emoji);
+          if (options.onChange) options.onChange();
         }
-        UI._openReportModal(reportBtn.dataset.postReport, options.onChange);
-      }
-      if (deleteBtn) {
-        if (!confirm('Eliminare definitivamente questo post?')) return;
-        const r = API.deletePost(deleteBtn.dataset.postDelete);
-        if (r.ok) {
+        if (reportBtn) {
+          UI._openReportModal(reportBtn.dataset.postReport, options.onChange);
+        }
+        if (deleteBtn) {
+          if (!confirm('Eliminare definitivamente questo post?')) return;
+          await window.LB_API.posts.remove(deleteBtn.dataset.postDelete);
           UI.toast('Post eliminato.', 'info');
           if (options.onChange) options.onChange();
-        } else UI.toast('Errore: ' + r.reason, 'error');
+        }
+      } catch (err) {
+        UI.toast(err.message || 'Operazione non riuscita. Riprova.', 'error');
       }
-    });
+    };
   },
 
   _openReportModal(postId, onDone) {
@@ -1285,17 +1297,17 @@ export const UI = {
     modal.id = 'report-post-modal';
     modal.innerHTML = `
       <div class="admin-modal__backdrop" data-modal-close></div>
-      <div class="admin-modal__card" role="dialog" aria-modal="true">
-        <h3 class="admin-modal__title">Segnala questo post</h3>
+      <div class="admin-modal__card" role="dialog" aria-modal="true" aria-labelledby="report-post-title">
+        <h3 class="admin-modal__title" id="report-post-title">Segnala questo post</h3>
         <form id="report-post-form" class="form">
           <div class="form__group">
             <label class="form__label" for="report-reason">Motivo</label>
             <select id="report-reason" name="reason" class="form__input" required>
-              <option value="offensivo">Contenuto offensivo</option>
+              <option value="offensive">Contenuto offensivo</option>
               <option value="spam">Spam o pubblicità</option>
               <option value="off-topic">Off-topic / non pertinente</option>
-              <option value="violenza">Incitamento alla violenza o odio</option>
-              <option value="altro">Altro</option>
+              <option value="violence">Incitamento alla violenza o odio</option>
+              <option value="other">Altro</option>
             </select>
           </div>
           <div class="form__group">
@@ -1313,19 +1325,24 @@ export const UI = {
     modal
       .querySelectorAll('[data-modal-close]')
       .forEach((el) => el.addEventListener('click', () => modal.remove()));
-    modal.querySelector('#report-post-form').addEventListener('submit', (e) => {
+    modal.querySelector('#report-post-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const reason = modal.querySelector('#report-reason').value;
-      const note = modal.querySelector('#report-note').value;
-      const r = API.reportPost(postId, reason, note);
-      if (r.ok) {
+      const note = modal.querySelector('#report-note').value.trim();
+      try {
+        await window.LB_API.posts.report(postId, note ? { reason, note } : { reason });
         UI.toast('Segnalazione inviata. Un moderatore la esaminerà.', 'success');
         modal.remove();
         if (onDone) onDone();
-      } else if (r.reason === 'already-reported') {
-        UI.toast('Hai già segnalato questo post.', 'info');
-        modal.remove();
-      } else UI.toast('Errore: ' + r.reason, 'error');
+      } catch (err) {
+        if (err.code === 'ALREADY_REPORTED') {
+          UI.toast('Hai già segnalato questo post.', 'info');
+          modal.remove();
+          if (onDone) onDone();
+        } else {
+          UI.toast(err.message || 'Segnalazione non riuscita. Riprova.', 'error');
+        }
+      }
     });
   },
 
@@ -1805,17 +1822,12 @@ export const UI = {
   },
 
   /* -------------------------------------------------------------
-     Setta sul <body> il data-attr `authState` con lo stato corrente,
-     così i selettori CSS `.auth-only` e `.guest-only` mostrano/nascondono
-     i bit di UI appropriati.
-
-     v3.0.0-alpha.0: il bottone "auth-toggle" del prototipo è stato
-     rimosso; in Alpha lo stato di autenticazione viene dalla session
-     reale (cookie httpOnly del backend, non da localStorage). Qui
-     teniamo solo l'aggiornamento del data-attr per supporto CSS. */
+     Allinea data-auth-state su <html> (selettori CSS `.auth-only` e
+     `.guest-only`) alla sessione verificata dal server. Lo stato
+     iniziale, prima del primo disegno, lo imposta auth-hint.js. */
   initAuthToggle() {
-    const state = API.getAuthState();
-    document.body.dataset.authState = state;
+    if (window.LB_AUTH_ERROR) return; // sessione non verificata: resta l'indizio
+    window.LB_UI.setAuthState(window.LB_UI.currentUser() ? 'user' : 'guest');
   },
 
   /* -------------------------------------------------------------
@@ -1946,7 +1958,7 @@ export const UI = {
       } catch (_) {
         /* ignora */
       }
-      API.setAuthState('guest');
+      window.LB_UI.setAuthState('guest');
       // feedback breve e poi via
       UI.toast('Sei uscito. A presto su Lookup.', 'info');
       setTimeout(() => {
@@ -2025,61 +2037,68 @@ export const UI = {
       if (d < 30) return `${d} g fa`;
       return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
     };
-    const icon = (t) =>
-      t === 'new_book'
-        ? '📚'
-        : t === 'book_available'
-          ? '✅'
-          : t === 'onboarding'
-            ? '👋'
-            : t === 'loan_request'
-              ? '📨'
-              : t === 'loan_confirmed'
-                ? '✓'
-                : t === 'loan_rejected'
-                  ? '✕'
-                  : t === 'loan_cancelled'
-                    ? '⊘'
-                    : t === 'loan_overdue'
-                      ? '⏰'
-                      : t === 'loan_message'
-                        ? '💬'
-                        : t === 'loan_returning' || t === 'loan_returned'
-                          ? '↦'
-                          : t === 'new_post'
-                            ? '📝'
-                            : 'ℹ️';
+    // Icona per tipo di notifica (tipi del server)
+    const ICONS = {
+      loan_requested: '📨',
+      loan_accepted: '✓',
+      loan_rejected: '✕',
+      loan_cancelled: '⊘',
+      loan_borrowed: '📖',
+      loan_returning: '↦',
+      loan_returned: '↦',
+      loan_message: '💬',
+      loan_overdue_borrower: '⏰',
+      loan_overdue_lender: '⏰',
+      loan_deadline_upcoming_borrower: '📅',
+      loan_deadline_upcoming_lender: '📅',
+      new_review: '★',
+      new_follower: '👤',
+      post_reaction: '👏',
+    };
+    const icon = (t) => ICONS[t] || 'ℹ️';
 
-    // v1.7: filtro attivo (stato di UI), persiste tra le aperture del panel
+    // Filtro attivo (stato di UI), persiste tra le aperture del pannello
     let activeFilter = 'all';
     const matchesFilter = (n) => {
+      const t = n.type || '';
       if (activeFilter === 'all') return true;
-      if (activeFilter === 'loans') return n.type && n.type.startsWith('loan_');
-      if (activeFilter === 'reviews') return n.type === 'new_review' || n.type === 'loan_returned';
-      if (activeFilter === 'social')
-        return (
-          n.type === 'new_book' ||
-          n.type === 'book_available' ||
-          n.type === 'new_follower' ||
-          n.type === 'new_post'
-        );
-      if (activeFilter === 'system') return n.type === 'onboarding';
-      return true;
+      if (activeFilter === 'loans') return t.startsWith('loan_');
+      if (activeFilter === 'reviews') return t === 'new_review';
+      if (activeFilter === 'social') return t === 'new_follower' || t === 'post_reaction';
+      return !t.startsWith('loan_') && !['new_review', 'new_follower', 'post_reaction'].includes(t);
     };
 
-    const render = () => {
-      const me = window.LB_UI.currentUser();
-      if (!me) return;
-      const allItems = API.getNotifications(me.id);
-      // Il counter sulla campanella conta SEMPRE tutto (non filtrato)
-      const unread = allItems.filter((n) => !n.read).length;
-      badge.textContent = unread;
-      badge.hidden = unread === 0;
+    // Dove porta una notifica
+    const hrefFor = (n) => {
+      if (n.loanId) return `loans.html#loan-${n.loanId}`;
+      if ((n.type || '').startsWith('loan_')) return 'loans.html';
+      if (n.type === 'new_review') return 'profile.html#panel-reviews';
+      if (n.type === 'post_reaction') return 'profile.html#panel-posts';
+      if (n.type === 'new_follower' && n.actor) {
+        return `library.html?id=${encodeURIComponent(n.actor.id)}`;
+      }
+      if (n.book) return `book-detail.html?id=${n.book.id}`;
+      return '#';
+    };
+
+    // Notifiche dal server; null finche' non arrivano o se non raggiungibile
+    let allItems = null;
+    let loadError = false;
+
+    const paint = (unread) => {
+      badge.textContent = unread > 99 ? '99+' : unread;
+      badge.hidden = !unread;
       bell.classList.toggle('has-unread', unread > 0);
 
-      // La lista mostra solo quelle che passano il filtro corrente
+      if (loadError) {
+        list.innerHTML = `<p class="notif__empty">Server non raggiungibile: notifiche non disponibili.</p>`;
+        return;
+      }
+      if (!allItems) {
+        list.innerHTML = `<p class="notif__empty">Caricamento…</p>`;
+        return;
+      }
       const items = allItems.filter(matchesFilter);
-
       if (!items.length) {
         list.innerHTML =
           activeFilter === 'all'
@@ -2088,52 +2107,50 @@ export const UI = {
         return;
       }
       list.innerHTML = items
-        .map((n) => {
-          // Le notifiche di onboarding (👋) puntano alle azioni d'avvio
-          let href;
-          if (n.type === 'onboarding') {
-            href = n.onboarding_action === 'personalize' ? 'profile-setup.html' : 'add-book.html';
-          } else if (
-            n.type === 'loan_confirmed' ||
-            n.type === 'loan_overdue' ||
-            n.type === 'loan_rejected' ||
-            n.type === 'loan_returned' ||
-            n.type === 'loan_message'
-          ) {
-            // Lato richiedente / partecipante chat: porta alla pagina dei
-            // propri prestiti, evidenziando quello specifico.
-            href = n.loan_id ? `loans.html?id=${n.loan_id}` : 'loans.html';
-          } else if (
-            n.type === 'loan_request' ||
-            n.type === 'loan_cancelled' ||
-            n.type === 'loan_returning' ||
-            n.type === 'loan_picked_up'
-          ) {
-            // Lato prestatore: porta alla tab "Richieste ricevute".
-            href = 'profile.html#panel-requests';
-          } else if (n.type === 'new_post') {
-            href = n.actor_id ? `library.html?id=${n.actor_id}#posts` : 'index.html';
-          } else {
-            href = n.book_id
-              ? `book-detail.html?id=${n.book_id}`
-              : n.actor_id
-                ? `library.html?id=${n.actor_id}`
-                : '#';
-          }
-          return `<a class="notif__item ${n.read ? '' : 'is-unread'}" href="${href}">
+        .map(
+          (n) => `<a class="notif__item ${n.isRead ? '' : 'is-unread'}" href="${hrefFor(n)}">
           <span class="notif__item-icon" aria-hidden="true">${icon(n.type)}</span>
           <span class="notif__item-body">
-            <span class="notif__item-msg">${n.message}</span>
-            <span class="notif__item-time">${timeAgo(n.created_at)}</span>
+            <span class="notif__item-msg">${UI._escapeHtml(n.message)}</span>
+            <span class="notif__item-time">${timeAgo(n.createdAt)}</span>
           </span>
-        </a>`;
-        })
+        </a>`
+        )
         .join('');
     };
 
+    let lastUnread = 0;
+    const render = async () => {
+      if (!window.LB_UI.currentUser()) return;
+      try {
+        const res = await window.LB_API.notifications.list({ limit: 50 });
+        allItems = res.data || [];
+        lastUnread = res.unreadCount ?? allItems.filter((n) => !n.isRead).length;
+        loadError = false;
+      } catch (_err) {
+        loadError = true;
+      }
+      paint(lastUnread);
+    };
+
+    // Segna tutte come lette sul server, poi aggiorna badge ed elenco
+    const markAllRead = async () => {
+      if (!lastUnread) return;
+      try {
+        await window.LB_API.notifications.markAllRead();
+      } catch (_err) {
+        return;
+      }
+      render();
+    };
+
+    // Chiudendo il pannello (campanella, clic fuori, Esc) le notifiche
+    // viste diventano lette
     const closePanel = () => {
+      if (panel.hidden) return;
       panel.hidden = true;
       bell.setAttribute('aria-expanded', 'false');
+      markAllRead();
     };
     const openPanel = () => {
       render();
@@ -2146,13 +2163,7 @@ export const UI = {
       if (panel.hidden) openPanel();
       else closePanel();
     });
-    readAll.addEventListener('click', () => {
-      const me = window.LB_UI.currentUser();
-      if (me) {
-        API.markAllNotificationsRead(me.id);
-        render();
-      }
-    });
+    readAll.addEventListener('click', markAllRead);
 
     // v1.7: wiring chip-filtro
     wrap.querySelectorAll('.notif__filter').forEach((btn) => {
@@ -2160,7 +2171,7 @@ export const UI = {
         wrap.querySelectorAll('.notif__filter').forEach((b) => b.classList.remove('is-active'));
         btn.classList.add('is-active');
         activeFilter = btn.dataset.filter;
-        render();
+        paint(lastUnread);
       });
     });
     // Chiusura cliccando fuori
@@ -2169,18 +2180,6 @@ export const UI = {
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closePanel();
-    });
-
-    // Marca come lette quando il pannello viene chiuso dopo essere stato aperto
-    bell.addEventListener('click', () => {
-      if (panel.hidden) {
-        // appena chiuso
-        const me = window.LB_UI.currentUser();
-        if (me) {
-          API.markAllNotificationsRead(me.id);
-          setTimeout(render, 50);
-        }
-      }
     });
 
     render();
@@ -2198,8 +2197,7 @@ export const UI = {
         // Refresh badge (fetch nuovo count backend)
         render();
         // Toast solo se la lista notifiche e' chiusa
-        const panelOpen = document.querySelector('.notif-panel')?.classList.contains('is-open');
-        if (!panelOpen && payload.data?.message) {
+        if (panel.hidden && payload.data?.message) {
           const shortMsg =
             payload.data.message.length > 90
               ? payload.data.message.slice(0, 87) + '...'

@@ -64,6 +64,7 @@ export async function processOverdueLoans(job, logger) {
             type: 'loan_overdue_borrower',
             actorId: loan.lenderId,
             bookId: loan.book.id,
+            loanId: loan.id,
             message: `"${loan.book.title}" doveva rientrare il ${loan.deadline.toLocaleDateString('it-IT')} (${daysLate} giorni fa). Contatta ${loan.lender.displayName} per organizzare la restituzione.`,
           },
         });
@@ -74,6 +75,7 @@ export async function processOverdueLoans(job, logger) {
             type: 'loan_overdue_lender',
             actorId: loan.requesterId,
             bookId: loan.book.id,
+            loanId: loan.id,
             message: `"${loan.book.title}" prestato a ${loan.requester.displayName} doveva rientrare il ${loan.deadline.toLocaleDateString('it-IT')} (${daysLate} giorni fa).`,
           },
         });

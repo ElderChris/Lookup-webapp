@@ -51,7 +51,7 @@ window.LOAN_STATUS_HINT = LOAN_STATUS_HINT;
    che alcune pagine mostravano al posto dei dati reali. Non vengono piu'
    creati; quelli gia' presenti si cancellano una volta, riconoscendoli
    dalla chiave `data_version`. Resta solo `auth_state` (uscita locale). */
-const KEEP_KEYS = new Set(['auth_state']);
+const KEEP_KEYS = new Set(['auth_state', 'lb_auth_hint']);
 
 function purgePrototypeData() {
   try {

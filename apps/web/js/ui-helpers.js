@@ -20,20 +20,26 @@
 // Welcome message rotation
 // -----------------------------------------------------------------------------
 
-/** 12 messaggi di benvenuto — rotation basata su user.welcomeIndex */
+/** Messaggi di benvenuto, neutri rispetto al genere (niente
+    "Bentornato/Bentornata"); rotazione basata su user.welcomeIndex. */
 export const WELCOME_MESSAGES = [
-  'Bentornato, {name}.',
   'Ciao {name}, buona lettura.',
-  'Ci fa piacere rivederti, {name}.',
-  'Bentornato tra i libri, {name}.',
-  'Salve {name}, cosa leggi oggi?',
-  'Ciao {name}, che piacere.',
-  'Salve {name}, buona sfogliata.',
-  'Bentornato in libreria, {name}.',
-  'Ciao {name}, un caffe' + ' e via.',
-  'Bentornato {name}, si comincia?',
-  'Salve {name}, buon proseguimento.',
-  'Ciao {name}, oggi cosa si legge?',
+  'Eccoti, {name}.',
+  'Rieccoti nella tua libreria, {name}.',
+  'È bello rivederti, {name}.',
+  'Si riapre il libro, {name}.',
+  'Pronti a scoprire qualcosa, {name}?',
+  'Avanti tutta, {name}.',
+  'La pagina ti aspettava, {name}.',
+  'Un nuovo capitolo ti attende, {name}.',
+  'Quale libro ti chiamerà oggi, {name}?',
+  'I tuoi libri ti hanno cercato, {name}.',
+  "Tra gli scaffali c'è movimento, {name}.",
+  'Lookup ti dà il benvenuto, {name}.',
+  'Si torna a sfogliare, {name}.',
+  'Buon ritorno fra le pagine, {name}.',
+  'Quante storie da scoprire oggi, {name}.',
+  'La tua biblioteca ti riaccoglie, {name}.',
 ];
 
 /**
@@ -248,6 +254,24 @@ export async function refreshCurrentUser() {
   const session = await window.LB_API.authClient.getSession({ fresh: true });
   if (session && session.user) window.LB_AUTH_USER = session.user;
   return currentUser();
+}
+
+/**
+ * Stato di accesso per il CSS (.auth-only / .guest-only) su <html>, e
+ * indizio per il caricamento successivo (letto da auth-hint.js prima del
+ * primo disegno). Chiamato quando il server ha risposto sulla sessione.
+ *
+ * @param {'user'|'guest'} state
+ */
+export function setAuthState(state) {
+  if (state !== 'user' && state !== 'guest') return;
+  document.documentElement.setAttribute('data-auth-state', state);
+  try {
+    if (state === 'user') localStorage.setItem('lb_auth_hint', 'user');
+    else localStorage.removeItem('lb_auth_hint');
+  } catch (_) {
+    /* archiviazione non disponibile: resta solo l'attributo */
+  }
 }
 
 export function currentUser() {

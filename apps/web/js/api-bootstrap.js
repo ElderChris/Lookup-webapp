@@ -79,12 +79,13 @@ async function initSession() {
 
     // Beta 8: avvia connessione SSE per notifiche realtime
     eventStream.start();
-  } else {
-    // Nessuna sessione backend → utente anonimo
-    // Beta 2: rimosso fallback storage (che leggeva current_user_id numerico
-    // pre-3.0 come guest). Se il cookie non c'e', l'utente e' guest.
+    uiHelpers.setAuthState('user');
+  } else if (!window.LB_AUTH_ERROR) {
+    // Il server ha risposto: nessuna sessione → utente anonimo
     console.debug('[api-bootstrap] utente anonimo');
+    uiHelpers.setAuthState('guest');
   }
+  // Con errore (server giu', 429) resta lo stato indicato da auth-hint.js
 
   window.LB_AUTH_READY = true;
   // Emit evento per componenti reattivi che aspettano l'auth ready

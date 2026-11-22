@@ -6,11 +6,11 @@
 //   GET    /api/posts                          Lista pubblica recente (discovery)
 //   GET    /api/posts/feed                     Feed personalizzato (auth)
 //   GET    /api/posts/:id                      Dettaglio con reactions aggregate
-//   POST   /api/posts                          Crea (auth, max 500 char)
+//   POST   /api/posts                          Crea (auth, max 500 char, almeno un volume)
 //   DELETE /api/posts/:id                      Soft-delete (author only)
-//   POST   /api/posts/:id/reactions            Upsert reaction (auth)
+//   POST   /api/posts/:id/reactions            Reazione (auth, una per utente)
 //   DELETE /api/posts/:id/reactions/:emoji     Rimuovi reaction
-//   POST   /api/posts/:id/report               Segnala (auth)
+//   POST   /api/posts/:id/report               Segnala (auth, una volta, non i propri)
 // =============================================================================
 
 import crypto from 'node:crypto';
@@ -65,8 +65,16 @@ function postDto(post, currentUserId = null) {
     reactionsByEmoji,
     reactionsCount: (post.reactions || []).length,
     myReactions,
+    // Segnalato dall'utente corrente (incluso solo se autenticato)
+    reportedByMe: (post.reports || []).length > 0,
   };
 }
+
+// Reazioni ammesse (una per utente per post, come nell'interfaccia)
+export const REACTION_EMOJI = ['👍', '❤️', '👏', '🤔'];
+
+// Motivi di segnalazione (harassment resta per le segnalazioni esistenti)
+export const REPORT_REASONS = ['offensive', 'spam', 'off-topic', 'violence', 'other', 'harassment'];
 
 const POST_INCLUDE = {
   author: {
@@ -81,6 +89,16 @@ const POST_INCLUDE = {
   },
   reactions: { select: { emoji: true, userId: true } }, // serve per aggregato + myReactions
 };
+
+/** Include dei post; con utente autenticato anche le sue segnalazioni. */
+function postInclude(currentUserId) {
+  return currentUserId
+    ? {
+        ...POST_INCLUDE,
+        reports: { where: { reporterId: currentUserId }, select: { id: true } },
+      }
+    : POST_INCLUDE;
+}
 
 // -----------------------------------------------------------------------------
 // Plugin Fastify
@@ -118,7 +136,7 @@ export default async function postsRoutes(fastify) {
           skip: offset,
           take: limit,
           orderBy: { createdAt: 'desc' },
-          include: POST_INCLUDE,
+          include: postInclude(currentUserId),
         }),
         fastify.prisma.post.count({ where }),
       ]);
@@ -166,7 +184,7 @@ export default async function postsRoutes(fastify) {
           skip: offset,
           take: limit,
           orderBy: { createdAt: 'desc' },
-          include: POST_INCLUDE,
+          include: postInclude(userId),
         }),
         fastify.prisma.post.count({ where }),
       ]);
@@ -199,7 +217,7 @@ export default async function postsRoutes(fastify) {
 
       const post = await fastify.prisma.post.findUnique({
         where: { id },
-        include: POST_INCLUDE,
+        include: postInclude(currentUserId),
       });
       if (!post || post.status !== 'active') {
         return reply.status(404).send({
@@ -230,7 +248,25 @@ export default async function postsRoutes(fastify) {
     },
     async (request, reply) => {
       const userId = await requireUserId(request);
-      const { content } = request.body;
+      const content = request.body.content.trim();
+
+      if (!content) {
+        return reply.status(400).send({
+          error: { code: 'EMPTY_CONTENT', message: 'Il post non può essere vuoto' },
+        });
+      }
+      // Si pubblica sulla propria libreria: serve almeno un volume
+      const booksCount = await fastify.prisma.book.count({
+        where: { ownerId: userId, status: 'active' },
+      });
+      if (booksCount === 0) {
+        return reply.status(403).send({
+          error: {
+            code: 'NO_BOOKS',
+            message: 'Per pubblicare un post devi prima aggiungere almeno un volume',
+          },
+        });
+      }
 
       const post = await fastify.prisma.post.create({
         data: {
@@ -238,7 +274,7 @@ export default async function postsRoutes(fastify) {
           authorId: userId,
           content,
         },
-        include: POST_INCLUDE,
+        include: postInclude(userId),
       });
 
       return reply.status(201).send(postDto(post, userId));
@@ -305,7 +341,7 @@ export default async function postsRoutes(fastify) {
           type: 'object',
           required: ['emoji'],
           properties: {
-            emoji: { type: 'string', minLength: 1, maxLength: 16 },
+            emoji: { type: 'string', enum: REACTION_EMOJI },
           },
           additionalProperties: false,
         },
@@ -332,12 +368,17 @@ export default async function postsRoutes(fastify) {
         });
       }
 
-      // Idempotente via composite PK
-      await fastify.prisma.postReaction.upsert({
-        where: { postId_userId_emoji: { postId: id, userId, emoji } },
-        create: { postId: id, userId, emoji },
-        update: {},
-      });
+      // Una reazione per utente: la nuova sostituisce le altre (idempotente)
+      await fastify.prisma.$transaction([
+        fastify.prisma.postReaction.deleteMany({
+          where: { postId: id, userId, emoji: { not: emoji } },
+        }),
+        fastify.prisma.postReaction.upsert({
+          where: { postId_userId_emoji: { postId: id, userId, emoji } },
+          create: { postId: id, userId, emoji },
+          update: {},
+        }),
+      ]);
 
       // Notifica all'autore (skip se reactor === author per emit())
       const reactor = await fastify.prisma.user.findUnique({
@@ -412,7 +453,7 @@ export default async function postsRoutes(fastify) {
           type: 'object',
           required: ['reason'],
           properties: {
-            reason: { type: 'string', enum: ['off-topic', 'spam', 'harassment', 'other'] },
+            reason: { type: 'string', enum: REPORT_REASONS },
             note: { type: 'string', maxLength: 2000 },
           },
           additionalProperties: false,
@@ -426,11 +467,24 @@ export default async function postsRoutes(fastify) {
 
       const post = await fastify.prisma.post.findUnique({
         where: { id },
-        select: { id: true, status: true },
+        select: { id: true, status: true, authorId: true },
       });
       if (!post || post.status !== 'active') {
         return reply.status(404).send({
           error: { code: 'NOT_FOUND', message: `Post con id ${id} non trovato` },
+        });
+      }
+      if (post.authorId === reporterId) {
+        return reply.status(400).send({
+          error: { code: 'SELF_REPORT', message: 'Non puoi segnalare un tuo post' },
+        });
+      }
+      const already = await fastify.prisma.postReport.count({
+        where: { postId: id, reporterId },
+      });
+      if (already > 0) {
+        return reply.status(409).send({
+          error: { code: 'ALREADY_REPORTED', message: 'Hai già segnalato questo post' },
         });
       }
 

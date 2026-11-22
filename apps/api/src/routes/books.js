@@ -3,7 +3,7 @@
 // =============================================================================
 // Endpoint REST per la gestione dei libri.
 //
-//   GET    /api/books           Lista con filtri + paginazione
+//   GET    /api/books           Lista con filtri + paginazione (liked/following: utente)
 //   GET    /api/books/:id       Dettaglio singolo
 //   POST   /api/books           Crea (richiede auth)
 //   PATCH  /api/books/:id       Modifica (owner only)
@@ -213,6 +213,10 @@ export default async function booksRoutes(fastify) {
             category: { type: 'integer', minimum: 1 },
             ownerId: { type: 'string', minLength: 1, maxLength: 40 },
             available: { type: 'boolean' },
+            // Solo per l'utente autenticato: volumi con il suo "mi piace" e
+            // volumi delle librerie che segue (home personalizzata)
+            liked: { type: 'boolean' },
+            following: { type: 'boolean' },
             lat: { type: 'number', minimum: -90, maximum: 90 },
             lng: { type: 'number', minimum: -180, maximum: 180 },
             radius: { type: 'number', minimum: 100, maximum: 100000 },
@@ -229,8 +233,22 @@ export default async function booksRoutes(fastify) {
       },
     },
     async (request) => {
-      const { q, category, ownerId, available, lat, lng, radius, limit, offset, sort } =
-        request.query;
+      const {
+        q,
+        category,
+        ownerId,
+        available,
+        liked,
+        following,
+        lat,
+        lng,
+        radius,
+        limit,
+        offset,
+        sort,
+      } = request.query;
+      // 401 se si chiedono i propri preferiti o seguiti senza accesso
+      const meId = liked || following ? await requireUserId(request) : null;
 
       // --- Costruzione WHERE clause ---
       const where = { status: 'active' };
@@ -257,6 +275,11 @@ export default async function booksRoutes(fastify) {
           publicLat: { gte: lat - deltaLat, lte: lat + deltaLat },
           publicLng: { gte: lng - deltaLng, lte: lng + deltaLng },
         };
+      }
+
+      if (liked) where.likes = { some: { userId: meId } };
+      if (following) {
+        where.owner = { ...where.owner, followedBy: { some: { followerId: meId } } };
       }
 
       // --- Ordinamento ---

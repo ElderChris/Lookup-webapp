@@ -6,11 +6,12 @@
 
 import { apiClient } from '../apiClient.js';
 
-/** Enum delle reason ammesse per i report (allineato con backend Zod schema). */
+/** Motivi di segnalazione ammessi dal server (harassment: solo storico). */
 export const REPORT_REASON = Object.freeze({
-  OFF_TOPIC: 'off-topic',
+  OFFENSIVE: 'offensive',
   SPAM: 'spam',
-  HARASSMENT: 'harassment',
+  OFF_TOPIC: 'off-topic',
+  VIOLENCE: 'violence',
   OTHER: 'other',
 });
 
@@ -67,9 +68,10 @@ export const posts = {
   // ---------------------------------------------------------------------------
 
   /**
-   * POST /api/posts/:id/reactions — aggiunge una reaction emoji (upsert).
+   * POST /api/posts/:id/reactions — reazione (una per utente: sostituisce
+   * la precedente).
    * @param {string} postId
-   * @param {string} emoji - max 16 caratteri ("like", "heart", "👍", ecc.)
+   * @param {string} emoji - una fra 👍 ❤️ 👏 🤔
    */
   react(postId, emoji) {
     return apiClient.post(`/api/posts/${encodeURIComponent(postId)}/reactions`, {

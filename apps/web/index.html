@@ -17,6 +17,7 @@
        il browser è costretto a riscaricare il file invece di servire
        una copia obsoleta dalla cache. -->
   <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <script src="js/auth-hint.js"></script>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -144,7 +145,7 @@
       <div class="home-welcome">
         <div>
           <span class="eyebrow">la tua home</span>
-          <h1 id="welcome-title" class="home-welcome__title" data-name=""></h1>
+          <h1 id="welcome-title" class="home-welcome__title" data-name="" aria-busy="true"></h1>
           <p class="home-welcome__sub">Ecco cosa è successo nelle librerie che segui e fra i tuoi volumi preferiti.</p>
         </div>
         <a href="add-book.html" class="btn btn--primary btn--lg btn--pulse">
@@ -159,7 +160,7 @@
         <h2 id="feed-title">Novità da chi segui</h2>
         <span class="section-meta">N° 01 — aggiornamenti recenti</span>
       </div>
-      <div id="follow-feed" class="books-grid" aria-live="polite"></div>
+      <div id="follow-feed" class="books-grid" aria-live="polite" aria-busy="true"></div>
     </section>
 
     <!-- Volumi preferiti -->
@@ -168,7 +169,7 @@
         <h2 id="likes-title">I tuoi preferiti</h2>
         <span class="section-meta">N° 02 — volumi con «mi piace»</span>
       </div>
-      <div id="liked-books" class="books-grid" aria-live="polite"></div>
+      <div id="liked-books" class="books-grid" aria-live="polite" aria-busy="true"></div>
     </section>
 
     <!-- ============ LIBRERIE VICINO A TE ============ -->
@@ -352,40 +353,26 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
 
-      /* v2.4: Aggiornamenti recenti dai profili seguiti
-         ========================================================= */
-      (function renderRecentUpdates() {
+      // Le parti personali dipendono dalla sessione verificata dal server
+      await window.LB_UI.whenAuthReady();
+
+      /* Aggiornamenti recenti: post di chi segui e propri (dal server) */
+      function renderRecentUpdates() {
         const me = window.LB_UI.currentUser();
-        const isAuth = API.getAuthState() === 'user';
         const section = document.getElementById('recent-updates-section');
-        if (!section || !isAuth || !me) return;
+        if (!section || !me) return;
         const feed = document.getElementById('recent-updates-feed');
         async function paint() {
-          // Fase 2c.4: feed dal backend (posts.feed richiede auth)
-          // Nota: /api/posts/feed ritorna post degli utenti seguiti +
-          // post propri. Se backend giu' o errore → fallback legacy.
           let posts;
-          let source = 'legacy';
-          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-            try {
-              const res = await window.LB_API.posts.feed({ limit: 10 }, {
-                cache: {
-                  ttlMs: window.LB_API.CACHE_TTL.BOOKS_LIST, // 30s: freschi
-                  key: `posts:feed:${me.id}`,
-                },
-              });
-              // I post backend hanno shape diversa: trasformali
-              posts = res.data.map(window.LB_API.postToLegacy);
-              source = `backend (${posts.length})`;
-            } catch (err) {
-              console.debug(`[index] feed fallback legacy: ${err.code || err.message}`);
-            }
+          try {
+            const res = await window.LB_API.posts.feed({ limit: 10 });
+            posts = res.data;
+          } catch (err) {
+            feed.innerHTML = `<p class="recent-updates__empty">
+              Server non raggiungibile: aggiornamenti non disponibili.</p>`;
+            section.hidden = false;
+            return;
           }
-          if (!posts) {
-            posts = API.getPostsFromFollowed(me.id, 10);
-          }
-          console.debug(`[index] feed source: ${source}`);
-
           if (posts.length === 0) {
             feed.innerHTML = `
               <p class="recent-updates__empty">
@@ -399,7 +386,8 @@
           section.hidden = false;
         }
         paint();
-      })();
+      }
+      renderRecentUpdates();
 
       /* =========================================================
          CONTATORI "LIVE"
@@ -547,56 +535,61 @@
       /* ----- HOME PERSONALIZZATA (utenti autenticati) -----
          Popola: nome di benvenuto, novità dalle librerie seguite,
          volumi preferiti. Le sezioni sono nascoste ai guest via CSS. */
-      function renderPersonalizedHome() {
+      async function renderPersonalizedHome() {
         const me = window.LB_UI.currentUser();
         if (!me) return;
+        const esc = (v) => UI._escapeHtml(v);
 
-        // v2.6: titolo di benvenuto gender neutral con rotazione
+        // Titolo di benvenuto con il nome evidenziato
         const wTitle = document.getElementById('welcome-title');
         if (wTitle) {
           const msg = window.LB_UI.getWelcomeMessage(me);
-          // Spezza in due: prima parte normale, nome come <em>
           const first = (me.display_name || me.username).split(' ')[0];
-          const html = msg.replace(first, `<em>${first}</em>`);
-          wTitle.innerHTML = html;
+          wTitle.innerHTML = esc(msg).replace(esc(first), `<em>${esc(first)}</em>`);
+          wTitle.removeAttribute('aria-busy');
         }
 
-        // --- Novità da chi segui: volumi recenti delle librerie seguite ---
         const feed = document.getElementById('follow-feed');
+        const likedBox = document.getElementById('liked-books');
+        const unavailable = `<p style="color:var(--color-ink-soft);font-style:italic;">
+          Server non raggiungibile: riprova tra poco.</p>`;
+
+        // --- Novità da chi segui: volumi recenti delle librerie seguite ---
+        // --- I tuoi preferiti: volumi con il tuo "mi piace" ---
+        const [followRes, likedRes] = await Promise.allSettled([
+          window.LB_API.books.list({ following: true, limit: 4, sort: 'recent' }),
+          window.LB_API.books.list({ liked: true, limit: 8, sort: 'recent' }),
+        ]);
+
         if (feed) {
-          const followed = API.getFollows(me.id);
-          if (!followed.length) {
+          feed.removeAttribute('aria-busy');
+          if (followRes.status === 'rejected') {
+            feed.innerHTML = unavailable;
+          } else if (followRes.value.data.length) {
+            UI.renderBooksGrid(feed, followRes.value.data.map(window.LB_API.bookToLegacy), {
+              highlightRecent: true,
+            });
+          } else {
             feed.innerHTML = `<div class="empty-feed">
-              <p>Non segui ancora nessuna libreria. Visita una libreria e premi
-              <strong>«Segui»</strong> per ricevere qui i suoi nuovi volumi e aggiornamenti.</p>
+              <p>Qui compaiono i nuovi volumi delle librerie che segui. Visita una libreria
+              e premi <strong>«Segui»</strong> per vederli.</p>
               <a href="explore.html" class="btn btn--ghost">Esplora le librerie</a>
             </div>`;
-          } else {
-            // libri delle librerie seguite, più recenti prima
-            const books = followed
-              .flatMap(uid => API.getBooksByOwner(uid))
-              .sort((a, b) => (b.added || '').localeCompare(a.added || ''))
-              .slice(0, 4);
-            if (books.length) {
-              UI.renderBooksGrid(feed, books, { highlightRecent: true });
-            } else {
-              feed.innerHTML = `<p style="color:var(--color-ink-soft);font-style:italic;">Le librerie che segui non hanno ancora pubblicato volumi.</p>`;
-            }
           }
         }
 
-        // --- I tuoi preferiti ---
-        const likedBox = document.getElementById('liked-books');
         if (likedBox) {
-          const liked = API.getLikedBooks(me.id);
-          if (!liked.length) {
+          likedBox.removeAttribute('aria-busy');
+          if (likedRes.status === 'rejected') {
+            likedBox.innerHTML = unavailable;
+          } else if (likedRes.value.data.length) {
+            UI.renderBooksGrid(likedBox, likedRes.value.data.map(window.LB_API.bookToLegacy));
+          } else {
             likedBox.innerHTML = `<div class="empty-feed">
               <p>Non hai ancora preferiti. Premi il <strong>cuore</strong> su un volume
               per salvarlo ed essere avvisato quando un titolo in prestito torna disponibile.</p>
               <a href="explore.html" class="btn btn--ghost">Cerca volumi</a>
             </div>`;
-          } else {
-            UI.renderBooksGrid(likedBox, liked);
           }
         }
       }
@@ -609,6 +602,7 @@
       document.addEventListener('auth:change', () => {
         updateGreeting();
         renderNearby();
+        renderRecentUpdates();
         renderPersonalizedHome();
       });
 
