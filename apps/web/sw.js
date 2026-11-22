@@ -25,7 +25,7 @@
  * =============================================================================
  */
 
-const CACHE_VERSION = 'lookup-v10'; // v10: post, notifiche e home dal server
+const CACHE_VERSION = 'lookup-v13'; // v13: copertine delle librerie
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;

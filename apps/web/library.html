@@ -550,7 +550,8 @@
 
         function apply() {
           const query = q.value.trim().toLowerCase();
-          const tags  = tagsEl.getTags ? tagsEl.getTags() : [];
+          // Generi scelti (slug) piu' i sottogeneri delle macro-aree
+          const tags  = tagsEl.getExpandedTags ? tagsEl.getExpandedTags() : [];
           const onlyA = onlyAvail.checked;
           let filtered = allBooks.slice();
           if (query) {

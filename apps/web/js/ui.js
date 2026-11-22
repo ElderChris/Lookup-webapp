@@ -700,16 +700,25 @@ export const UI = {
     return { refresh: () => refresh({ incoming: true }) };
   },
 
-  renderBookCard(book, user, options = {}) {
-    const owner = user || API.getUser(book.owner_id);
+  /** Libro aggiunto negli ultimi `days` giorni (badge "Novità"). */
+  _isRecent(book, days = 14) {
+    const iso = book.created_at || book.added;
+    if (!iso) return false;
+    return (Date.now() - new Date(iso).getTime()) / 86400000 <= days;
+  },
+
+  /** Scheda libro (shape di bookToLegacy). Il proprietario viene dai campi
+      del libro; il "mi piace" da liked_by_me (server). */
+  renderBookCard(book, _user, options = {}) {
+    const esc = (v) => this._escapeHtml(v);
     const coverStyle = `style="background: ${book.cover_gradient};"`;
     const me = window.LB_UI.currentUser();
-    const liked = me && API.isLiked(me.id, book.id);
-    const isOwn = me && +book.owner_id === +me.id;
+    const liked = !!book.liked_by_me;
+    const isOwn = !!me && book.owner_id === me.id;
     const likeChip =
       me && !isOwn
         ? `<button type="button" class="like-chip auth-only ${liked ? 'is-liked' : ''}"
-                 data-book-id="${book.id}" aria-pressed="${!!liked}"
+                 data-book-id="${book.id}" aria-pressed="${liked}"
                  aria-label="${liked ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}">
            <svg viewBox="0 0 24 24" aria-hidden="true">
              <path d="M12 20 C12 20 3 14 3 8 C3 5 5 3.5 7.2 3.5 C9 3.5 10.6 4.7 12 6.6 C13.4 4.7 15 3.5 16.8 3.5 C19 3.5 21 5 21 8 C21 14 12 20 12 20 Z"
@@ -717,36 +726,35 @@ export const UI = {
            </svg>
          </button>`
         : '';
-    const isbnClean = (book.isbn || '').replace(/[^\d]/g, '');
+    const isbnClean = String(book.isbn || '').replace(/[^\d]/g, '');
     const coverImg = isbnClean
       ? `<img class="book-card__cover-img" loading="lazy" alt=""
               src="https://covers.openlibrary.org/b/isbn/${isbnClean}-M.jpg?default=false"
               onload="this.classList.add('is-loaded')"
               onerror="this.style.display='none'" />`
       : '';
-    // v2.6: tag "novità" + aura per libri aggiunti di recente.
-    // Attivo solo se options.highlightRecent === true (così solo nella
-    // sezione "Novità da chi segui" sulla home, non ovunque).
-    const isRecent = options.highlightRecent && API.isBookRecent(book);
+    // Badge "Novità" solo dove richiesto (es. "Novità da chi segui")
+    const isRecent = options.highlightRecent && UI._isRecent(book);
     const cardClasses = ['book-card'];
     if (!book.available) cardClasses.push('book-card--unavailable');
     if (isRecent) cardClasses.push('book-card--recent');
     const recentBadge = isRecent
       ? '<span class="book-card__recent-badge" aria-label="Aggiunto di recente">✦ Novità</span>'
       : '';
+    const yearPart = book.year ? `, ${book.year}` : '';
     return `
       <a href="book-detail.html?id=${book.id}" class="${cardClasses.join(' ')}">
         ${recentBadge}
         ${likeChip}
         <div class="book-card__cover book-card__cover--placeholder" ${coverStyle}>
           ${coverImg}
-          <span class="book-card__cover-title">${book.title}</span>
+          <span class="book-card__cover-title">${esc(book.title)}</span>
         </div>
-        <span class="book-card__category">${book.category}</span>
-        <h3 class="book-card__title">${book.title}</h3>
-        <p class="book-card__author">${book.author}, ${book.year}</p>
+        <span class="book-card__category">${esc(book.category_name || '')}</span>
+        <h3 class="book-card__title">${esc(book.title)}</h3>
+        <p class="book-card__author">${esc(book.author)}${yearPart}</p>
         <div class="book-card__meta">
-          <span>${book.owner_city ?? (owner ? owner.city : '')}</span>
+          <span>${esc(book.owner_city || '')}</span>
           <span>${book.available ? 'Disponibile' : 'In prestito'}</span>
         </div>
       </a>`;
@@ -772,8 +780,15 @@ export const UI = {
       maxTags = 8,
       hiddenName = null, // se valorizzato, scrive un input nascosto con valori CSV per i form classici
     } = opts;
+    const esc = (v) => this._escapeHtml(v);
 
-    const allTags = API.getAllCategoryTags();
+    // Generi dal server (macro-aree e sottogeneri). I tag sono gli slug;
+    // le etichette sono i nomi.
+    let categories = [];
+    let bySlug = new Map();
+    let allTags = [];
+    const nameOf = (slug) => bySlug.get(slug)?.name || slug;
+    const parentOf = (slug) => bySlug.get(slug)?.parentName || '';
     let selected = [...initial];
     let activeIdx = -1; // riga evidenziata nel dropdown
 
@@ -797,8 +812,8 @@ export const UI = {
         .map(
           (t, i) =>
             `<span class="tag-chip">
-           <span class="tag-chip__label">${t}</span>
-           <button type="button" class="tag-chip__x" data-i="${i}" aria-label="Rimuovi ${t}">×</button>
+           <span class="tag-chip__label">${esc(nameOf(t))}</span>
+           <button type="button" class="tag-chip__x" data-i="${i}" aria-label="Rimuovi ${esc(nameOf(t))}">×</button>
          </span>`
         )
         .join('');
@@ -828,16 +843,18 @@ export const UI = {
       }
       dropdown.innerHTML = items
         .map((t, i) => {
-          const parent = API.getCategoryParent(t);
+          const parent = parentOf(t);
+          const label = nameOf(t);
           // evidenzia la parte di testo che combacia con la query
-          const q = input.value.trim();
-          const re = q
-            ? new RegExp('(' + q.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') + ')', 'i')
-            : null;
-          const labelHtml = re ? t.replace(re, '<mark>$1</mark>') : t;
-          return `<div class="tag-opt ${i === activeIdx ? 'is-active' : ''}" role="option" data-tag="${t}">
+          const q = input.value.trim().toLowerCase();
+          const at = q ? label.toLowerCase().indexOf(q) : -1;
+          const labelHtml =
+            at >= 0
+              ? `${esc(label.slice(0, at))}<mark>${esc(label.slice(at, at + q.length))}</mark>${esc(label.slice(at + q.length))}`
+              : esc(label);
+          return `<div class="tag-opt ${i === activeIdx ? 'is-active' : ''}" role="option" data-tag="${esc(t)}">
                   <span>${labelHtml}</span>
-                  ${parent ? `<span class="tag-opt__parent">${parent}</span>` : ''}
+                  ${parent ? `<span class="tag-opt__parent">${esc(parent)}</span>` : ''}
                 </div>`;
         })
         .join('');
@@ -856,7 +873,7 @@ export const UI = {
     function recompute() {
       const q = input.value.trim().toLowerCase();
       const items = allTags
-        .filter((t) => !selected.includes(t) && (!q || t.toLowerCase().includes(q)))
+        .filter((t) => !selected.includes(t) && (!q || nameOf(t).toLowerCase().includes(q)))
         .slice(0, 12);
       openDropdown(items);
     }
@@ -893,8 +910,38 @@ export const UI = {
     paintChips();
     if (hidden) hidden.value = selected.join(',');
 
+    // Caricamento dei generi: fino ad allora il campo e' disattivato
+    input.disabled = true;
+    container.ready = window.LB_API.categories
+      .all()
+      .then((list) => {
+        categories = list;
+        bySlug = new Map(list.map((c) => [c.slug, c]));
+        // Macro-aree prima, poi i sottogeneri, in ordine alfabetico
+        allTags = [...list]
+          .sort(
+            (a, b) =>
+              (a.parentId ? 1 : 0) - (b.parentId ? 1 : 0) || a.name.localeCompare(b.name, 'it')
+          )
+          .map((c) => c.slug);
+        selected = selected.filter((t) => bySlug.has(t));
+        input.disabled = false;
+        paintChips();
+      })
+      .catch(() => {
+        input.placeholder = 'Generi non disponibili: server non raggiungibile';
+      });
+
     // API esposta sul container per chiamanti esterni
-    container.getTags = () => selected.slice();
+    container.getTags = () => selected.slice(); // slug
+    container.getIds = () => selected.map((t) => bySlug.get(t)?.id).filter(Boolean);
+    // Slug selezionati piu' i sottogeneri delle macro-aree scelte
+    container.getExpandedTags = () => {
+      const ids = new Set(container.getIds());
+      return categories
+        .filter((c) => ids.has(c.id) || (c.parentId && ids.has(c.parentId)))
+        .map((c) => c.slug);
+    };
     container.setTags = (arr) => {
       selected = arr.slice();
       paintChips();
@@ -1355,14 +1402,25 @@ export const UI = {
       e.preventDefault();
       e.stopPropagation();
       const me = window.LB_UI.currentUser();
-      if (!me) return;
-      const bookId = +chip.dataset.bookId;
-      const nowLiked = API.toggleLike(bookId);
-      chip.classList.toggle('is-liked', nowLiked);
-      chip.setAttribute('aria-pressed', String(nowLiked));
-      const path = chip.querySelector('path');
-      if (path) path.setAttribute('fill', nowLiked ? 'currentColor' : 'none');
-      if (this._refreshNotifications) this._refreshNotifications();
+      if (!me || chip.disabled) return;
+      const bookId = chip.dataset.bookId;
+      const nowLiked = chip.getAttribute('aria-pressed') !== 'true';
+      chip.disabled = true;
+      (nowLiked ? window.LB_API.books.like(bookId) : window.LB_API.books.unlike(bookId))
+        .then(() => {
+          chip.classList.toggle('is-liked', nowLiked);
+          chip.setAttribute('aria-pressed', String(nowLiked));
+          chip.setAttribute(
+            'aria-label',
+            nowLiked ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'
+          );
+          const path = chip.querySelector('path');
+          if (path) path.setAttribute('fill', nowLiked ? 'currentColor' : 'none');
+        })
+        .catch((err) => UI.toast(err.message || 'Operazione non riuscita. Riprova.', 'error'))
+        .finally(() => {
+          chip.disabled = false;
+        });
     });
   },
 
@@ -1390,10 +1448,10 @@ export const UI = {
     }
     container.innerHTML = books
       .map((b, i) => {
-        const owner = API.getUser(b.owner_id);
-        const isOrg = owner && window.LB_UI.isOrganization(owner);
-        const ownerLabel = owner ? owner.display_name : 'Sconosciuto';
-        const place = owner ? owner.city || '—' : '—';
+        const esc = (v) => this._escapeHtml(v);
+        const isOrg = b.owner_account_type === 'organization';
+        const ownerLabel = esc(b.owner_name || 'Utente');
+        const place = esc(b.owner_city || '—');
         const availBadge = b.available
           ? `<span class="result-badge result-badge--available">
              <span class="result-badge__dot" aria-hidden="true"></span>Disponibile
@@ -1403,12 +1461,12 @@ export const UI = {
         return `
         <a href="book-detail.html?id=${b.id}" class="result-item" style="--i: ${i};">
           <div class="result-item__cover" style="background: ${b.cover_gradient};" aria-hidden="true">
-            <span>${b.title.split(' ').slice(0, 3).join(' ')}</span>
+            <span>${esc(b.title.split(' ').slice(0, 3).join(' '))}</span>
           </div>
           <div class="result-item__main">
-            <span class="result-item__category">${b.category}</span>
-            <h3 class="result-item__title">${b.title}</h3>
-            <p class="result-item__author">${b.author} · ${b.year}</p>
+            <span class="result-item__category">${esc(b.category_name || '')}</span>
+            <h3 class="result-item__title">${esc(b.title)}</h3>
+            <p class="result-item__author">${esc(b.author)}${b.year ? ` · ${b.year}` : ''}</p>
             <div class="result-item__place">
               <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" class="result-item__pin">
                 <path d="M12 2 C 8 2, 5 5, 5 9 c 0 5, 7 13, 7 13 s 7 -8, 7 -13 c 0 -4, -3 -7, -7 -7 z"
@@ -1533,88 +1591,86 @@ export const UI = {
      Card "Libreria utente" — mini-profilo con bio e conteggio libri.
      Distingue visivamente le librerie-ente dalle librerie-persona.
      ------------------------------------------------------------- */
-  renderLibraryCard(user) {
-    const initial = (user.display_name || user.username || '?').trim()[0].toUpperCase();
-    const bookLabel = user.book_count === 1 ? 'volume' : 'volumi';
-    const isOrg = window.LB_UI.isOrganization(user);
-    const typeBadge = isOrg
-      ? `<span class="library-card__type library-card__type--org">${window.LB_UI.orgCategoryLabel((API.getOrgProfile(user.id) || {}).org_category)}</span>`
-      : '<span class="library-card__type">Libreria personale</span>';
-    return `
-      <a href="library.html?id=${user.id}" class="library-card">
-        <div class="library-card__head">
-          <div class="library-card__avatar" aria-hidden="true">${initial}</div>
-          <div>
-            <h3 class="library-card__name">${user.display_name}</h3>
-            <span class="library-card__city">${user.city || '—'}</span>
-          </div>
-        </div>
-        ${typeBadge}
-        <p class="library-card__bio">${user.bio || 'Nessuna biografia disponibile.'}</p>
-        <div class="library-card__footer">
-          <span class="library-card__count">${user.book_count} ${bookLabel}</span>
-          <span class="library-card__link">visita →</span>
-        </div>
-      </a>`;
-  },
-
   /* -------------------------------------------------------------
      Card "Libreria vicino a te" — variante ricca del componente
      libreria, con copertina generata, distanza dichiarata e numero
      di volumi disponibili al prestito messo graficamente in risalto.
      ------------------------------------------------------------- */
   renderNearbyLibraryCard(lib) {
-    const { themeClass, design, letter } = window.LB_UI.libraryCoverData(lib, lib.prefs);
-    const isOrg = window.LB_UI.isOrganization(lib);
+    // lib: elemento di GET /api/libraries (distanza sulla posizione pubblica)
+    const esc = (v) => this._escapeHtml(v);
+    const asUser = {
+      display_name: lib.displayName,
+      username: lib.username,
+      account_type: lib.accountType,
+    };
+    const prefs = {
+      theme: lib.theme,
+      avatar_style: lib.avatarStyle,
+      avatar_symbol: lib.avatarSymbol,
+      cover_design: lib.coverDesign,
+    };
+    const { themeClass, design, letter } = window.LB_UI.libraryCoverData(asUser, prefs);
+    const isOrg = lib.accountType === 'organization';
 
-    /* Distanza in linguaggio naturale */
-    const dist = lib.distance_km;
+    /* Distanza in linguaggio naturale (solo se c'e' un punto di riferimento
+       e la libreria mostra la posizione) */
+    const dist = lib.distanceKm;
     const distLabel =
-      dist < 1
-        ? `a ${Math.round(dist * 1000)} m da te`
-        : `a ${dist.toFixed(1).replace('.', ',')} km da te`;
+      dist == null
+        ? ''
+        : dist < 1
+          ? `a ${Math.round(dist * 1000)} m da te`
+          : `a ${dist.toFixed(1).replace('.', ',')} km da te`;
 
-    /* Descrizione breve: il motto personalizzato se presente,
-       altrimenti la biografia, altrimenti un testo neutro. */
-    const shortDesc =
-      lib.prefs && lib.prefs.motto
-        ? `«${lib.prefs.motto}»`
-        : lib.bio ||
-          (isOrg
-            ? 'Libreria di comunità aperta al prestito.'
-            : 'Collezione privata condivisa con la comunità.');
+    /* Descrizione breve: il motto se presente, altrimenti la biografia,
+       altrimenti un testo neutro. */
+    const shortDesc = lib.motto
+      ? `«${esc(lib.motto)}»`
+      : lib.bio
+        ? esc(lib.bio)
+        : isOrg
+          ? 'Libreria di comunità aperta al prestito.'
+          : 'Collezione privata condivisa con la comunità.';
 
-    /* Tipo: badge in alto a sinistra con icona dedicata. */
     const typeLabel = isOrg
-      ? window.LB_UI.orgCategoryLabel((API.getOrgProfile(lib.id) || {}).org_category)
+      ? esc(window.LB_UI.orgCategoryLabel(lib.orgCategory))
       : 'Libreria personale';
     const typeIcon = isOrg ? '🏛' : '📖';
     const typeClass = isOrg ? 'nearby-card--org' : 'nearby-card--person';
+    // "Appena aperta": iscritta da meno di 14 giorni
+    const fresh =
+      lib.createdAt && (Date.now() - new Date(lib.createdAt).getTime()) / 86400000 <= 14;
 
-    /* Avviso visivo "pochi volumi disponibili": quando la libreria ha
-       <= 2 libri disponibili, il blocco numero+etichetta pulsa con un
-       bordo arancione che attira l'attenzione (caso 0 = grigio). */
-    const lowStock = lib.available_count > 0 && lib.available_count <= 2;
-    const emptyStock = lib.available_count === 0;
+    /* Avviso visivo "pochi volumi disponibili" (<= 2; 0 = grigio) */
+    const available = lib.availableCount || 0;
+    const lowStock = available > 0 && available <= 2;
+    const emptyStock = available === 0;
     const availClass =
       (emptyStock ? ' nearby-card__avail-num--zero' : '') +
       (lowStock ? ' nearby-card__avail-num--low' : '');
     const blockClass = lowStock ? ' nearby-card__avail-block--low' : '';
-    const availLbl = lib.available_count === 1 ? 'libro disponibile' : 'libri disponibili';
+    const availLbl = available === 1 ? 'libro disponibile' : 'libri disponibili';
+
+    const stars = lib.reviewsCount
+      ? `<div class="nearby-card__stars">
+          ${UI.renderStars(lib.avgRating || 0, { count: lib.reviewsCount, size: 'sm', showAverage: true })}
+        </div>`
+      : '<div class="nearby-card__stars nearby-card__stars--empty"><span class="nearby-card__no-reviews">Nessuna recensione ancora</span></div>';
 
     return `
-      <a href="library.html?id=${lib.id}" class="nearby-card ${typeClass}">
+      <a href="library.html?id=${encodeURIComponent(lib.id)}" class="nearby-card ${typeClass}">
         <div class="nearby-card__cover ${themeClass}">
           <svg class="nearby-card__art" viewBox="0 0 200 140" preserveAspectRatio="xMidYMid slice"
                xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            ${design.render({ letter })}
+            ${design.render({ letter: esc(letter) })}
           </svg>
           <span class="nearby-card__type">
             <span class="nearby-card__type-ico" aria-hidden="true">${typeIcon}</span>
             ${typeLabel}
           </span>
           ${
-            API.isLibraryFresh(lib)
+            fresh
               ? `
             <span class="nearby-card__fresh" title="Libreria aperta da poco">
               <span aria-hidden="true">✦</span> Appena aperta
@@ -1623,20 +1679,8 @@ export const UI = {
           }
         </div>
         <div class="nearby-card__body">
-          <h3 class="nearby-card__name">${lib.display_name}</h3>
-          ${(() => {
-            // v1.4: piccolo riepilogo recensioni sotto al nome, coerente
-            // col resto della scheda (font-mono, color soft).
-            // v2.6: se non ci sono recensioni, placeholder mantengo
-            // lo stesso spazio per non rompere il layout di tutte le card.
-            const s = API.getReviewSummary(lib.id);
-            if (s.count === 0) {
-              return '<div class="nearby-card__stars nearby-card__stars--empty"><span class="nearby-card__no-reviews">Nessuna recensione ancora</span></div>';
-            }
-            return `<div class="nearby-card__stars">
-              ${UI.renderStars(s.average, { count: s.count, size: 'sm', showAverage: true })}
-            </div>`;
-          })()}
+          <h3 class="nearby-card__name">${esc(lib.displayName)}</h3>
+          ${stars}
           <p class="nearby-card__desc">${shortDesc}</p>
 
           <div class="nearby-card__hilite">
@@ -1647,12 +1691,12 @@ export const UI = {
                         fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                   <circle cx="12" cy="8" r="2.4" fill="currentColor"/>
                 </svg>
-                <span>${lib.city || '—'}</span>
+                <span>${esc(lib.city || '—')}</span>
               </span>
-              <span class="nearby-card__place-dist">${distLabel}</span>
+              ${distLabel ? `<span class="nearby-card__place-dist">${distLabel}</span>` : ''}
             </div>
             <div class="nearby-card__avail-block${blockClass}">
-              <span class="nearby-card__avail-num${availClass}">${lib.available_count}</span>
+              <span class="nearby-card__avail-num${availClass}">${available}</span>
               <span class="nearby-card__avail-lbl">${availLbl}</span>
             </div>
           </div>
@@ -1673,6 +1717,7 @@ export const UI = {
       return;
     }
     const grad = gradientFallback || 'linear-gradient(135deg, #7a1e2b, #b08840)';
+    const esc = (v) => this._escapeHtml(v);
 
     switch (mode) {
       case 'list':
@@ -1682,15 +1727,15 @@ export const UI = {
               (b) => `
             <a href="book-detail.html?id=${b.id}" class="books-list__item">
               <div class="books-list__cover" style="background: ${b.cover_gradient || grad};">
-                ${b.title.split(' ').slice(0, 2).join(' ')}
+                ${esc(b.title.split(' ').slice(0, 2).join(' '))}
               </div>
               <div class="books-list__main">
-                <h4>${b.title}</h4>
-                <span>${b.author} · ${b.year} · ${b.category}</span>
+                <h4>${esc(b.title)}</h4>
+                <span>${[b.author, b.year, b.category_name].filter(Boolean).map(esc).join(' · ')}</span>
               </div>
               <div class="books-list__meta">
                 ${b.available ? 'disponibile' : 'in prestito'}<br/>
-                <small>${b.condition}</small>
+                <small>${esc(b.condition || '')}</small>
               </div>
             </a>`
             )
@@ -1705,7 +1750,7 @@ export const UI = {
               (b) => `
             <a href="book-detail.html?id=${b.id}" class="books-shelf__book"
                style="background: ${b.cover_gradient || grad};"
-               title="${b.title} — ${b.author}">${b.title}</a>`
+               title="${esc(b.title)} — ${esc(b.author)}">${esc(b.title)}</a>`
             )
             .join('')}
         </div>`;
@@ -1714,13 +1759,13 @@ export const UI = {
       case 'timeline':
         container.innerHTML = `<div class="books-timeline">
           ${[...books]
-            .sort((a, b) => a.year - b.year)
+            .sort((a, b) => (a.year || 0) - (b.year || 0))
             .map(
               (b) => `
             <a href="book-detail.html?id=${b.id}" class="books-timeline__item" style="text-decoration:none;display:block;">
-              <div class="books-timeline__year">${b.year}</div>
-              <div class="books-timeline__title">${b.title}</div>
-              <div class="books-timeline__author">${b.author} — ${b.category}</div>
+              <div class="books-timeline__year">${b.year || '—'}</div>
+              <div class="books-timeline__title">${esc(b.title)}</div>
+              <div class="books-timeline__author">${esc(b.author)}${b.category_name ? ` — ${esc(b.category_name)}` : ''}</div>
             </a>`
             )
             .join('')}

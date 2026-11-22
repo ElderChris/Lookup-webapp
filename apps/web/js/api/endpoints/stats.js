@@ -21,6 +21,16 @@ export const stats = {
   },
 
   /**
+   * GET /api/stats/overview — dati della pagina Statistiche in un'unica
+   * risposta: kpi, activity (12 settimane), hierarchy, cooccurrence,
+   * months + topBooks (andamento mensile), topUsers (classifiche).
+   * @param {{limit?: number}} query
+   */
+  overview(query = {}, options = {}) {
+    return apiClient.get('/api/stats/overview', { query, ...options });
+  },
+
+  /**
    * GET /api/stats/ridgeline — top N utenti × M settimane di attivita'.
    * Attivita' = post + loan + review per settimana.
    * Output: matrice user[]×week[] adatta a chart d3-ridgeline.

@@ -221,6 +221,7 @@ model Book {
   categories    BookCategory[]
   loanRequests  LoanRequest[]
   likes         Like[]
+  viewDays      BookViewDay[]
   notifications Notification[]
 
   @@index([ownerId])
@@ -357,6 +358,20 @@ model Follow {
   @@id([followerId, followedId])
   @@index([followedId])
   @@map("user_follows")
+}
+
+// Visualizzazioni per giorno (anonime: nessun riferimento a chi ha guardato).
+// Alimenta l'andamento nel tempo delle statistiche; il totale resta in
+// books.view_count.
+model BookViewDay {
+  bookId      Int      @map("book_id")
+  day         DateTime @db.Date
+  count       Int      @default(0)
+
+  book        Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@id([bookId, day])
+  @@map("book_view_days")
 }
 
 model Like {

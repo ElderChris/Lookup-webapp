@@ -48,8 +48,9 @@ describe('GET /api/books', () => {
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.data.length).toBeGreaterThan(0);
+    // Il testo cerca in titolo, autore e citta' pubblica del proprietario
     for (const b of body.data) {
-      const haystack = (b.title + ' ' + b.author).toLowerCase();
+      const haystack = `${b.title} ${b.author} ${b.owner.city || ''}`.toLowerCase();
       expect(haystack).toContain('napoli');
     }
   });

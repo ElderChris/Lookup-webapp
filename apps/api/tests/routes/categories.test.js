@@ -53,3 +53,17 @@ describe('GET /api/categories', () => {
     expect(res.statusCode).toBe(200);
   });
 });
+
+describe('GET /api/categories: tassonomia', () => {
+  it('macro-aree e sottogeneri del prototipo, con genitore e conteggio volumi', async () => {
+    const app = await buildTestApp();
+    const body = (await app.inject({ method: 'GET', url: '/api/categories' })).json();
+    expect(body.data.length).toBe(81);
+    const bySlug = Object.fromEntries(body.data.map((c) => [c.slug, c]));
+    expect(bySlug['thriller']).toMatchObject({ parentName: 'Narrativa', bisacCode: 'FIC031000' });
+    expect(bySlug['manga']).toMatchObject({ parentName: 'Fumetti e graphic novel' });
+    expect(bySlug['biografie'].parentId).toBeNull();
+    // Nel seed i libri di letteratura italiana sono piu' di uno
+    expect(bySlug['letteratura-italiana'].booksCount).toBeGreaterThan(1);
+  });
+});

@@ -119,9 +119,9 @@
           Esplora la mappa
         </a>
 
-        <div class="hero__stats-inline" id="hero-stats" aria-label="Numeri della piattaforma in tempo reale">
+        <div class="hero__stats-inline" id="hero-stats" aria-label="Numeri della piattaforma, aggiornati ogni minuto">
           <span class="hero__stats-inline__pip" aria-hidden="true"></span>
-          <span class="hero__stats-inline__live">in tempo reale</span>
+          <span class="hero__stats-inline__live">aggiornati ogni minuto</span>
           <span class="hero__stats-inline__group">
             <strong id="stat-books" data-stat="books">0</strong> volumi
           </span>
@@ -390,131 +390,140 @@
       renderRecentUpdates();
 
       /* =========================================================
-         CONTATORI "LIVE"
-         I valori partono dai dati reali e vengono incrementati a
-         intervalli regolari con piccoli scatti casuali, per dare
-         la sensazione di una piattaforma viva e in crescita.
-         È un pattern di gamification: riprova sociale + senso di
-         slancio. In produzione gli incrementi arriverebbero da un
-         canale realtime (WebSocket / SSE) alimentato dal backend.
+         CONTATORI DELLA PIATTAFORMA (scelta di Chris, 22 nov 2026)
+         Valori reali dal server (/api/stats/global → publicCounters).
+         All'apertura il numero sale da 0 con un'animazione; ogni 60 s
+         la pagina rilegge i dati e, se sono cambiati, il numero sale
+         dal valore precedente con lo stesso scatto. L'effetto
+         "piattaforma viva" resta, ma solo con dati veri.
          ========================================================= */
-      const baseStats = API.getGlobalStats();
+      const counters = { books: 0, users: 0, categories: 0, views: 0 };
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-      // Stato corrente dei contatori (number)
-      const counters = {
-        books:      baseStats.total_books,
-        users:      baseStats.total_users,
-        categories: baseStats.categories_count,
-        views:      baseStats.total_views
-      };
-
-      // Quanto può crescere ogni metrica ad ogni "tick"
-      const increments = {
-        books:      () => (Math.random() < 0.5 ? 1 : 0),
-        users:      () => (Math.random() < 0.3 ? 1 : 0),
-        categories: () => 0,                       // le categorie sono stabili
-        views:      () => Math.floor(Math.random() * 9) + 1
-      };
-
-      function paintCounter(key) {
+      function animateCounter(key, to) {
         const el = document.querySelector(`[data-stat="${key}"]`);
         if (!el) return;
-        el.textContent = counters[key].toLocaleString('it-IT');
+        const from = counters[key];
+        counters[key] = to;
+        if (from === to) return;
+        const paint = (v) => { el.textContent = Math.round(v).toLocaleString('it-IT'); };
+        if (reduceMotion) { paint(to); return; }
+        const start = performance.now();
+        const duration = from === 0 ? 1200 : 700;
+        const step = (now) => {
+          const t = Math.min(1, (now - start) / duration);
+          paint(from + (to - from) * (1 - Math.pow(1 - t, 3)));
+          if (t < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+        if (from > 0) {
+          // Micro-animazione di scatto sugli aggiornamenti successivi
+          el.classList.remove('is-ticking');
+          void el.offsetWidth;
+          el.classList.add('is-ticking');
+        }
       }
 
-      // Render iniziale
-      Object.keys(counters).forEach(paintCounter);
-
-      // Tick periodico ogni 4 secondi
+      async function refreshCounters() {
+        try {
+          const res = await window.LB_API.stats.global();
+          const c = res.publicCounters || {};
+          animateCounter('books', c.books || 0);
+          animateCounter('users', c.readers || 0);
+          animateCounter('categories', c.categories || 0);
+          animateCounter('views', c.views || 0);
+        } catch (_err) {
+          /* restano gli ultimi valori mostrati */
+        }
+      }
+      refreshCounters();
       setInterval(() => {
-        Object.keys(counters).forEach(key => {
-          const delta = increments[key]();
-          if (delta > 0) {
-            counters[key] += delta;
-            const el = document.querySelector(`[data-stat="${key}"]`);
-            paintCounter(key);
-            // Micro-animazione di scatto
-            el.classList.remove('is-ticking');
-            void el.offsetWidth;            // forza il reflow per riavviare l'animazione
-            el.classList.add('is-ticking');
-          }
-        });
-      }, 4000);
+        if (!document.hidden) refreshCounters();
+      }, 60000);
 
       /* =========================================================
-         LIBRERIE VICINO A TE
-         Ordinate per prossimità + attività. La posizione di
-         riferimento è quella dell'utente autenticato oppure, per i
-         visitatori anonimi, una posizione simulata sul centro di
-         Napoli.
+         LIBRERIE VICINO A TE (scelta di Chris, 22 nov 2026)
+         Distanze dalla propria posizione, se impostata, oppure da
+         quella del browser su richiesta; altrimenti ordine per
+         attivita'. Le distanze usano solo le posizioni pubbliche.
          ========================================================= */
-      function renderNearby() {
+      async function renderNearby() {
         const container = document.getElementById('nearby-libraries');
         const refNote = document.getElementById('nearby-ref-note');
-        const ref = API.getReferenceLocation();
+        const ref = window.LB_UI.referencePosition();
 
-        refNote.textContent = ref.simulated
-          ? 'Le distanze sono calcolate da una posizione simulata sul centro di Napoli. Accedi per usare la tua posizione reale.'
-          : 'Le distanze sono calcolate dalla tua posizione registrata.';
+        if (ref && ref.source === 'profile') {
+          refNote.textContent = 'Le distanze sono calcolate dalla posizione che hai indicato nelle impostazioni.';
+        } else if (ref) {
+          refNote.textContent = 'Le distanze sono calcolate dalla posizione attuale del tuo dispositivo.';
+        } else {
+          refNote.innerHTML = `Senza una posizione le librerie sono ordinate per attività.
+            <button type="button" class="btn btn--ghost btn--small" id="nearby-use-position"
+                    style="margin-left: .5rem;">📍 Usa la mia posizione</button>`;
+          document.getElementById('nearby-use-position').addEventListener('click', async () => {
+            try {
+              await window.LB_UI.requestBrowserPosition();
+              renderNearby();
+            } catch (err) {
+              UI.toast(err.message, 'error');
+            }
+          });
+        }
 
-        const allLibs = API.getNearbyLibraries();
+        let allLibs;
+        try {
+          const res = await window.LB_API.library.nearby(
+            ref ? { lat: ref.lat, lng: ref.lng, limit: 24 } : { limit: 24 }
+          );
+          allLibs = res.data;
+        } catch (err) {
+          container.innerHTML = `<p style="color:var(--color-ink-soft);font-style:italic;">
+            Server non raggiungibile: librerie non disponibili.</p>`;
+          return;
+        }
+        if (!allLibs.length) {
+          container.innerHTML = `<p style="color:var(--color-ink-soft);font-style:italic;">
+            Nessuna libreria ha ancora pubblicato volumi.</p>`;
+          return;
+        }
 
-        /* Selezione di 6 librerie con varietà di profilo: ordinate per
-           rank_score (vicinanza + attività), ma forziamo almeno 2 enti
-           e 3 librerie personali fra le 6 prescelte, così la vetrina
-           non si appiattisce su un solo tipo di profilo. */
-        const orgs = allLibs.filter(l => window.LB_UI.isOrganization(l));
-        const persons = allLibs.filter(l => !window.LB_UI.isOrganization(l));
+        /* Selezione di 6 librerie con varietà di profilo: nell'ordine del
+           server (vicinanza + attività), ma con almeno 2 enti e 3 librerie
+           personali, così la vetrina non si appiattisce su un solo tipo. */
+        const isOrg = (l) => l.accountType === 'organization';
+        const orgs = allLibs.filter(isOrg);
+        const persons = allLibs.filter((l) => !isOrg(l));
         const picked = [];
         const TARGET = 6, MIN_ORGS = 2, MIN_PERSONS = 3;
-        // garantisce i minimi
-        orgs.slice(0, MIN_ORGS).forEach(l => picked.push(l));
-        persons.slice(0, MIN_PERSONS).forEach(l => picked.push(l));
-        // riempi i posti rimanenti col rank globale, evitando duplicati
-        const seen = new Set(picked.map(l => l.id));
-        allLibs.filter(l => !seen.has(l.id)).slice(0, TARGET - picked.length)
-               .forEach(l => picked.push(l));
-        const libs = picked.slice(0, TARGET).sort((a, b) => a.rank_score - b.rank_score);
-        container.innerHTML = libs.map(l => UI.renderNearbyLibraryCard(l)).join('');
+        orgs.slice(0, MIN_ORGS).forEach((l) => picked.push(l));
+        persons.slice(0, MIN_PERSONS).forEach((l) => picked.push(l));
+        const seen = new Set(picked.map((l) => l.id));
+        allLibs.filter((l) => !seen.has(l.id)).slice(0, TARGET - picked.length)
+               .forEach((l) => picked.push(l));
+        const order = new Map(allLibs.map((l, i) => [l.id, i]));
+        const libs = picked.slice(0, TARGET).sort((a, b) => order.get(a.id) - order.get(b.id));
+        container.innerHTML = libs.map((l) => UI.renderNearbyLibraryCard(l)).join('');
       }
       renderNearby();
 
       /* v2.6: Libri in evidenza "selezione della settimana"
          ========================================================
-         Algoritmo realistico (vedi API.getFeaturedBooks):
+         Algoritmo:
          engagement recente (views 7d ×1 + prestiti 7d ×3 + like ×2)
          × quality multiplier (rating del proprietario)
          ÷ decay sqrt(giorni dall'aggiunta), con diversity penalty
          per evitare la dominanza di un singolo genere.
 
-         Fase 2c.4: sostituito con GET /api/stats/featured. Il backend
-         calcola engagement recente + diversity penalty con la stessa
-         semantica. Fallback graceful al legacy se backend giu'. */
-      let featured;
-      let featuredSource = 'legacy';
-      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-        try {
-          const res = await window.LB_API.stats.featured({ limit: 4, days: 7 }, {
-            cache: {
-              ttlMs: window.LB_API.CACHE_TTL.STATS,
-              key: 'stats:featured:4:7',
-            },
-          });
-          featured = res.data.map(window.LB_API.bookToLegacy);
-          featuredSource = `backend (${featured.length})`;
-        } catch (err) {
-          console.debug(`[index] featured fallback legacy: ${err.code || err.message}`);
-        }
-      }
-      if (!featured) {
-        featured = API.getFeaturedBooks(4).map(c => c.book);
-      }
-      console.debug(`[index] featured source: ${featuredSource}`);
-      UI.renderBooksGrid(document.getElementById('featured-books'), featured);
-
-      // Fase 2c.4: badge LIVE se almeno featured proviene dal backend
-      if (featuredSource.startsWith('backend') && window.LB_markLive) {
-        window.LB_markLive('home', `GET /api/stats/featured + /api/posts/feed`);
+         Calcolato dal server: GET /api/stats/featured. */
+      const featuredBox = document.getElementById('featured-books');
+      try {
+        const res = await window.LB_API.stats.featured({ limit: 4, days: 7 }, {
+          cache: { ttlMs: window.LB_API.CACHE_TTL.STATS, key: 'stats:featured:4:7' },
+        });
+        UI.renderBooksGrid(featuredBox, res.data.map(window.LB_API.bookToLegacy));
+      } catch (_err) {
+        featuredBox.innerHTML = `<p style="color:var(--color-ink-soft);font-style:italic;">
+          Server non raggiungibile: selezione non disponibile.</p>`;
       }
 
       /* ----- Saluto personalizzato (utente autenticato)
