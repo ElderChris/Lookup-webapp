@@ -112,7 +112,8 @@ Dalla cartella del progetto, in PowerShell:
 Lo script controlla i requisiti, installa le dipendenze, avvia i servizi,
 prepara il database (caricando i dati di prova solo se è vuoto), controlla
 le versioni in esecuzione, esegue una prova delle funzioni principali
-(accesso, prestiti, notifiche in tempo reale) e la suite di test automatici.
+(accesso, prestiti, notifiche in tempo reale), la suite di test automatici
+e i test nel browser.
 Al termine mostra un riepilogo con l'esito di ogni passo.
 
 Il dettaglio completo è salvato in `logs/verify-latest.log`.
@@ -124,6 +125,7 @@ Opzioni utili:
 | `-SkipInstall` | Non reinstalla le dipendenze |
 | `-SkipPull -SkipBuild` | Riusa le immagini Docker già presenti |
 | `-SkipTests` | Salta la suite di test automatici |
+| `-SkipE2E` | Salta i test nel browser |
 | `-Down` | Ferma i servizi al termine |
 | `-Reseed` | Ricarica i dati di prova anche se il database non è vuoto (**cancella** i dati esistenti) |
 
@@ -144,6 +146,33 @@ npm test -w apps/api
 
 Il primo comando prepara un database dedicato ai test (`lookup_test`),
 separato da quello dell'applicazione: i test non toccano i dati in uso.
+
+### Test nel browser (Playwright)
+
+Percorrono l'applicazione come farebbe una persona: apertura di tutte le
+pagine, iscrizione con conferma via email, richiesta di prestito da ospite,
+ciclo completo del prestito, sospensione da parte dell'amministratore,
+recupero della password ed eliminazione dell'account.
+
+Una sola volta, per scaricare il browser usato dai test:
+
+```bash
+npx playwright install chromium
+```
+
+Poi, con i servizi avviati (compreso Mailpit, da cui i test leggono i link
+di conferma):
+
+```bash
+npm run test:e2e
+```
+
+I test creano solo utenti propri (nome utente che inizia con `e2e.`) e li
+eliminano al termine; usano l'amministratore dei dati di prova
+(`admin@lookup.local`). Indirizzi e credenziali si cambiano con le variabili
+`E2E_BASE_URL`, `E2E_MAILPIT_URL`, `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`.
+In caso di errore il report dettagliato è in `e2e/report/index.html`.
+`verify.ps1` li esegue automaticamente se il browser è installato.
 
 ### Prova manuale consigliata
 
