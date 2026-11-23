@@ -70,11 +70,11 @@ export const auth = betterAuth({
       await sendMail({
         to: user.email,
         subject: 'Reimposta la password — Lookup',
-        text: `Ciao ${user.name || ''},\n\nabbiamo ricevuto una richiesta di reimpostare la password del tuo account Lookup. Per sceglierne una nuova apri questo link:\n${link}\n\nIl link scade fra un'ora. Se non sei stato tu, ignora questa email: la password resta quella di prima.`,
+        text: `Ciao ${user.name || ''},\n\nabbiamo ricevuto una richiesta di reimpostare la password del tuo account Lookup. Per sceglierne una nuova apri questo link:\n${link}\n\nIl link scade fra un'ora. Se la richiesta non è partita da te, ignora questa email: la password resta quella di prima.`,
         html: `<p>Ciao ${esc(user.name)},</p>
                <p>abbiamo ricevuto una richiesta di reimpostare la password del tuo account Lookup.</p>
                <p><a href="${esc(link)}">Scegli una nuova password</a></p>
-               <p>Il link scade fra un'ora. Se non sei stato tu, ignora questa email: la password resta quella di prima.</p>`,
+               <p>Il link scade fra un'ora. Se la richiesta non è partita da te, ignora questa email: la password resta quella di prima.</p>`,
       });
     },
 
@@ -87,11 +87,11 @@ export const auth = betterAuth({
       await sendMail({
         to: user.email,
         subject: 'Hai già un account Lookup',
-        text: `Ciao ${user.name || ''},\n\nqualcuno ha provato a creare un account Lookup con questo indirizzo email, che risulta già registrato.\n\nSe eri tu, accedi da ${login}\nSe non ricordi la password, reimpostala da ${reset}\n\nSe non sei stato tu, puoi ignorare questa email.`,
+        text: `Ciao ${user.name || ''},\n\nqualcuno ha provato a creare un account Lookup con questo indirizzo email, che risulta già registrato.\n\nSe il tentativo è partito da te, accedi da ${login}\nSe non ricordi la password, reimpostala da ${reset}\n\nSe non sai di cosa si tratta, puoi ignorare questa email.`,
         html: `<p>Ciao ${esc(user.name)},</p>
                <p>qualcuno ha provato a creare un account Lookup con questo indirizzo email, che risulta già registrato.</p>
-               <p>Se eri tu, <a href="${esc(login)}">accedi</a>; se non ricordi la password, <a href="${esc(reset)}">reimpostala</a>.</p>
-               <p>Se non sei stato tu, puoi ignorare questa email.</p>`,
+               <p>Se il tentativo è partito da te, <a href="${esc(login)}">accedi</a>; se non ricordi la password, <a href="${esc(reset)}">reimpostala</a>.</p>
+               <p>Se non sai di cosa si tratta, puoi ignorare questa email.</p>`,
       });
     },
   },
@@ -114,11 +114,11 @@ export const auth = betterAuth({
       await sendMail({
         to: user.email,
         subject: 'Conferma la tua email — Lookup',
-        text: `Ciao ${user.name || ''},\n\nbenvenuto in Lookup! Per attivare il tuo account conferma l'indirizzo email aprendo questo link:\n${link}\n\nIl link scade fra 24 ore. Se non ti sei iscritto tu, ignora questa email.`,
+        text: `Ciao ${user.name || ''},\n\nti diamo il benvenuto in Lookup! Per attivare il tuo account conferma l'indirizzo email aprendo questo link:\n${link}\n\nIl link scade fra 24 ore. Se l'iscrizione non è partita da te, ignora questa email.`,
         html: `<p>Ciao ${esc(user.name)},</p>
-               <p>benvenuto in Lookup! Per attivare il tuo account conferma l'indirizzo email.</p>
+               <p>ti diamo il benvenuto in Lookup! Per attivare il tuo account conferma l'indirizzo email.</p>
                <p><a href="${esc(link)}">Conferma l'email</a></p>
-               <p>Il link scade fra 24 ore. Se non ti sei iscritto tu, ignora questa email.</p>`,
+               <p>Il link scade fra 24 ore. Se l'iscrizione non è partita da te, ignora questa email.</p>`,
       });
     },
     // Email confermata: l'account diventa attivo e i volumi inseriti

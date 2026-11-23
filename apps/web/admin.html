@@ -425,13 +425,18 @@
     }
 
     function userRow(u) {
-      const [label, cls] = USER_STATUS[u.status] || [u.status, 'status-pill--off'];
+      // Account attivo ma con email mai confermata (iscritti prima della
+      // verifica obbligatoria): non riesce ad accedere finché non conferma
+      const unverified = !u.emailVerified && u.status !== 'suspended' && u.status !== 'deleted';
+      const [label, cls] = unverified
+        ? USER_STATUS.pending
+        : USER_STATUS[u.status] || [u.status, 'status-pill--off'];
       const isMe = u.id === me.id;
       const name = esc(u.displayName);
       const actions = [
         `<button type="button" class="admin-icon-btn" data-user-action="edit" title="Modifica" aria-label="Modifica ${name}">✎</button>`,
       ];
-      if (u.status === 'pending') {
+      if (unverified) {
         actions.push(`<button type="button" class="admin-icon-btn" data-user-action="verify" title="Conferma l'email" aria-label="Conferma l'email di ${name}">✓</button>`);
       }
       if (!isMe && u.status === 'active') {

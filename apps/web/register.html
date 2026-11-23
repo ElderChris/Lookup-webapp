@@ -50,7 +50,7 @@
       <h1 style="font-size: 2.5rem; margin-bottom: .5rem;">
         Crea la tua <em style="color: var(--color-burgundy);">libreria</em>
       </h1>
-      <p style="color: var(--color-ink-soft); margin-bottom: 2rem;">
+      <p id="register-lede" style="color: var(--color-ink-soft); margin-bottom: 2rem;">
         Una libreria è la raccolta di volumi di un membro della comunità: può essere
         la collezione personale di un lettore oppure il fondo di un ente che mette i
         propri libri a disposizione per il prestito. Tre passi e sei pronto.
@@ -740,7 +740,7 @@
       }
 
       function showCheckEmail(email) {
-        document.querySelectorAll('.wizard-steps, #wizard-form, #intent-banner, .auth-switch--top').forEach((el) => {
+        document.querySelectorAll('.wizard-steps, #wizard-form, #intent-banner, .auth-switch--top, #register-lede').forEach((el) => {
           el.hidden = true;
         });
         errorBox.hidden = true;

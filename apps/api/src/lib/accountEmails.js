@@ -23,9 +23,9 @@ export async function sendAccountDeletedEmail(user, { byAdmin = false } = {}) {
   return sendEmail({
     to: user.email,
     subject: 'Account Lookup eliminato',
-    text: `Ciao ${user.displayName || ''},\n\nil tuo account Lookup è stato eliminato ${who}, insieme ai dati collegati: profilo, volumi, prestiti e messaggi, recensioni e post.\n\nSe pensi che si tratti di un errore, rispondi a questa email.`,
+    text: `Ciao ${user.displayName || ''},\n\nil tuo account Lookup è stato eliminato ${who}, insieme ai dati collegati: profilo, volumi, prestiti e messaggi, recensioni e post.\n\nSe pensi che si tratti di un errore, contatta chi gestisce il servizio.`,
     html: `<p>Ciao ${escapeHtml(user.displayName)},</p>
            <p>il tuo account Lookup è stato eliminato ${who}, insieme ai dati collegati: profilo, volumi, prestiti e messaggi, recensioni e post.</p>
-           <p>Se pensi che si tratti di un errore, rispondi a questa email.</p>`,
+           <p>Se pensi che si tratti di un errore, contatta chi gestisce il servizio.</p>`,
   });
 }
