@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <!-- Beta 9: PWA meta tags -->
+  <!-- PWA meta tags -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#7a1e2b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="/img/icon-180.png" />
 
   <title>Profilo — Lookup</title>
-  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <link rel="stylesheet" href="css/styles.css" />
   <script src="js/auth-hint.js"></script>
 </head>
 <body>
@@ -43,7 +43,7 @@
       <div class="profile-header" id="profile-header"></div>
 
       <!-- Tab navigation -->
-      <!-- v1.9: il banner "Vuoi condividere i tuoi libri?" è stato rimosso
+      <!-- il banner "Vuoi condividere i tuoi libri?" è stato rimosso
            e sostituito da una CTA dedicata nell'empty-state della tab libri,
            che apre un wizard inline per l'apertura ufficiale della libreria. -->
 
@@ -66,7 +66,7 @@
           <div>
             <h2 style="font-size: 1.5rem; display: inline-flex; align-items: center; gap: 12px;">
               La mia libreria
-              <!-- v2.1: pill di stato visibilità, popolata da JS -->
+              <!-- pill di stato visibilità, popolata da JS -->
               <span id="library-visibility-pill" hidden></span>
             </h2>
             <span id="books-count" style="color: var(--color-ink-soft); font-size: .85rem; display: block; margin-top: 4px;">—</span>
@@ -77,13 +77,13 @@
             <a href="add-book.html" class="btn btn--primary btn--small">+ Aggiungi volume</a>
           </div>
         </div>
-        <!-- v2.1: banner enfasi sopra all'area libri, popolato da JS solo
+        <!-- banner enfasi sopra all'area libri, popolato da JS solo
              quando la libreria non è ancora visibile pubblicamente. -->
         <div id="library-visibility-banner" hidden></div>
         <div class="books-grid" id="my-books"></div>
       </div>
 
-      <!-- v2.4: Pannello Post — cronologia dei propri post + composer -->
+      <!-- Pannello Post — cronologia dei propri post + composer -->
       <div role="tabpanel" id="panel-posts" aria-labelledby="tab-posts" hidden>
         <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">I tuoi post</h2>
         <p style="color: var(--color-ink-soft); margin-bottom: 1.5rem;">
@@ -95,7 +95,7 @@
         <div id="my-posts-list" style="margin-top: 1.5rem;" aria-live="polite"></div>
       </div>
 
-      <!-- Pannello: richieste ricevute (dinamico v1.5) -->
+      <!-- Pannello: richieste ricevute -->
       <div role="tabpanel" id="panel-requests" aria-labelledby="tab-requests" hidden>
         <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Richieste di prestito ricevute</h2>
         <p style="color: var(--color-ink-soft); margin-bottom: 2rem;">
@@ -106,11 +106,11 @@
         <div id="lender-loans-list" aria-live="polite"></div>
       </div>
 
-      <!-- Pannello: recensioni (v1.4 + v1.6 sub-tabs) -->
+      <!-- Pannello: recensioni (ricevute / scritte) -->
       <div role="tabpanel" id="panel-reviews" aria-labelledby="tab-reviews" hidden>
         <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Le tue recensioni</h2>
 
-        <!-- Sub-tabs v1.6: Ricevute / Scritte -->
+        <!-- Sotto-schede: Ricevute / Scritte -->
         <div class="sub-tabs" role="tablist" aria-label="Tipo recensioni">
           <button role="tab" aria-selected="true" id="sub-tab-received"
                   class="sub-tab is-active" data-sub-tab="received">
@@ -194,7 +194,7 @@
             <button type="button" class="btn btn--ghost btn--small" style="color: var(--color-burgundy); border-color: var(--color-burgundy);">Elimina account</button>
           </div>
 
-          <!-- v1.7: GDPR data export -->
+          <!-- GDPR data export -->
           <div class="gdpr-export">
             <h3>Esporta i tuoi dati</h3>
             <p>In conformità al GDPR (art. 20 — diritto di portabilità), puoi
@@ -215,18 +215,41 @@
     </section>
   </main>
 
-  <footer class="site-footer">
+  <footer class="site-footer" role="contentinfo">
     <div class="container">
-      <div><h4>Lookup</h4><p style="color: rgba(244,239,230,.7); font-size: .9rem;">Un progetto di condivisione del patrimonio librario privato.</p></div>
-      <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
-      <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
-      <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Lookup</span><span>v3.0.0-alpha.0</span></div>
+      <div>
+        <h4>Lookup</h4>
+        <p style="color: rgba(244,239,230,.7); font-size: .9rem;">
+          Condivisione dei libri privati e delle biblioteche di comunità, fra vicini.
+        </p>
+      </div>
+      <div>
+        <h4>Esplora</h4>
+        <a href="explore.html">Mappa dei libri</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="loans.html" class="auth-only">I miei prestiti</a>
+      </div>
+      <div>
+        <h4>Partecipa</h4>
+        <a href="add-book.html" class="auth-only">Pubblica un libro</a>
+        <a href="profile.html" class="auth-only">Il tuo profilo</a>
+        <a href="register.html" class="guest-only">Iscriviti</a>
+        <a href="login.html" class="guest-only">Accedi</a>
+      </div>
+      <div>
+        <h4>Informazioni</h4>
+        <a href="privacy.html">Informativa sulla privacy</a>
+        <a href="terms.html">Termini di utilizzo</a>
+      </div>
+      <div class="site-footer__colophon">
+        <span>© 2026 Lookup</span>
+        <span>Codice con licenza GPL-3.0<span data-app-version></span></span>
+      </div>
     </div>
   </footer>
 
   <script type="module" src="js/api-bootstrap.js"></script>
-  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+  <script type="module" src="js/app.js"></script>
   <script>
 
     // CSS inline per il tab-btn (potrebbe andare nello stylesheet)
@@ -244,7 +267,7 @@
     document.head.appendChild(style);
 
     document.addEventListener('DOMContentLoaded', async () => {
-      // Beta 3: aspetta session lookup di api-bootstrap prima di procedere
+      // aspetta session lookup di api-bootstrap prima di procedere
       if (!window.LB_AUTH_READY) {
         await new Promise((res) => window.addEventListener('lb-auth-ready', res, { once: true }));
       }
@@ -351,7 +374,7 @@
           </p>
         </div>`;
 
-      // v2.5: wiring del menu avatar (cambio foto profilo)
+      // wiring del menu avatar (cambio foto profilo)
       UI.wireAvatarMenu(document.getElementById('profile-avatar'), () => {
         // Dopo il salvataggio: ricarica per aggiornare avatar e barra
         location.reload();
@@ -361,7 +384,7 @@
       document.getElementById('books-count').textContent =
         `${books.length} volum${books.length === 1 ? 'e' : 'i'} pubblicat${books.length === 1 ? 'o' : 'i'}`;
 
-      // v2.1: stato di visibilità della libreria + enfasi per Lettori
+      // stato di visibilità della libreria + enfasi per Lettori
       // ────────────────────────────────────────────────────────────────
       // Tre scenari distinti:
       //   (a) library_role==='borrower'  → libreria NON aperta, invisibile.
@@ -416,11 +439,11 @@
       }
       // ────────────────────────────────────────────────────────────────
 
-      // v1.9: il banner "Apri la tua libreria" sopra le tab è stato
+      // il banner "Apri la tua libreria" sopra le tab è stato
       // rimosso. La CTA è ora integrata nell'empty-state della tab libri
       // e apre il wizard di apertura libreria inline.
 
-      // v1.3: empty-state pieno e accogliente quando l'utente non ha
+      // empty-state pieno e accogliente quando l'utente non ha
       // ancora pubblicato nulla. Il bottone "+ Aggiungi volume" è già
       // nella toolbar sopra, ma qui replichiamo un CTA enorme che fa
       // chiaramente capire "questa è la cosa da fare adesso".
@@ -430,7 +453,7 @@
       if (books.length === 0) {
         myBooks.classList.remove('books-grid');
         if (isBorrower) {
-          // v1.9: Lettore senza libreria aperta — CTA per il wizard
+          // Lettore senza libreria aperta — CTA per il wizard
           // inline che la apre ufficialmente. Niente link a pagina
           // esterna: il wizard si materializza qui sotto.
           myBooks.innerHTML = `
@@ -482,7 +505,7 @@
         UI.renderBooksGrid(myBooks, books);
       }
 
-      /* v1.9: wizard inline per aprire ufficialmente la libreria.
+      /* wizard inline per aprire ufficialmente la libreria.
          Sostituisce in-place l'empty-state con un wizard a 3 step
          (Identità → Estetica → Conferma) usando le stesse classi
          visuali della registrazione. Al termine: aggiorna
@@ -674,11 +697,11 @@
           btn.setAttribute('aria-selected', 'true');
           document.getElementById(`panel-${btn.dataset.tab}`).hidden = false;
 
-          // v1.4: popola la tab Recensioni quando viene aperta
+          // popola la tab Recensioni quando viene aperta
           if (btn.dataset.tab === 'reviews') renderReviewsTab(user.id);
-          // v1.5: popola la tab Richieste ricevute quando viene aperta
+          // popola la tab Richieste ricevute quando viene aperta
           if (btn.dataset.tab === 'requests') renderLenderLoansTab();
-          // v2.4: popola la tab Post quando viene aperta
+          // popola la tab Post quando viene aperta
           if (btn.dataset.tab === 'posts') renderPostsTab(user.id);
         });
       });
@@ -819,7 +842,7 @@
           document.getElementById('my-written-reviews-list'), userId);
       }
 
-      // v1.6: sub-tabs Ricevute / Scritte
+      // sub-tabs Ricevute / Scritte
       document.querySelectorAll('.sub-tab').forEach(btn => {
         btn.addEventListener('click', () => {
           document.querySelectorAll('.sub-tab').forEach(b => {

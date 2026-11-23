@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <!-- Beta 9: PWA meta tags -->
+  <!-- PWA meta tags -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#7a1e2b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -16,7 +16,7 @@
   <!-- Il parametro ?v= serve come "cache-busting": cambiando versione,
        il browser è costretto a riscaricare il file invece di servire
        una copia obsoleta dalla cache. -->
-  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <link rel="stylesheet" href="css/styles.css" />
   <script src="js/auth-hint.js"></script>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
@@ -46,7 +46,7 @@
 
   <main id="main">
 
-    <!-- v2.4: Aggiornamenti recenti — visibili solo agli utenti loggati,
+    <!-- Aggiornamenti recenti — visibili solo agli utenti loggati,
          mostrano i post degli utenti seguiti in ordine cronologico. -->
     <section class="container recent-updates auth-only" id="recent-updates-section" hidden>
       <div class="recent-updates__head">
@@ -92,7 +92,7 @@
              Per sostituirla basta cambiare il file in assets/ o l'src
              qui sotto (anche con un .json Lottie + <lottie-player>). -->
         <div class="hero__illustration" id="hero-illustration">
-          <img src="assets/library-animate.svg?v=3.0.0-alpha.0"
+          <img src="assets/library-animate.svg"
                alt="Illustrazione: due lettori che condividono un libro in una biblioteca" />
         </div>
 
@@ -282,7 +282,7 @@
       <div class="books-grid" id="featured-books" aria-live="polite"></div>
     </section>
 
-    <!-- Beta 9: sezione installazione app (PWA) -->
+    <!-- sezione installazione app (PWA) -->
     <section class="install-app-section" id="install-section-index" aria-labelledby="install-title-index">
       <h2 class="install-app-section__title" id="install-title-index">Anche su Android o iOS</h2>
       <p class="install-app-section__desc">
@@ -317,37 +317,36 @@
       <div>
         <h4>Lookup</h4>
         <p style="color: rgba(244,239,230,.7); font-size: .9rem;">
-          Un progetto di condivisione del patrimonio librario privato, radicato nel territorio.
+          Condivisione dei libri privati e delle biblioteche di comunità, fra vicini.
         </p>
       </div>
       <div>
         <h4>Esplora</h4>
         <a href="explore.html">Mappa dei libri</a>
-        <a href="explore.html?sort=recent">Ultime pubblicazioni</a>
         <a href="stats.html">Statistiche</a>
-        <a href="loans.html" class="auth-only">Prestiti</a>
+        <a href="loans.html" class="auth-only">I miei prestiti</a>
       </div>
       <div>
         <h4>Partecipa</h4>
-        <a href="add-book.html">Pubblica un libro</a>
-        <a href="profile.html">Profilo personale</a>
+        <a href="add-book.html" class="auth-only">Pubblica un libro</a>
+        <a href="profile.html" class="auth-only">Il tuo profilo</a>
+        <a href="register.html" class="guest-only">Iscriviti</a>
+        <a href="login.html" class="guest-only">Accedi</a>
       </div>
       <div>
         <h4>Informazioni</h4>
-        <a href="privacy.html">Privacy policy</a>
-        <a href="terms.html">Termini</a>
-        <a href="#">Contatti</a>
+        <a href="privacy.html">Informativa sulla privacy</a>
+        <a href="terms.html">Termini di utilizzo</a>
       </div>
-
       <div class="site-footer__colophon">
-        <span>© 2026 Lookup — Prototipo didattico</span>
-        <span>v3.0.0-alpha.0 — GPL-3.0</span>
+        <span>© 2026 Lookup</span>
+        <span>Codice con licenza GPL-3.0<span data-app-version></span></span>
       </div>
     </div>
   </footer>
 
   <script type="module" src="js/api-bootstrap.js"></script>
-  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+  <script type="module" src="js/app.js"></script>
   <script>
     /* Popolamento dei contenuti dinamici della homepage */
 
@@ -506,7 +505,7 @@
       }
       renderNearby();
 
-      /* v2.6: Libri in evidenza "selezione della settimana"
+      /* Libri in evidenza "selezione della settimana"
          ========================================================
          Algoritmo:
          engagement recente (views 7d ×1 + prestiti 7d ×3 + like ×2)
@@ -527,7 +526,7 @@
       }
 
       /* ----- Saluto personalizzato (utente autenticato)
-         v2.6: gender neutral, rotazione fra 17 frasi diverse a ogni login */
+         Neutri rispetto al genere, rotazione fra 17 frasi diverse a ogni login */
       function updateGreeting() {
         const greeting = document.getElementById('user-greeting');
         const user = window.LB_UI.currentUser();

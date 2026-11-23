@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <!-- Beta 9: PWA meta tags -->
+  <!-- PWA meta tags -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#7a1e2b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -12,11 +12,11 @@
   <link rel="apple-touch-icon" href="/img/icon-180.png" />
 
   <title>Statistiche — Lookup</title>
-  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <link rel="stylesheet" href="css/styles.css" />
   <script src="js/auth-hint.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+  <script src="vendor/chartjs-4.4.0/chart.umd.min.js" defer></script>
   <script type="module" src="js/api-bootstrap.js"></script>
-  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+  <script type="module" src="js/app.js"></script>
 </head>
 <body>
 
@@ -134,7 +134,7 @@
       </div>
       <div class="top-users-list" id="top-users-list"></div>
 
-      <!-- v2.6: grafico timeline creativo (ridgeline) dei top 10 utenti -->
+      <!-- grafico timeline creativo (ridgeline) dei top 10 utenti -->
       <div class="ridgeline-section">
         <h3 class="ridgeline-section__title">
           Cronache dei più attivi <span class="ridgeline-section__sub">— ultimi 12 mesi</span>
@@ -152,15 +152,35 @@
 
   </main>
 
-  <footer class="site-footer">
+  <footer class="site-footer" role="contentinfo">
     <div class="container">
-      <div><h4>Lookup</h4><p>Una rete di librerie diffuse nel quartiere.</p></div>
-      <div><h4>Esplora</h4><a href="explore.html">Mappa</a><a href="library.html">Librerie</a></div>
-      <div><h4>Account</h4><a href="register.html">Registrati</a><a href="login.html">Accedi</a></div>
-      <div><h4>Info</h4><a href="privacy.html">Privacy</a><a href="terms.html">Termini</a></div>
+      <div>
+        <h4>Lookup</h4>
+        <p style="color: rgba(244,239,230,.7); font-size: .9rem;">
+          Condivisione dei libri privati e delle biblioteche di comunità, fra vicini.
+        </p>
+      </div>
+      <div>
+        <h4>Esplora</h4>
+        <a href="explore.html">Mappa dei libri</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="loans.html" class="auth-only">I miei prestiti</a>
+      </div>
+      <div>
+        <h4>Partecipa</h4>
+        <a href="add-book.html" class="auth-only">Pubblica un libro</a>
+        <a href="profile.html" class="auth-only">Il tuo profilo</a>
+        <a href="register.html" class="guest-only">Iscriviti</a>
+        <a href="login.html" class="guest-only">Accedi</a>
+      </div>
+      <div>
+        <h4>Informazioni</h4>
+        <a href="privacy.html">Informativa sulla privacy</a>
+        <a href="terms.html">Termini di utilizzo</a>
+      </div>
       <div class="site-footer__colophon">
         <span>© 2026 Lookup</span>
-        <span>Prototipo accademico v3.0.0-alpha.0</span>
+        <span>Codice con licenza GPL-3.0<span data-app-version></span></span>
       </div>
     </div>
   </footer>
@@ -221,7 +241,7 @@
         </div>
       `;
 
-      // v2.3: sezione "dati simulati" rimossa — tutti i KPI sono reali ora
+      // sezione "dati simulati" rimossa — tutti i KPI sono reali ora
 
       // ============= 3. TIMELINE ATTIVITÀ =============
       const timeline = overview.activity.map((w) => ({ ...w, weekStart: new Date(w.weekStart).getTime() }));
@@ -545,7 +565,7 @@
         });
       });
 
-      /* v2.6: click su top-user-item → menu di conferma "Vai al profilo?"
+      /* click su top-user-item → menu di conferma "Vai al profilo?"
          Apre un popover ancorato vicino all'elemento cliccato, così non
          si interrompe bruscamente il flow di esplorazione delle statistiche. */
       document.getElementById('top-users-list').addEventListener('click', (e) => {
