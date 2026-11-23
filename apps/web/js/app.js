@@ -50,11 +50,14 @@ window.LOAN_STATUS_HINT = LOAN_STATUS_HINT;
    di esempio nel localStorage (utenti, libri, prestiti, notifiche finti),
    che alcune pagine mostravano al posto dei dati reali. Non vengono piu'
    creati; quelli gia' presenti si cancellano una volta, riconoscendoli
-   dalla chiave `data_version`. Resta solo `auth_state` (uscita locale). */
-const KEEP_KEYS = new Set(['auth_state', 'lb_auth_hint']);
+   dalla chiave `data_version`. Resta solo l'indizio di accesso letto da
+   auth-hint.js. `auth_state` era lo stato di accesso del prototipo: lo
+   stato vero e' la sessione del server. */
+const KEEP_KEYS = new Set(['lb_auth_hint']);
 
 function purgePrototypeData() {
   try {
+    localStorage.removeItem('auth_state');
     if (localStorage.getItem('data_version') === null) return;
     Object.keys(localStorage)
       .filter((key) => !KEEP_KEYS.has(key))

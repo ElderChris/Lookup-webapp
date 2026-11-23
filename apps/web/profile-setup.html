@@ -412,6 +412,32 @@
                 <div class="alert alert--error" id="pw-change-error" hidden></div>
               </form>
             </div>
+
+            <div style="margin-top: var(--sp-6);">
+              <h4 style="margin-top: 0;">Elimina l'account</h4>
+              <p class="form__help" style="margin-bottom: var(--sp-3);">
+                Cancella definitivamente account, profilo, volumi, prestiti e chat,
+                recensioni e post. Non si può annullare: se vuoi conservare una copia
+                dei tuoi dati, scaricala prima dal tuo profilo («Scarica i miei dati»).
+              </p>
+              <form class="form" id="delete-account-form" novalidate style="max-width: 480px;">
+                <div class="form__group">
+                  <label class="form__label" for="delete-password">Password attuale</label>
+                  <input type="password" id="delete-password" class="form__input" required
+                         autocomplete="current-password" />
+                </div>
+                <div class="form__group">
+                  <label style="display: flex; align-items: center; gap: .5rem;">
+                    <input type="checkbox" id="delete-confirm" />
+                    <span>Ho capito che l'eliminazione è definitiva</span>
+                  </label>
+                </div>
+                <button type="submit" class="btn btn--ghost btn--small btn--danger" id="delete-account-btn" disabled>
+                  Elimina definitivamente l'account
+                </button>
+                <div class="alert alert--error" id="delete-account-error" role="alert" hidden></div>
+              </form>
+            </div>
           </section>
 
         </div>
@@ -975,6 +1001,43 @@
           errBox.textContent = map[err.code] || err.message || 'Errore cambio password.';
           errBox.hidden = false;
         }
+      });
+
+      // Eliminazione dell'account (password come conferma)
+      const deleteForm = document.getElementById('delete-account-form');
+      const deleteBtn = document.getElementById('delete-account-btn');
+      document.getElementById('delete-confirm').addEventListener('change', (e) => {
+        deleteBtn.disabled = !e.target.checked;
+      });
+      deleteForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errBox = document.getElementById('delete-account-error');
+        const password = document.getElementById('delete-password').value;
+        errBox.hidden = true;
+        if (!password) {
+          errBox.textContent = 'Inserisci la password attuale.';
+          errBox.hidden = false;
+          return;
+        }
+        deleteBtn.disabled = true;
+        try {
+          await window.LB_API.authClient.deleteAccount({ password });
+        } catch (err) {
+          const map = {
+            INVALID_PASSWORD: 'La password non è corretta.',
+            RATE_LIMITED: 'Troppi tentativi. Riprova fra qualche minuto.',
+          };
+          errBox.textContent = map[err.code] || 'Eliminazione non riuscita: ' + (err.message || 'riprova tra poco.');
+          errBox.hidden = false;
+          deleteBtn.disabled = false;
+          return;
+        }
+        // Toglie i cookie della sessione (gia' cancellata sul server)
+        window.LB_EVENTS?.stop();
+        await window.LB_API.authClient.signOut().catch(() => {});
+        window.LB_UI.setAuthState('guest');
+        UI.toast('Account eliminato. Grazie per aver fatto parte di Lookup.', 'info');
+        setTimeout(() => location.replace('index.html'), 1500);
       });
 
     });

@@ -17,7 +17,7 @@
 //
 // Feature TanStack Query NON coperte (yet):
 //   - React hooks (useQuery, useMutation) — noi vanilla JS
-//   - QueryDevtools panel — usiamo api-test.html
+//   - QueryDevtools panel (non incluso)
 //   - Suspense mode, ssr, hydration — non necessari
 //   - Infinite queries — nessun use case attuale
 //

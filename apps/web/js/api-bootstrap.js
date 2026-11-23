@@ -64,15 +64,8 @@ async function initSession() {
     // Autenticato via cookie Better Auth
     const user = session.user;
     window.LB_AUTH_USER = user;
-    // Beta 6 sess 2: le pagine leggono direttamente da window.LB_AUTH_USER
-    // (o via window.LB_UI.currentUser() per la shape legacy).
-    // Manteniamo solo auth_state='user' per il legacy check API.getAuthState()
-    // usato ancora da qualche funzione ui.js (soft logout local).
-    try {
-      localStorage.setItem('auth_state', JSON.stringify('user'));
-    } catch (_) {
-      /* quota exceeded o incognito, ignora */
-    }
+    // Le pagine leggono l'utente da window.LB_AUTH_USER (o da
+    // window.LB_UI.currentUser())
     console.debug(
       `[api-bootstrap] auth via cookie: user=${user.id} (${user.username || user.email})`
     );

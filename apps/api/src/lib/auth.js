@@ -1,10 +1,10 @@
 // =============================================================================
-// src/lib/auth.js — Better Auth setup (Fase 3.1)
+// src/lib/auth.js — Better Auth setup
 // =============================================================================
 // Configurazione centrale di Better Auth con:
 //   - Prisma adapter (Postgres)
 //   - Email/password provider abilitato
-//   - Verifica email e reset password (via SMTP / Mailpit in dev)
+//   - Verifica email obbligatoria per accedere e reset password (SMTP)
 //   - Session cookie httpOnly (sliding window 7 giorni)
 //   - Additional fields per il nostro schema User custom
 //     (username, displayName, bio, city, lat, lng, accountType, ecc.)
@@ -14,9 +14,19 @@
 // =============================================================================
 
 import { betterAuth } from 'better-auth';
+import { APIError } from 'better-auth/api';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { prisma } from './prisma.js';
 import { smtpTransport, SMTP_FROM } from './mailer.js';
+import {
+  TRUSTED_WEB_ORIGINS,
+  DEFAULT_WEB_ORIGIN,
+  verifyEmailLink,
+  resetPasswordLink,
+} from './authLinks.js';
+import { activateVerifiedAccount, BLOCKED_STATUSES } from './accountStatus.js';
+
+import { escapeHtml as esc } from './accountEmails.js';
 
 async function sendMail({ to, subject, text, html }) {
   try {
@@ -45,39 +55,98 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
 
   // -- Email/password provider -----------------------------------------------
+  // Si entra solo dopo aver confermato l'email. L'iscrizione passa da
+  // POST /api/register (routes/register.js), che crea l'account senza
+  // sessione; la sessione nasce quando l'utente apre il link di verifica.
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,
     maxPasswordLength: 128,
-    autoSignIn: true, // dopo signup → login automatico
-    requireEmailVerification: false, // in dev = false (usable subito).
-    // In prod = true.
+    autoSignIn: false,
+    requireEmailVerification: true,
 
     sendResetPassword: async ({ user, url, token }) => {
+      const link = resetPasswordLink(url, token);
       await sendMail({
         to: user.email,
-        subject: 'Reset password Lookup',
-        text: `Ciao ${user.name || user.email},\n\nHai richiesto il reset password. Clicca qui:\n${url}\n\nSe non sei stato tu, ignora.\n\nToken (dev): ${token}`,
-        html: `<p>Ciao ${user.name || user.email},</p>
-               <p>Hai richiesto il reset password. Clicca <a href="${url}">qui</a> per procedere.</p>
-               <p>Se non sei stato tu, ignora questa email.</p>
-               <p style="color:#888;font-size:12px">Token (dev): ${token}</p>`,
+        subject: 'Reimposta la password — Lookup',
+        text: `Ciao ${user.name || ''},\n\nabbiamo ricevuto una richiesta di reimpostare la password del tuo account Lookup. Per sceglierne una nuova apri questo link:\n${link}\n\nIl link scade fra un'ora. Se la richiesta non è partita da te, ignora questa email: la password resta quella di prima.`,
+        html: `<p>Ciao ${esc(user.name)},</p>
+               <p>abbiamo ricevuto una richiesta di reimpostare la password del tuo account Lookup.</p>
+               <p><a href="${esc(link)}">Scegli una nuova password</a></p>
+               <p>Il link scade fra un'ora. Se la richiesta non è partita da te, ignora questa email: la password resta quella di prima.</p>`,
+      });
+    },
+
+    // Iscrizione con un'email gia' registrata: la risposta resta identica a
+    // quella di una nuova iscrizione (cosi' non si scopre chi e' iscritto) e
+    // il titolare dell'indirizzo riceve un avviso.
+    onExistingUserSignUp: async ({ user }) => {
+      const login = new URL('/login.html', DEFAULT_WEB_ORIGIN).toString();
+      const reset = new URL('/reset-password.html', DEFAULT_WEB_ORIGIN).toString();
+      await sendMail({
+        to: user.email,
+        subject: 'Hai già un account Lookup',
+        text: `Ciao ${user.name || ''},\n\nqualcuno ha provato a creare un account Lookup con questo indirizzo email, che risulta già registrato.\n\nSe il tentativo è partito da te, accedi da ${login}\nSe non ricordi la password, reimpostala da ${reset}\n\nSe non sai di cosa si tratta, puoi ignorare questa email.`,
+        html: `<p>Ciao ${esc(user.name)},</p>
+               <p>qualcuno ha provato a creare un account Lookup con questo indirizzo email, che risulta già registrato.</p>
+               <p>Se il tentativo è partito da te, <a href="${esc(login)}">accedi</a>; se non ricordi la password, <a href="${esc(reset)}">reimpostala</a>.</p>
+               <p>Se non sai di cosa si tratta, puoi ignorare questa email.</p>`,
       });
     },
   },
 
-  // -- Verify email (indipendente dal require sopra) -------------------------
+  // L'iscrizione diretta di Better Auth e' chiusa: si passa solo da
+  // POST /api/register, che controlla consensi e dati del profilo. La
+  // chiamata interna auth.api.signUpEmail resta disponibile.
+  disabledPaths: ['/sign-up/email'],
+
+  // -- Verifica email --------------------------------------------------------
   emailVerification: {
     sendOnSignUp: true,
+    // Il nuovo invio lo chiede l'utente dalla pagina di accesso o da
+    // "Controlla la tua email", non parte a ogni tentativo di accesso.
+    sendOnSignIn: false,
+    autoSignInAfterVerification: true,
+    expiresIn: 60 * 60 * 24, // 24 ore
     sendVerificationEmail: async ({ user, url, token }) => {
+      const link = verifyEmailLink(url, token);
       await sendMail({
         to: user.email,
-        subject: 'Verifica la tua email — Lookup',
-        text: `Ciao ${user.name || user.email},\n\nBenvenuto in Lookup! Verifica la tua email cliccando qui:\n${url}\n\nToken (dev): ${token}`,
-        html: `<p>Ciao ${user.name || user.email},</p>
-               <p>Benvenuto in Lookup! Verifica la tua email cliccando <a href="${url}">qui</a>.</p>
-               <p style="color:#888;font-size:12px">Token (dev): ${token}</p>`,
+        subject: 'Conferma la tua email — Lookup',
+        text: `Ciao ${user.name || ''},\n\nti diamo il benvenuto in Lookup! Per attivare il tuo account conferma l'indirizzo email aprendo questo link:\n${link}\n\nIl link scade fra 24 ore. Se l'iscrizione non è partita da te, ignora questa email.`,
+        html: `<p>Ciao ${esc(user.name)},</p>
+               <p>ti diamo il benvenuto in Lookup! Per attivare il tuo account conferma l'indirizzo email.</p>
+               <p><a href="${esc(link)}">Conferma l'email</a></p>
+               <p>Il link scade fra 24 ore. Se l'iscrizione non è partita da te, ignora questa email.</p>`,
       });
+    },
+    // Email confermata: l'account diventa attivo e i volumi inseriti
+    // all'iscrizione vengono pubblicati
+    afterEmailVerification: async (user) => {
+      await activateVerifiedAccount(prisma, user.id);
+    },
+  },
+
+  // -- Account sospesi -------------------------------------------------------
+  // Nessuna nuova sessione per un account sospeso: vale per l'accesso con
+  // password e per quello automatico dopo la conferma email
+  databaseHooks: {
+    session: {
+      create: {
+        before: async (session) => {
+          const user = await prisma.user.findUnique({
+            where: { id: session.userId },
+            select: { status: true },
+          });
+          if (user && BLOCKED_STATUSES.includes(user.status)) {
+            throw new APIError('FORBIDDEN', {
+              code: 'ACCOUNT_SUSPENDED',
+              message: "Questo account è sospeso. Per informazioni scrivi all'amministrazione.",
+            });
+          }
+        },
+      },
     },
   },
 
@@ -85,9 +154,13 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 giorni
     updateAge: 60 * 60 * 24, // refresh giornaliero (sliding window)
+    // Copia firmata della sessione nel cookie, usata dalla lettura della
+    // sessione del sito (get-session) per evitare una query a ogni pagina.
+    // Breve, perche' un account sospeso o eliminato esca presto anche dalle
+    // pagine; le API invece la ignorano (authHelpers.getCurrentUserId).
     cookieCache: {
-      enabled: true, // cache in cookie firmato (evita lookup DB ad ogni request)
-      maxAge: 5 * 60, // 5 minuti
+      enabled: true,
+      maxAge: 60,
     },
   },
 
@@ -162,8 +235,8 @@ export const auth = betterAuth({
       // tanti dietro lo stesso IP, per risultare disconnessi
       '/get-session': { window: 60, max: 600 },
       '/sign-in/email': { window: 60, max: 5 }, // login piu' stretto
-      '/sign-up/email': { window: 300, max: 3 }, // signup ancora piu'
       '/request-password-reset': { window: 300, max: 3 },
+      '/send-verification-email': { window: 300, max: 3 },
     },
   },
 
@@ -179,12 +252,9 @@ export const auth = betterAuth({
   },
 
   // -- Trusted origins per CORS ---------------------------------------------
-  trustedOrigins: [
-    'http://localhost:8080', // frontend nginx (dev)
-    'http://localhost:8765', // python http.server (dev alternativo)
-    'http://localhost:5500', // Live Server VSCode
-    'http://127.0.0.1:8080',
-  ],
+  // Le origini del sito (CORS_ORIGINS) piu' quelle di sviluppo: valgono anche
+  // per le pagine di ritorno (callbackURL) dei link inviati per email.
+  trustedOrigins: TRUSTED_WEB_ORIGINS,
 });
 
 // Export helper per riuso interno (session lookup, ecc.)

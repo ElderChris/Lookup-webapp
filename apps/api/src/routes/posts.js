@@ -80,6 +80,7 @@ const POST_INCLUDE = {
   author: {
     select: {
       id: true,
+      status: true,
       username: true,
       displayName: true,
       publicCity: true,
@@ -127,7 +128,8 @@ export default async function postsRoutes(fastify) {
       const { authorId, limit, offset } = request.query;
       const currentUserId = await getCurrentUserId(request);
 
-      const where = { status: 'active' };
+      // Solo post di account attivi
+      const where = { status: 'active', author: { status: 'active' } };
       if (authorId) where.authorId = authorId;
 
       const [posts, total] = await Promise.all([
@@ -176,7 +178,7 @@ export default async function postsRoutes(fastify) {
       });
       const authorIds = [userId, ...followed.map((f) => f.followedId)];
 
-      const where = { authorId: { in: authorIds }, status: 'active' };
+      const where = { authorId: { in: authorIds }, status: 'active', author: { status: 'active' } };
 
       const [posts, total] = await Promise.all([
         fastify.prisma.post.findMany({
@@ -219,7 +221,7 @@ export default async function postsRoutes(fastify) {
         where: { id },
         include: postInclude(currentUserId),
       });
-      if (!post || post.status !== 'active') {
+      if (!post || post.status !== 'active' || post.author.status !== 'active') {
         return reply.status(404).send({
           error: { code: 'NOT_FOUND', message: `Post con id ${id} non trovato` },
         });

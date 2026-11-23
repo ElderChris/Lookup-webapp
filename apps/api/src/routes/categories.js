@@ -68,7 +68,7 @@ export default async function categoriesRoutes(fastify) {
         // Volumi attivi per genere
         fastify.prisma.bookCategory.groupBy({
           by: ['categoryId'],
-          where: { book: { status: 'active' } },
+          where: { book: { status: 'active', owner: { status: 'active' } } },
           _count: { _all: true },
         }),
       ]);

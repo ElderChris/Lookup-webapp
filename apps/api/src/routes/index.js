@@ -4,9 +4,13 @@
 // Aggregatore dei route plugin. Ogni modulo di route è registrato qui.
 // =============================================================================
 
+import { userVisibilityHook } from '../lib/accountStatus.js';
+import { getCurrentUserId } from '../lib/authHelpers.js';
 import healthRoutes from './health.js';
 import booksRoutes from './books.js';
 import usersRoutes from './users.js';
+import registerRoutes from './register.js';
+import accountRoutes from './account.js';
 import loansRoutes from './loans.js';
 import postsRoutes from './posts.js';
 import notificationsRoutes from './notifications.js';
@@ -25,8 +29,14 @@ import eventsRoutes from './events.js';
 import metricsRoutes from './metrics.js';
 
 export default async function routes(fastify) {
+  // Profili di utenti non attivi (in attesa di conferma o sospesi): non
+  // visibili, se non a loro stessi e agli amministratori
+  fastify.addHook('preHandler', userVisibilityHook(fastify, getCurrentUserId));
+
   await fastify.register(healthRoutes);
   await fastify.register(booksRoutes);
+  await fastify.register(registerRoutes);
+  await fastify.register(accountRoutes);
   await fastify.register(usersRoutes);
   await fastify.register(loansRoutes);
   await fastify.register(postsRoutes);

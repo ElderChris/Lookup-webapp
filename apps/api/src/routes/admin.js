@@ -1,15 +1,18 @@
 // =============================================================================
-// src/routes/admin.js — Admin moderation + user management (Beta 4)
+// src/routes/admin.js — Pannello di amministrazione
 // =============================================================================
-// Route riservate al ruolo 'admin'. Sostituisce le funzioni legacy usate
-// da admin.html: getUsers, getReportedPosts, clearPostReports, deletePost,
-// deleteUser, updateUser (cross-user), adminAddBook.
+// Route riservate al ruolo 'admin': utenti (modifica, sospensione,
+// conferma email, eliminazione definitiva), volumi (elenco completo,
+// modifica, nascondi/pubblica, eliminazione), segnalazioni dei post,
+// registro delle azioni e job in background.
 //
 // Autorizzazione: middleware `requireAdmin` verifica session + role.
 // =============================================================================
 
 import { requireUserId } from '../lib/authHelpers.js';
 import { logAdminAction } from '../lib/adminAudit.js';
+import { activateVerifiedAccount, revokeSessions, deleteAccount } from '../lib/accountStatus.js';
+import { sendAccountDeletedEmail } from '../lib/accountEmails.js';
 
 /**
  * Middleware admin: verifica che l'utente autenticato abbia role='admin'.
@@ -47,7 +50,7 @@ export default async function adminRoutes(fastify) {
           properties: {
             q: { type: 'string', maxLength: 100 },
             accountType: { type: 'string', enum: ['person', 'organization'] },
-            status: { type: 'string', enum: ['active', 'pending', 'suspended', 'deleted'] },
+            status: { type: 'string', enum: ['active', 'pending', 'suspended'] },
             role: { type: 'string', enum: ['user', 'moderator', 'admin'] },
             limit: { type: 'integer', minimum: 1, maximum: 200, default: 100 },
             offset: { type: 'integer', minimum: 0, default: 0 },
@@ -85,18 +88,21 @@ export default async function adminRoutes(fastify) {
             bio: true,
             avatarUrl: true,
             accountType: true,
+            libraryRole: true,
             role: true,
             status: true,
             emailVerified: true,
             createdAt: true,
             lastLoginAt: true,
+            _count: { select: { books: true } },
           },
         }),
         fastify.prisma.user.count({ where }),
       ]);
       return {
-        data: rows.map((r) => ({
+        data: rows.map(({ _count, ...r }) => ({
           ...r,
+          booksCount: _count.books,
           createdAt: r.createdAt.toISOString(),
           lastLoginAt: r.lastLoginAt?.toISOString() || null,
         })),
@@ -127,7 +133,8 @@ export default async function adminRoutes(fastify) {
             bio: { type: ['string', 'null'] },
             city: { type: ['string', 'null'], maxLength: 150 },
             role: { type: 'string', enum: ['user', 'moderator', 'admin'] },
-            status: { type: 'string', enum: ['active', 'pending', 'suspended', 'deleted'] },
+            // active | pending (email da confermare) | suspended
+            status: { type: 'string', enum: ['active', 'pending', 'suspended'] },
             emailVerified: { type: 'boolean' },
           },
         },
@@ -139,12 +146,27 @@ export default async function adminRoutes(fastify) {
       const patch = request.body;
       const existing = await fastify.prisma.user.findUnique({
         where: { id },
-        select: { id: true },
+        select: { id: true, status: true, emailVerified: true },
       });
       if (!existing)
         return reply
           .code(404)
           .send({ error: { code: 'NOT_FOUND', message: 'Utente non trovato' } });
+      // Un amministratore non puo' sospendere se stesso ne' togliersi il ruolo
+      if (
+        id === adminId &&
+        ((patch.status && patch.status !== 'active') || (patch.role && patch.role !== 'admin'))
+      ) {
+        return reply.code(400).send({
+          error: {
+            code: 'CANNOT_CHANGE_SELF',
+            message: 'Non puoi sospendere il tuo account né toglierti il ruolo di amministratore',
+          },
+        });
+      }
+      // Conferma dell'email fatta dall'amministratore: come se l'utente
+      // avesse aperto il link (account attivo, volumi pubblicati)
+      const confirming = patch.emailVerified === true && !existing.emailVerified;
       const updated = await fastify.prisma.user.update({
         where: { id },
         data: patch,
@@ -161,6 +183,14 @@ export default async function adminRoutes(fastify) {
           emailVerified: true,
         },
       });
+      if (confirming) {
+        await activateVerifiedAccount(fastify.prisma, id);
+        updated.status = (
+          await fastify.prisma.user.findUnique({ where: { id }, select: { status: true } })
+        ).status;
+      }
+      // Sospensione: le sessioni aperte si chiudono subito
+      if (patch.status === 'suspended') await revokeSessions(fastify.prisma, id);
       await logAdminAction(fastify, request, {
         adminId,
         action: 'user.update',
@@ -180,7 +210,7 @@ export default async function adminRoutes(fastify) {
     {
       schema: {
         tags: ['Users'],
-        summary: '[ADMIN] Elimina utente (cross-user)',
+        summary: '[ADMIN] Elimina definitivamente un utente e i suoi dati',
         params: {
           type: 'object',
           properties: { id: { type: 'string', minLength: 1, maxLength: 40 } },
@@ -199,19 +229,14 @@ export default async function adminRoutes(fastify) {
           },
         });
       }
-      const existing = await fastify.prisma.user.findUnique({
-        where: { id },
-        select: { id: true },
-      });
-      if (!existing)
+      // Cancellazione definitiva: account e dati collegati (vedi
+      // lib/accountStatus.js). Per sospendere si usa PATCH con status.
+      const deleted = await deleteAccount(fastify.prisma, id);
+      if (!deleted)
         return reply
           .code(404)
           .send({ error: { code: 'NOT_FOUND', message: 'Utente non trovato' } });
-      // Soft delete: mark as deleted invece di cascade fisico (preservazione dati sociali)
-      await fastify.prisma.user.update({
-        where: { id },
-        data: { status: 'deleted' },
-      });
+      await sendAccountDeletedEmail(deleted, { byAdmin: true });
       await logAdminAction(fastify, request, {
         adminId,
         action: 'user.delete',
@@ -259,11 +284,13 @@ export default async function adminRoutes(fastify) {
             'reason', pr.reason,
             'note', pr.note,
             'reporterId', pr.reporter_id,
+            'reporterName', ru.display_name,
             'createdAt', pr.created_at
           ) ORDER BY pr.created_at DESC) AS reports
         FROM post_reports pr
-        JOIN posts p ON p.id = pr.post_id
+        JOIN posts p ON p.id = pr.post_id AND p.status <> 'removed'
         JOIN users u ON u.id = p.author_id
+        JOIN users ru ON ru.id = pr.reporter_id
         GROUP BY p.id, u.username, u.display_name
         ORDER BY reports_count DESC, MAX(pr.created_at) DESC
         LIMIT $1 OFFSET $2
@@ -273,7 +300,7 @@ export default async function adminRoutes(fastify) {
       );
 
       const total = await fastify.prisma.post.count({
-        where: { reports: { some: {} } },
+        where: { reports: { some: {} }, status: { not: 'removed' } },
       });
 
       return {
@@ -369,87 +396,76 @@ export default async function adminRoutes(fastify) {
   );
 
   // ===========================================================================
-  // POST /api/admin/books — Aggiungi libro per conto di un utente
+  // GET /api/admin/books — Tutti i volumi, qualunque stato
   // ===========================================================================
-  fastify.post(
+  // Il catalogo pubblico mostra solo i volumi pubblicati di account attivi;
+  // qui l'amministratore vede anche quelli nascosti, in attesa della
+  // conferma email del proprietario o di account sospesi.
+  fastify.get(
     '/api/admin/books',
     {
       schema: {
         tags: ['Books'],
-        summary: '[ADMIN] Aggiungi libro per conto di un utente',
-        body: {
+        summary: '[ADMIN] Tutti i volumi, con filtri',
+        querystring: {
           type: 'object',
-          required: ['ownerId', 'title', 'author'],
-          additionalProperties: false,
           properties: {
-            ownerId: { type: 'string', minLength: 1, maxLength: 40 },
-            title: { type: 'string', minLength: 1, maxLength: 300 },
-            author: { type: 'string', minLength: 1, maxLength: 200 },
-            year: { type: ['integer', 'null'], minimum: 1000, maximum: 2100 },
-            isbn: { type: ['string', 'null'], maxLength: 20 },
-            pages: { type: ['integer', 'null'], minimum: 1 },
-            language: { type: 'string', maxLength: 50 },
-            condition: { type: 'string', maxLength: 50 },
-            description: { type: 'string', maxLength: 5000 },
-            available: { type: 'boolean' },
-            categoryIds: { type: 'array', items: { type: 'integer', minimum: 1 } },
+            q: { type: 'string', maxLength: 100 },
+            status: { type: 'string', enum: ['active', 'pending_email', 'hidden'] },
+            limit: { type: 'integer', minimum: 1, maximum: 200, default: 50 },
+            offset: { type: 'integer', minimum: 0, default: 0 },
           },
         },
       },
     },
-    async (request, reply) => {
-      const adminId = await requireAdmin(request, fastify);
-      const { ownerId, categoryIds = [], ...bookData } = request.body;
-      const owner = await fastify.prisma.user.findUnique({
-        where: { id: ownerId },
-        select: { id: true },
-      });
-      if (!owner)
-        return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Owner non trovato' } });
-
-      const book = await fastify.prisma.book.create({
-        data: {
-          ownerId,
-          title: bookData.title,
-          author: bookData.author,
-          year: bookData.year ?? null,
-          isbn: bookData.isbn ?? null,
-          pages: bookData.pages ?? null,
-          language: bookData.language ?? 'Italiano',
-          condition: bookData.condition ?? 'buone condizioni',
-          description: bookData.description ?? '',
-          available: bookData.available ?? true,
-          categories:
-            categoryIds.length > 0
-              ? { create: categoryIds.map((cId) => ({ categoryId: cId })) }
-              : undefined,
-        },
-        include: { categories: { include: { category: true } } },
-      });
-
-      await logAdminAction(fastify, request, {
-        adminId,
-        action: 'book.create',
-        targetType: 'book',
-        targetId: book.id,
-        payload: { ownerId, title: book.title, author: book.author },
-      });
-
-      return reply.code(201).send({
-        id: book.id,
-        ownerId: book.ownerId,
-        title: book.title,
-        author: book.author,
-        year: book.year,
-        isbn: book.isbn,
-        pages: book.pages,
-        language: book.language,
-        condition: book.condition,
-        description: book.description,
-        available: book.available,
-        categories: book.categories.map((bc) => ({ id: bc.category.id, name: bc.category.name })),
-        createdAt: book.createdAt.toISOString(),
-      });
+    async (request) => {
+      await requireAdmin(request, fastify);
+      const { q, status, limit = 50, offset = 0 } = request.query;
+      const where = {};
+      if (status) where.status = status;
+      if (q) {
+        where.OR = [
+          { title: { contains: q, mode: 'insensitive' } },
+          { author: { contains: q, mode: 'insensitive' } },
+          { isbn: { contains: q } },
+          { owner: { displayName: { contains: q, mode: 'insensitive' } } },
+          { owner: { username: { contains: q, mode: 'insensitive' } } },
+        ];
+      }
+      const [rows, total] = await Promise.all([
+        fastify.prisma.book.findMany({
+          where,
+          take: limit,
+          skip: offset,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            title: true,
+            author: true,
+            year: true,
+            language: true,
+            isbn: true,
+            description: true,
+            available: true,
+            status: true,
+            createdAt: true,
+            owner: { select: { id: true, displayName: true, username: true, status: true } },
+            categories: {
+              where: { isPrimary: true },
+              select: { category: { select: { id: true, name: true } } },
+            },
+          },
+        }),
+        fastify.prisma.book.count({ where }),
+      ]);
+      return {
+        data: rows.map(({ categories, ...b }) => ({
+          ...b,
+          category: categories[0]?.category ?? null,
+          createdAt: b.createdAt.toISOString(),
+        })),
+        pagination: { total, limit, offset },
+      };
     }
   );
 
@@ -482,7 +498,8 @@ export default async function adminRoutes(fastify) {
             condition: { type: 'string', maxLength: 50 },
             description: { type: 'string', maxLength: 5000 },
             available: { type: 'boolean' },
-            ownerId: { type: 'string', minLength: 1, maxLength: 40 },
+            // Moderazione: pubblicato o nascosto
+            status: { type: 'string', enum: ['active', 'hidden'] },
             categoryIds: { type: 'array', items: { type: 'integer', minimum: 1 } },
           },
         },
@@ -491,34 +508,36 @@ export default async function adminRoutes(fastify) {
     async (request, reply) => {
       const adminId = await requireAdmin(request, fastify);
       const { id } = request.params;
-      const { ownerId, categoryIds, ...patch } = request.body;
+      const { categoryIds, ...patch } = request.body;
 
       const existing = await fastify.prisma.book.findUnique({
         where: { id },
-        select: { id: true },
+        select: { id: true, status: true },
       });
       if (!existing)
         return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Libro non trovato' } });
-
-      // Se admin cambia ownerId, verifica esistenza nuovo owner
-      if (ownerId) {
-        const owner = await fastify.prisma.user.findUnique({
-          where: { id: ownerId },
-          select: { id: true },
+      // Un volume in attesa della conferma email del proprietario si
+      // pubblica solo con la conferma
+      if (patch.status && existing.status === 'pending_email') {
+        return reply.code(400).send({
+          error: {
+            code: 'BOOK_PENDING_EMAIL',
+            message: "Il volume si pubblica quando il proprietario conferma l'email",
+          },
         });
-        if (!owner)
-          return reply
-            .code(404)
-            .send({ error: { code: 'NOT_FOUND', message: 'Owner non trovato' } });
-        patch.ownerId = ownerId;
       }
 
       // Se admin passa categoryIds, sostituisce interamente le categorie collegate
       if (Array.isArray(categoryIds)) {
         await fastify.prisma.bookCategory.deleteMany({ where: { bookId: id } });
         if (categoryIds.length > 0) {
+          // Il primo genere e' quello principale, come per i proprietari
           await fastify.prisma.bookCategory.createMany({
-            data: categoryIds.map((cId) => ({ bookId: id, categoryId: cId })),
+            data: categoryIds.map((cId, i) => ({
+              bookId: id,
+              categoryId: cId,
+              isPrimary: i === 0,
+            })),
           });
         }
       }
@@ -549,6 +568,7 @@ export default async function adminRoutes(fastify) {
         condition: book.condition,
         description: book.description,
         available: book.available,
+        status: book.status,
         categories: book.categories.map((bc) => ({ id: bc.category.id, name: bc.category.name })),
         updatedAt: book.updatedAt.toISOString(),
       };

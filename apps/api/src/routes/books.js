@@ -11,7 +11,7 @@
 //   POST   /api/books/:id/views Incrementa view (debounce 60s via Redis)
 //
 // Validazione: JSON Schema nativo di Fastify (verra' migrato a Zod in 1g).
-// Auth: dev stub via X-Lookup-User-Id header (verra' sostituito in Fase 3).
+// Auth: sessione Better Auth (cookie), vedi lib/authHelpers.js.
 // =============================================================================
 
 import { getCurrentUserId, requireUserId, requireOwner } from '../lib/authHelpers.js';
@@ -138,6 +138,7 @@ export default async function booksRoutes(fastify) {
         FROM books b
         JOIN users u ON u.id = b.owner_id
         WHERE b.status = 'active'
+          AND u.status = 'active'
           AND u.public_location IS NOT NULL
           AND ST_DWithin(
             u.public_location,
@@ -160,6 +161,7 @@ export default async function booksRoutes(fastify) {
         FROM books b
         JOIN users u ON u.id = b.owner_id
         WHERE b.status = 'active'
+          AND u.status = 'active'
           AND u.public_location IS NOT NULL
           AND ST_DWithin(
             u.public_location,
@@ -260,7 +262,8 @@ export default async function booksRoutes(fastify) {
       const meId = liked || following ? await requireUserId(request) : null;
 
       // --- Costruzione WHERE clause ---
-      const where = { status: 'active' };
+      // Solo volumi pubblicati di account attivi
+      const where = { status: 'active', owner: { status: 'active' } };
 
       // Testo: titolo, autore e luogo (citta' pubblica del proprietario,
       // indirizzo pubblico degli enti)
@@ -391,6 +394,7 @@ export default async function booksRoutes(fastify) {
           owner: {
             select: {
               id: true,
+              status: true,
               displayName: true,
               username: true,
               publicCity: true,
@@ -406,16 +410,26 @@ export default async function booksRoutes(fastify) {
         },
       });
 
-      if (!book) {
-        return reply.status(404).send({
+      const notFound = () =>
+        reply.status(404).send({
           error: { code: 'NOT_FOUND', message: `Libro con id ${id} non trovato` },
         });
+      if (!book) return notFound();
+
+      // Un volume non pubblicato (in attesa della conferma email del
+      // proprietario, nascosto o rimosso) o di un account sospeso lo vedono
+      // solo il proprietario e gli amministratori
+      const userId = await getCurrentUserId(request);
+      if ((book.status !== 'active' || book.owner.status !== 'active') && userId !== book.ownerId) {
+        const viewer = userId
+          ? await fastify.prisma.user.findUnique({ where: { id: userId }, select: { role: true } })
+          : null;
+        if (viewer?.role !== 'admin') return notFound();
       }
 
       const dto = toDto(book);
       dto.likesCount = book._count?.likes ?? 0;
       // Stato del "mi piace" per l'utente autenticato (false per gli ospiti)
-      const userId = await getCurrentUserId(request);
       dto.likedByMe = userId
         ? (await fastify.prisma.like.count({ where: { userId, bookId: id } })) > 0
         : false;

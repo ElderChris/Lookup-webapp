@@ -97,13 +97,17 @@ describe('OpenAPI documentation', () => {
     expect(res.body.toLowerCase()).toContain('swagger');
   });
 
-  it('La spec include securityScheme devAuth (header X-Lookup-User-Id)', async () => {
+  it('La spec descrive la sessione come cookie di Better Auth', async () => {
     const app = await buildTestApp();
     const res = await app.inject({ method: 'GET', url: '/api/docs/json' });
     const spec = res.json();
 
-    expect(spec.components?.securitySchemes?.devAuth).toBeDefined();
-    expect(spec.components.securitySchemes.devAuth.type).toBe('apiKey');
-    expect(spec.components.securitySchemes.devAuth.name).toBe('X-Lookup-User-Id');
+    const scheme = spec.components?.securitySchemes?.sessionCookie;
+    expect(scheme).toMatchObject({
+      type: 'apiKey',
+      in: 'cookie',
+      name: 'better-auth.session_token',
+    });
+    expect(JSON.stringify(spec)).not.toMatch(/X-Lookup-User-Id|lucia/i);
   });
 });

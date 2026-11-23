@@ -1,8 +1,8 @@
 // =============================================================================
 // apps/api/tests/authTestHelpers.mjs
 // =============================================================================
-// Helper Fase 3.3 per test Vitest che vogliono fare vero login via Better
-// Auth (invece di simulare l'utente col fallback header X-Lookup-User-Id).
+// Accesso vero con Better Auth per i test Vitest (utenti del seed, gia'
+// con email confermata).
 //
 // Uso tipico:
 //   import { signInAs } from './authTestHelpers.mjs';
@@ -17,10 +17,6 @@
 //     });
 //     expect(res.statusCode).toBe(201);
 //   });
-//
-// I test esistenti (89) continuano a funzionare col fallback header perche'
-// NODE_ENV=test attiva ancora quel branch in authHelpers.js. I nuovi test
-// dovrebbero preferire signInAs per essere piu' realistici.
 // =============================================================================
 
 import { SEED } from './seedIds.mjs';
