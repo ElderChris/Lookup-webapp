@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <!-- Beta 9: PWA meta tags -->
+  <!-- PWA meta tags -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#7a1e2b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -13,13 +13,11 @@
 
   <meta name="description" content="La libreria di un membro della comunità Lookup: i suoi volumi disponibili al prestito." />
   <title>Libreria — Lookup</title>
-  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <link rel="stylesheet" href="css/styles.css" />
   <script src="js/auth-hint.js"></script>
   <!-- Leaflet per la mini-mappa della libreria (singolo pin minimale). -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link rel="stylesheet" href="vendor/leaflet-1.9.4/leaflet.css" />
+  <script defer src="vendor/leaflet-1.9.4/leaflet.js"></script>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -66,34 +64,36 @@
       <div>
         <h4>Lookup</h4>
         <p style="color: rgba(244,239,230,.7); font-size: .9rem;">
-          Un progetto di condivisione del patrimonio librario privato, radicato nel territorio.
+          Condivisione dei libri privati e delle biblioteche di comunità, fra vicini.
         </p>
       </div>
       <div>
         <h4>Esplora</h4>
         <a href="explore.html">Mappa dei libri</a>
         <a href="stats.html">Statistiche</a>
-        <a href="loans.html" class="auth-only">Prestiti</a>
+        <a href="loans.html" class="auth-only">I miei prestiti</a>
       </div>
       <div>
         <h4>Partecipa</h4>
-        <a href="add-book.html">Pubblica un libro</a>
-        <a href="register.html">Crea una libreria</a>
+        <a href="add-book.html" class="auth-only">Pubblica un libro</a>
+        <a href="profile.html" class="auth-only">Il tuo profilo</a>
+        <a href="register.html" class="guest-only">Iscriviti</a>
+        <a href="login.html" class="guest-only">Accedi</a>
       </div>
       <div>
         <h4>Informazioni</h4>
-        <a href="privacy.html">Privacy policy</a>
-        <a href="terms.html">Termini</a>
+        <a href="privacy.html">Informativa sulla privacy</a>
+        <a href="terms.html">Termini di utilizzo</a>
       </div>
       <div class="site-footer__colophon">
-        <span>© 2026 Lookup — Prototipo didattico</span>
-        <span>v3.0.0-alpha.0 — GPL-3.0</span>
+        <span>© 2026 Lookup</span>
+        <span>Codice con licenza GPL-3.0<span data-app-version></span></span>
       </div>
     </div>
   </footer>
 
   <script type="module" src="js/api-bootstrap.js"></script>
-  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+  <script type="module" src="js/app.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
 
@@ -231,7 +231,7 @@
             : `a ${distance_km.toFixed(1).replace('.', ',')} km da te`;
         }
 
-        /* v2.4: banner di proprietà solo per il proprietario.
+        /* banner di proprietà solo per il proprietario.
            Per i visitatori il fatto di non poter modificare è ovvio
            dal contesto, niente banner. */
         const ownershipBanner = can_edit
@@ -349,13 +349,13 @@
           <div id="volumi">
             <div class="library-toolbar">
               <h2>I volumi della libreria</h2>
-              <!-- v2.4: rimossi i bottoni di switch layout: la pagina
+              <!-- rimossi i bottoni di switch layout: la pagina
                    rispetta la preferenza salvata dal curatore in
                    profile-setup (prefs.view_mode). I visitatori vedono
                    sempre la libreria come l'ha pensata il proprietario. -->
             </div>
 
-            <!-- Filtro volumi (v1.1): stesso set di filtri di Esplora —
+            <!-- Filtro volumi: stesso set di filtri di Esplora —
                  testo (titolo/autore/luogo), tag BISAC multipli con
                  autocomplete, e selettore "solo disponibili". -->
             <div class="library-filter">
@@ -371,7 +371,7 @@
             <div id="books-container"></div>
           </div>
 
-          <!-- v2.4: Post recenti del curatore — sezione pubblica
+          <!-- Post recenti del curatore — sezione pubblica
                raggiungibile via #posts dalle notifiche di new_post -->
           <section id="posts" class="posts-section" aria-labelledby="posts-h">
             <h2 id="posts-h">Aggiornamenti dalla libreria</h2>
@@ -379,7 +379,7 @@
           </section>
 
           <!-- ============================================================
-               Recensioni della libreria (v1.4)
+               Recensioni della libreria
                Sezione raggiungibile via anchor #recensioni dalle stelle
                dell'hero. Mostra il riepilogo (stelle + media + breakdown)
                + form per scrivere (solo autenticati non proprietari) +
@@ -395,7 +395,7 @@
           </section>
         `;
 
-        /* v2.4: render dei post del curatore (vista pubblica) */
+        /* render dei post del curatore (vista pubblica) */
         (function renderLibraryPosts() {
           const container = document.getElementById('library-posts-list');
           async function paint() {
@@ -417,7 +417,7 @@
           paint();
         })();
 
-        /* ----- v2.4: render dei volumi nella modalità scelta dal
+        /* ----- Render dei volumi nella modalità scelta dal
            curatore in profile-setup. Niente switcher — la pagina
            rispetta sempre l'impostazione del proprietario. ----- */
         const booksContainer = document.getElementById('books-container');
@@ -441,7 +441,7 @@
         // ogni variazione (debounce 200 ms sul testo).
         wireLibraryFilter(books, prefs);
 
-        // v1.4: render delle recensioni (riepilogo + form + lista)
+        // render delle recensioni (riepilogo + form + lista)
         renderReviewsSection(user);
       }
 

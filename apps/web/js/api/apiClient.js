@@ -91,7 +91,7 @@ function buildHeaders(extra) {
   return { 'Content-Type': 'application/json', ...extra };
 }
 
-async function parseError(res, raw) {
+async function parseError(res) {
   let body = null;
   try {
     body = await res.json();
@@ -126,7 +126,7 @@ async function doFetch(method, path, options = {}) {
       headers: buildHeaders(extraHeaders),
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
-      credentials: 'include', // per future sessioni cookie (Fase 3)
+      credentials: 'include', // per future sessioni cookie
     });
   } catch (err) {
     clearTimeout(timeoutId);

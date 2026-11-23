@@ -1,5 +1,5 @@
 // =============================================================================
-// src/routes/library.js — Aggregato per profile page (Beta 2)
+// src/routes/library.js — Aggregato per profile page
 // =============================================================================
 // Endpoint pesante che restituisce in un'unica request tutto cio' che serve
 // per renderizzare profile.html: user + org profile + prefs + stats.

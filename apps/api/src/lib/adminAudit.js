@@ -1,5 +1,5 @@
 // =============================================================================
-// src/lib/adminAudit.js — Helper per audit log admin (Beta 5)
+// src/lib/adminAudit.js — Helper per audit log admin
 // =============================================================================
 // Ogni operazione critica eseguita da un admin viene registrata nella
 // tabella `admin_audit_log`. In caso di errore del log, l'operazione

@@ -5,7 +5,7 @@
 -- volume mount su /docker-entrypoint-initdb.d/. Non viene rieseguito sui
 -- restart successivi (Postgres riconosce che il DB è già inizializzato).
 --
--- Le tabelle vere arrivano via Prisma migration in Fase 1b. Qui prepariamo
+-- Le tabelle arrivano dalle migrazioni Prisma. Qui prepariamo
 -- solo le extension che serviranno (PostGIS per geo, pg_trgm per ricerca
 -- testuale fuzzy nei titoli dei libri).
 -- =============================================================================
@@ -31,7 +31,7 @@ BEGIN
 END $$;
 
 -- =============================================================================
--- Database "lookup_test" per test backend (Fase 1h)
+-- Database "lookup_test" per i test del backend
 -- =============================================================================
 -- I test Vitest girano su un database separato per non interferire con lo
 -- sviluppo locale. Lo creiamo qui al primo boot del container.

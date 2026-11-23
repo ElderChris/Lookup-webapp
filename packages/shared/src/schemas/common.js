@@ -14,7 +14,7 @@ import { z } from 'zod';
 export const IntId = z.number().int().positive();
 
 /**
- * ID utente stringa (Fase 3.0: CUID per compat Better Auth).
+ * ID utente stringa (CUID, come richiesto da Better Auth).
  * Formato: string non vuota, max 40 char. Il seed usa `usr_<name>` per debug;
  * in produzione Better Auth genera CUID veri (~24 char alfanumerici).
  */

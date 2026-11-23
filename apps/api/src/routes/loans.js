@@ -106,7 +106,7 @@ function loanDto(loan, currentUserId, unreadCount = 0) {
     lender: userSummaryDto(loan.lender),
     message: loan.message,
     rejectReason: loan.rejectReason ?? null,
-    // Beta 7: durata prestito + deadline + flag reminder (per UI countdown)
+    // durata prestito + deadline + flag reminder (per UI countdown)
     daysRequested: loan.daysRequested ?? null,
     deadline: loan.deadline ?? null,
     reminderSentAt: loan.reminderSentAt ?? null,
@@ -233,7 +233,7 @@ export default async function loansRoutes(fastify) {
           type: 'object',
           properties: {
             message: { type: 'string', maxLength: 2000 },
-            // Beta 7: durata prestito richiesta (default 14 giorni). Usata dal
+            // durata prestito richiesta (default 14 giorni). Usata dal
             // job overdue-loans per calcolare la deadline al passaggio a 'borrowed'.
             daysRequested: { type: 'integer', minimum: 1, maximum: 365 },
           },
@@ -306,7 +306,7 @@ export default async function loansRoutes(fastify) {
             lenderId: book.ownerId,
             message: message || null,
             status: 'requested',
-            // Beta 7: durata richiesta, usata per calcolare deadline al mark_borrowed
+            // durata richiesta, usata per calcolare deadline al mark_borrowed
             daysRequested: daysRequested || null,
           },
           include: LOAN_INCLUDE,
@@ -330,7 +330,7 @@ export default async function loansRoutes(fastify) {
         }
       );
 
-      // Beta 10: metrics — nuovo prestito creato
+      // metrics — nuovo prestito creato
       loansCreated.inc();
 
       return reply.status(201).send(loanDto(loan, requesterId));
@@ -508,7 +508,7 @@ export default async function loansRoutes(fastify) {
                 'mark_returned',
               ],
             },
-            // Fase 1g.2: motivazione opzionale, valutata solo per action='reject'.
+            // motivazione opzionale, valutata solo per action='reject'.
             // Validation lato UI (min 10 char) ma il backend e' permissivo:
             // accetta qualsiasi stringa <= 1000 char per non bloccare casi
             // edge (es. shadow integration vecchia che non passa reason).
@@ -565,7 +565,7 @@ export default async function loansRoutes(fastify) {
       }
 
       // 3. Applica transizione + side effect su book.available in transazione
-      // Fase 1g.2: salva rejectReason quando action='reject' e reason fornita.
+      // salva rejectReason quando action='reject' e reason fornita.
       const updateData = {
         status: transition.to,
         [transition.timestampField]: new Date(),
@@ -573,9 +573,9 @@ export default async function loansRoutes(fastify) {
       if (action === 'reject' && typeof reason === 'string' && reason.trim().length > 0) {
         updateData.rejectReason = reason.trim();
       }
-      // Beta 7: quando il libro passa a 'borrowed', calcola la deadline
+      // quando il libro passa a 'borrowed', calcola la deadline
       // (borrowedAt + daysRequested giorni) per abilitare il job overdue-loans.
-      // Se daysRequested non e' valorizzato (loan legacy pre-Beta 7), usa 14 giorni default.
+      // Se daysRequested non e' valorizzato (prestiti creati prima della durata), usa 14 giorni default.
       if (action === 'mark_borrowed') {
         const days = loan.daysRequested || 14;
         const deadline = new Date();
@@ -603,7 +603,7 @@ export default async function loansRoutes(fastify) {
 
       const [updated] = await fastify.prisma.$transaction(ops);
 
-      // Beta 10: metrics — transizione di stato
+      // metrics — transizione di stato
       loansTransitions.labels(action).inc();
 
       // Notifica all'altro partecipante (non-blocking)

@@ -1,5 +1,5 @@
 // =============================================================================
-// apps/web/js/eventStream.js — Client SSE per notifiche realtime (Beta 8)
+// apps/web/js/eventStream.js — Client SSE per notifiche realtime
 // =============================================================================
 // Wrapper thin sopra `EventSource` per gestire:
 //   - Auto-reconnect nativo (EventSource retry default 3s)
@@ -117,7 +117,7 @@ class EventStream {
         const payload = JSON.parse(e.data);
         this._emit('hello', payload);
         console.debug('[eventStream] hello:', payload);
-      } catch (err) {
+      } catch {
         /* ignora */
       }
     });

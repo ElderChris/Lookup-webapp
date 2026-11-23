@@ -84,7 +84,7 @@ export async function signInAs(app, userIdOrKey, password = DEFAULT_SEED_PASSWOR
 }
 
 // -----------------------------------------------------------------------------
-// Beta 6: Cache dei cookie session per file di test
+// Cache dei cookie session per file di test
 // -----------------------------------------------------------------------------
 // Ogni chiamata a signInAs() esegue scrypt hash verify (~100-200ms). Con 89
 // test moltiplicato per gli 11 seed users, la suite prende 10-15 secondi

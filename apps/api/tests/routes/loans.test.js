@@ -251,7 +251,7 @@ describe('PATCH /api/loans/:id (state machine)', () => {
 });
 
 // =============================================================================
-// Fase 1g.2: rejectReason
+// rejectReason
 // =============================================================================
 describe('PATCH /api/loans/:id with action=reject + reason', () => {
   let loanId;

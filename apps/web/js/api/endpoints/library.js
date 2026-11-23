@@ -1,5 +1,5 @@
 // =============================================================================
-// apps/web/js/api/endpoints/library.js — Beta 2
+// apps/web/js/api/endpoints/library.js
 // =============================================================================
 
 import { apiClient } from '../apiClient.js';

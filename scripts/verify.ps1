@@ -112,7 +112,7 @@ function Invoke-Http([string]$Url, $Session) {
         $resp = Invoke-WebRequest @p
         $body = [string]$resp.Content
         Write-Log ("<<< {0} {1}" -f [int]$resp.StatusCode, $body.Substring(0, [Math]::Min(300, $body.Length)))
-        return @{ Code = [int]$resp.StatusCode; Body = $body }
+        return @{ Code = [int]$resp.StatusCode; Body = $body; Headers = $resp.Headers }
     } catch {
         $code = 0
         if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
@@ -265,6 +265,9 @@ Invoke-Step 'Avvio container + healthcheck' $false {
         }
         return @{ Status = 'FAIL'; Detail = "non healthy dopo $HealthTimeoutSec s: $($left -join ', ')" }
     }
+    # infra/nginx.conf e' montata dal repository: ricaricarla applica le
+    # modifiche anche se il container era gia' avviato
+    [void](Invoke-Native 'docker exec lookup-web nginx -s reload')
     return @{ Status = 'PASS'; Detail = ($targets -join ', ') + ' healthy' }
 }
 if ($Results[-1].status -eq 'FAIL') { Write-Summary }
@@ -341,10 +344,16 @@ Invoke-Step 'Smoke HTTP infrastruttura' $SkipSmoke.IsPresent {
     }
     $web = Invoke-Http "$WebUrl/"
     if ($web.Code -ne 200) { $issues += "web $($web.Code)" }
+    # Il service worker si registra solo con un unico tipo JavaScript valido
+    $sw = Invoke-Http "$WebUrl/sw.js"
+    $swType = if ($sw.Headers) { [string]$sw.Headers['Content-Type'] } else { '' }
+    if ($sw.Code -ne 200 -or $swType -notmatch 'javascript' -or $swType -match ',') {
+        $issues += "sw.js $($sw.Code) Content-Type='$swType'"
+    }
     $docs = Invoke-Http "$ApiUrl/api/docs/json"
     if ($docs.Code -ne 200) { $issues += "openapi $($docs.Code)" }
     if ($issues.Count -gt 0) { return @{ Status = 'FAIL'; Detail = $issues -join '; ' } }
-    return @{ Status = 'PASS'; Detail = 'ping, health (db+redis ok), web, openapi' }
+    return @{ Status = 'PASS'; Detail = 'ping, health (db+redis ok), web, sw.js, openapi' }
 }
 
 # Stessi percorsi del browser: login, sessione e SSE passano dal frontend

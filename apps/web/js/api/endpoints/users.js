@@ -24,7 +24,7 @@ export const users = {
    * Include counts (books, followers, following, reviewsReceived, avgRating).
    * Se chiamato con auth, include anche isFollowing.
    */
-  getById(id, options = {}) {
+  getById(id) {
     return apiClient.get(`/api/users/${encodeURIComponent(id)}`);
   },
 

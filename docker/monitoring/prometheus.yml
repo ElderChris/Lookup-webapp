@@ -1,5 +1,5 @@
 # =============================================================================
-# docker/monitoring/prometheus.yml — Config Prometheus (Beta 10)
+# docker/monitoring/prometheus.yml — Config Prometheus
 # =============================================================================
 # Scrapa /metrics dal backend api ogni 15 secondi.
 # In produzione con piu' istanze backend dietro load balancer, aggiungere
@@ -12,13 +12,13 @@ global:
   external_labels:
     monitor: 'lookup-monitoring'
 
-# Alertmanager: non implementato in Beta 10, ma pronto per Beta 11+
+# Alertmanager: non ancora configurato
 # alerting:
 #   alertmanagers:
 #     - static_configs:
 #         - targets: ['alertmanager:9093']
 
-# Regole di alerting: file esterni da aggiungere in Beta 11
+# Regole di alerting: file esterni, non ancora presenti
 # rule_files:
 #   - '/etc/prometheus/alerts/*.yml'
 

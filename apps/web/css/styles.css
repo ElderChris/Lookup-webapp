@@ -5,7 +5,7 @@
    ============================================================ */
 
 /* ---- 1. Importazione font distintivi ------------------- */
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('../vendor/fonts/fonts.css'); /* caratteri serviti dal sito */
 
 /* ---- 2. Variabili di design (design tokens) ------------ */
 :root {
@@ -248,7 +248,7 @@ a:hover { color: var(--color-burgundy-dk); }
 /* ---- 8. Hero ------------------------------------------- */
 .hero {
   /* ┌──────────────────────────────────────────────────────────────┐
-     │ POSIZIONE PAGINA AL CARICAMENTO (v1.0):                      │
+     │ POSIZIONE PAGINA AL CARICAMENTO:                            │
      │ Il valore di padding-top qui sotto è il principale "spazio   │
      │ bianco" che separa l'header dal contenuto dell'hero. Più è   │
      │ piccolo, più la home parte alta e si vede subito il CTA.     │
@@ -928,7 +928,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   23. ESTENSIONI — sezioni aggiunte nella revisione v0.2
+   23. ESTENSIONI DELLE SEZIONI DI BASE
    ===================================================================== */
 
 /* ---- 23.1 Toggle stato autenticazione (header) -------------------- */
@@ -1322,7 +1322,7 @@ a:hover { color: var(--color-burgundy-dk); }
 
 /* Swatches di colore-tema */
 /* Theme swatches — bottoni-card con preview del gradiente.
-   v1.8: trasformati da semplici cerchi a card cliccabili che mostrano
+   Trasformati da semplici cerchi a card cliccabili che mostrano
    il colore + nome + breve descrizione. Sempre visibile l'anteprima. */
 .theme-swatches {
   display: grid;
@@ -1607,7 +1607,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   24. ESTENSIONI v0.3 — contatori live + librerie di prossimità
+   24. contatori live + librerie di prossimità
    ===================================================================== */
 
 /* ---- 24.1 Contatori "live" nell'hero ------------------------------ */
@@ -1876,7 +1876,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   25. ESTENSIONI v0.4 — pagina libreria, enti, wizard di registrazione
+   25. pagina libreria, enti, wizard di registrazione
    ===================================================================== */
 
 /* ---- 25.1 Badge tipo libreria sulle card ------------------------- */
@@ -2279,7 +2279,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   26. ESTENSIONI v0.5 — CTA primarie, infografica, mobile-first
+   26. CTA primarie, infografica, mobile-first
    ===================================================================== */
 
 /* ---- 26.1 Bottoni "large" + pulse + ripple ----------------------- */
@@ -2580,7 +2580,7 @@ a:hover { color: var(--color-burgundy-dk); }
 [hidden] { display: none !important; }
 
 /* =====================================================================
-   27. ESTENSIONI v0.6 — risultati di ricerca a elenco (explore.html)
+   27. risultati di ricerca a elenco (explore.html)
    ===================================================================== */
 
 /* Contenitore: gli item entrano con animazione a cascata quando viene
@@ -2770,7 +2770,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   28. ESTENSIONI v0.6 — flusso "Lettore" (borrower)
+   28. flusso "Lettore" (borrower)
    ===================================================================== */
 
 /* Griglia a 3 colonne per la scelta tipo-account (persona/lettore/ente).
@@ -2859,7 +2859,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   29. ESTENSIONI v0.7 — ricerca esplora: hint, empty state, validazione
+   29. ricerca esplora: hint, empty state, validazione
    ===================================================================== */
 
 /* Testo di aiuto sotto la barra di ricerca */
@@ -2909,7 +2909,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   30. SOCIAL v0.8 — campanella notifiche, follow, like
+   30. campanella notifiche, follow, like
    ===================================================================== */
 
 /* ---- 30.1 Campanella di notifiche nell'header -------------------- */
@@ -3090,7 +3090,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   31. v0.9 — bottone nav "Registrati / Accedi" e link di accesso
+   31. bottone nav "Registrati / Accedi" e link di accesso
    ===================================================================== */
 /* CTA di autenticazione nella navbar: ingresso unico ma discreto,
    nessun riempimento colorato (urtava visivamente). Bordo sottile
@@ -3145,7 +3145,7 @@ a:hover { color: var(--color-burgundy-dk); }
 .auth-switch a:hover { text-decoration-thickness: 2px; }
 
 /* =====================================================================
-   32. v1.0 — slider distanza, tag-input BISAC, redesign Librerie vicine
+   32. slider distanza, tag-input BISAC, redesign Librerie vicine
    ===================================================================== */
 
 /* ---- 32.1 Slider distanza (sostituisce il <select>) -------------- */
@@ -3372,7 +3372,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   33. v1.1 — stats inline accanto al CTA, fix UX index
+   33. stats inline accanto al CTA, fix UX index
    ===================================================================== */
 
 /* Contatori "live" minimali sulla stessa riga dei CTA primari.
@@ -3432,7 +3432,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   34. v1.1 — cover SVG, low-stock warning, Open Library covers
+   34. cover SVG, low-stock warning, Open Library covers
    ===================================================================== */
 
 /* Grafica decorativa SVG dentro la copertina (sostituisce il glifo
@@ -3490,7 +3490,7 @@ a:hover { color: var(--color-burgundy-dk); }
   opacity: 0;
 }
 
-/* ---- Stato "non disponibile" per le card libro (v1.1) -----------
+/* ---- Stato "non disponibile" per le card libro -----------
    Quando un volume è attualmente in prestito (book.available = false)
    la card è visivamente smorzata e non risponde al click — l'utente
    capisce subito che non può chiederlo. La pagina di dettaglio resta
@@ -3516,7 +3516,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   35. v1.1 — library.html: mini-mappa, statistiche, filtro volumi
+   35. library.html: mini-mappa, statistiche, filtro volumi
    ===================================================================== */
 
 /* ---- Statistiche "hero" della libreria: disponibili + totali al
@@ -3644,7 +3644,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   36. v1.2 — nav semplificata: bottone "Pubblica" + avatar profilo
+   36. nav semplificata: bottone "Pubblica" + avatar profilo
    ===================================================================== */
 
 /* Piccolo bottone primario nella nav per la pubblicazione: è l'azione
@@ -3703,7 +3703,7 @@ a:hover { color: var(--color-burgundy-dk); }
 .nav-avatar.cover--notturno  { background: linear-gradient(135deg, #1a1512, #3d342e); }
 
 /* =====================================================================
-   37. v1.2 — Librerie vicine: numero centrato, layout più equilibrato
+   37. Librerie vicine: numero centrato, layout più equilibrato
    ===================================================================== */
 
 /* Il "numero libri disponibili" ora è centrato a destra con maggiore
@@ -3747,7 +3747,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   38. v1.3 — dropdown profilo, empty-state primo libro, password reset
+   38. dropdown profilo, empty-state primo libro, password reset
    ===================================================================== */
 
 /* ---- Auth-switch in cima alla pagina di registrazione ---------- */
@@ -3816,7 +3816,7 @@ a:hover { color: var(--color-burgundy-dk); }
 .nav-avatar__menu-item--danger:hover { background: rgba(122, 30, 43, 0.08); }
 
 /* ---- Empty-state "pubblica il primo volume" (profilo) ----------
-   v2.1: usa flex column su container per centrare in modo affidabile
+   Usa flex column su container per centrare in modo affidabile
    ogni elemento figlio, eliminando dipendenza da margin auto. */
 .empty-state--first-book {
   display: flex;
@@ -3840,7 +3840,7 @@ a:hover { color: var(--color-burgundy-dk); }
   font-family: var(--font-display);
   font-size: 1.4rem;
   margin: 0 auto var(--sp-3);
-  max-width: 48ch;            /* v2.1: uniformato a p, hint */
+  max-width: 48ch;            /* uniformato a p, hint */
   color: var(--color-ink);
   text-align: center;
 }
@@ -3849,10 +3849,10 @@ a:hover { color: var(--color-burgundy-dk); }
   margin: 0 auto var(--sp-5);
   max-width: 48ch;
   line-height: 1.55;
-  text-align: center;          /* v2.1: forza centratura del testo */
+  text-align: center;          /* forza centratura del testo */
 }
 .empty-state__hint {
-  margin: var(--sp-5) auto 0 !important;     /* v2.1: margin auto per centrare */
+  margin: var(--sp-5) auto 0 !important;     /* margin auto per centrare */
   max-width: 48ch;
   font-size: var(--fs-xs);
   color: var(--color-ink-soft);
@@ -3894,7 +3894,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   39. v1.4 — Recensioni e valutazioni a stelle
+   39. Recensioni e valutazioni a stelle
    ===================================================================== */
 
 /* ---- Stelle (display): SVG inline, colore --color-gold ----------
@@ -4200,7 +4200,7 @@ a:hover { color: var(--color-burgundy-dk); }
 .nearby-card__stars .stars { gap: 2px; }
 
 /* =====================================================================
-   40. v1.5 — Prestiti: timeline orizzontale, loan card, wizard restituzione
+   40. Prestiti: timeline orizzontale, loan card, wizard restituzione
    ===================================================================== */
 
 /* ---- "X tempo fa" sopra alla data assoluta nelle recensioni ---------- */
@@ -4535,7 +4535,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   41. v1.6 — Slider giorni, overdue, sub-tabs Recensioni, rifiuto/annullo
+   41. Slider giorni, overdue, sub-tabs Recensioni, rifiuto/annullo
    ===================================================================== */
 
 /* ---- Slider "giorni" nella richiesta prestito --------------------- */
@@ -4719,7 +4719,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   42. v1.7 — Chat di prestito, filtri notifiche, doc legali, GDPR export
+   42. Chat di prestito, filtri notifiche, doc legali, GDPR export
    ===================================================================== */
 
 /* ---- Chat: toggle + pannello espandibile -------------------------- */
@@ -5005,7 +5005,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   43. v1.8 — Banner "Apri la tua libreria" sull'hub
+   43. Banner "Apri la tua libreria" sull'hub
    ===================================================================== */
 .open-library-cta {
   position: relative;
@@ -5062,7 +5062,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   44. v1.9 — Simulatore stato + wizard inline apertura libreria
+   44. Simulatore stato + wizard inline apertura libreria
    ===================================================================== */
 
 /* ---- Simulatore demo sotto a ogni card di prestito attivo ---------- */
@@ -5215,7 +5215,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   45. v2.0 — Master-detail loans, list items, badge esperienza
+   45. Master-detail loans, list items, badge esperienza
    ===================================================================== */
 
 /* ---- Badge "X prestiti completati" sul profilo ------------------- */
@@ -5469,7 +5469,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   46. v2.1 — Visibility pill/banner, error-unique input states
+   46. Visibility pill/banner, error-unique input states
    ===================================================================== */
 
 /* ---- Pill di stato visibilità libreria --------------------------- */
@@ -5553,7 +5553,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   47. v2.2 — Stats redesign, admin nav link, login error banner
+   47. Stats redesign, admin nav link, login error banner
    ===================================================================== */
 
 /* ---- Pagina statistiche, layout generale ------------------------ */
@@ -5947,7 +5947,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   48. v2.3 — Book detail expand, admin CRUD, modals, danger button
+   48. Book detail expand, admin CRUD, modals, danger button
    ===================================================================== */
 
 /* ---- Bottone danger per delete ----------------------------------- */
@@ -6308,7 +6308,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   49. v2.4 — Posts, recent updates, reports
+   49. Posts, recent updates, reports
    ===================================================================== */
 
 /* ---- Composer ---------------------------------------------------- */
@@ -6645,7 +6645,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   50. v2.5 — Nav icone SVG, avatar profilo modificabile
+   50. Nav icone SVG, avatar profilo modificabile
    ===================================================================== */
 
 /* ---- Nav icons (desktop: icona + label, mobile: solo icona) ------- */
@@ -6827,7 +6827,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   51. v2.5 quick fix — Nav icon-only, CTA Registrati/Accedi rifinito
+   51. Nav icon-only, CTA Registrati/Accedi rifinito
    ===================================================================== */
 
 /* Niente più label di testo accanto alle icone, mai */
@@ -6880,7 +6880,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   52. v2.6 — Featured algoritmico, welcome messages, novità con aura,
+   52. Featured algoritmico, welcome messages, novità con aura,
        libreria "appena aperta", ridgeline top utenti, popover conferma
    ===================================================================== */
 
@@ -7089,7 +7089,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* ============================================================================
-   Beta 9: PWA + mobile UX polish
+   PWA + rifiniture mobile
    ============================================================================ */
 
 /* Safe area su iPhone con notch (viewport-fit=cover)

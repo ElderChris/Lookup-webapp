@@ -1,9 +1,8 @@
 // =============================================================================
 // src/lib/redis.js
 // =============================================================================
-// Singleton del Redis client (ioredis). In Fase 1c usato solo per
-// healthcheck (PING); in Fase 1e+ servirà per session store, rate
-// limiting, queue.
+// Singleton del Redis client (ioredis): healthcheck, code dei job (BullMQ)
+// e pub/sub degli eventi in tempo reale.
 //
 // Connessione lazy: ioredis non si connette finché non viene fatta la
 // prima operazione. retryStrategy con backoff esponenziale, max 5

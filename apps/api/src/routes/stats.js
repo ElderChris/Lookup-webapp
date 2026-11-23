@@ -8,9 +8,9 @@
 //   GET /api/stats/top-users           Top 20 utenti multi-metrica
 //   GET /api/stats/bisac-cooccurrence  Matrice sparse coppie di categorie
 //
-// Tutti i dati sono pubblici (no auth). Cache: nessuna in Fase 1f (in 1g+
-// aggiungeremo cache Redis con TTL 5-15 minuti per le aggregazioni piu'
-// costose come featured e ridgeline).
+// Tutti i dati sono pubblici (no auth). Nessuna cache lato server: se le
+// aggregazioni piu' costose (featured, ridgeline) diventassero lente, si puo'
+// aggiungere una cache Redis con TTL di 5-15 minuti.
 // =============================================================================
 
 // -----------------------------------------------------------------------------
@@ -449,7 +449,7 @@ export default async function statsRoutes(fastify) {
   );
 
   // ===========================================================================
-  // GET /api/stats/global — Aggregato "quanti X ci sono" (Beta 2)
+  // GET /api/stats/global — Aggregato "quanti X ci sono"
   // ===========================================================================
   // Query O(N) leggere. Usate da admin.html per KPI + landing/pubbliche.
   fastify.get(
@@ -537,7 +537,7 @@ export default async function statsRoutes(fastify) {
   );
 
   // ===========================================================================
-  // GET /api/stats/activity-timeline — Serie temporale eventi (Beta 2)
+  // GET /api/stats/activity-timeline — Serie temporale eventi
   // ===========================================================================
   // Aggregato giornaliero di eventi (signup, book add, loan, post, review)
   // sugli ultimi N giorni. Usato per il grafico "attivita' recente" in admin.
@@ -642,7 +642,7 @@ export default async function statsRoutes(fastify) {
   );
 
   // ===========================================================================
-  // GET /api/books/:id/timeline — Timeline attivita' su un singolo libro (Beta 2)
+  // GET /api/books/:id/timeline — Timeline attivita' su un singolo libro
   // ===========================================================================
   // views + likes + loan_requests giornalieri per un libro specifico.
   // Nota: registrato in stats.js perche' e' un'aggregazione stats-like,

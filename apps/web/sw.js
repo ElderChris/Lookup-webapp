@@ -1,5 +1,5 @@
 /* =============================================================================
- * apps/web/sw.js — Service Worker Lookup (Beta 9)
+ * apps/web/sw.js — Service Worker Lookup
  * =============================================================================
  * Strategie di caching differenziate per tipo di risorsa:
  *
@@ -25,7 +25,9 @@
  * =============================================================================
  */
 
-const CACHE_VERSION = 'lookup-v14'; // v14: iscrizione, accesso e amministrazione sul server
+// Da cambiare a ogni rilascio del sito: il service worker nuovo cancella le
+// cache precedenti e le pagine ricaricano CSS e JS aggiornati
+const CACHE_VERSION = 'lookup-v15';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;
@@ -47,7 +49,9 @@ const PRECACHE_ASSETS = [
   '/js/ui-helpers.js',
   '/js/api-bootstrap.js',
   '/js/eventStream.js',
-  '/js/data.js',
+  '/js/coverDesigns.js',
+  '/js/loanStatus.js',
+  '/vendor/fonts/fonts.css',
   '/manifest.json',
   '/img/icon-192.png',
   '/img/icon-512.png',

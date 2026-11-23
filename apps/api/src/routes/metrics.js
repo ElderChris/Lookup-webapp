@@ -1,5 +1,5 @@
 // =============================================================================
-// src/routes/metrics.js — Endpoint /metrics per Prometheus scraping (Beta 10)
+// src/routes/metrics.js — Endpoint /metrics per Prometheus scraping
 // =============================================================================
 // Espone tutte le metriche in formato testuale Prometheus (esposition format).
 // Non richiede autenticazione utente ma protegge da abusi via IP whitelist

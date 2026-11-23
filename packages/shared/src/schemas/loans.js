@@ -69,7 +69,7 @@ export const LoanDto = z.object({
   status: LoanStatus,
   role: LoanRole,                  // ruolo del chiamante autenticato
   message: z.string().nullable(),  // messaggio iniziale del requester
-  rejectReason: z.string().nullable(), // Fase 1g.2: motivazione del rifiuto (lender)
+  rejectReason: z.string().nullable(), // motivazione del rifiuto (lender)
   requestedAt: IsoDateTime,
   confirmedAt: IsoDateTime.nullable(),
   borrowedAt: IsoDateTime.nullable(),
@@ -92,7 +92,7 @@ export const CreateLoanRequestBody = z.object({
 
 export const PatchLoanBody = z.object({
   action: LoanAction,
-  // Fase 1g.2: motivazione opzionale, valutata solo per action='reject'.
+  // motivazione opzionale, valutata solo per action='reject'.
   // Il backend la accetta ma la salva solo quando action='reject';
   // negli altri casi viene ignorata.
   reason: z.string().max(1000).optional(),

@@ -1,5 +1,5 @@
 // =============================================================================
-// src/routes/prefs.js — User preferences (Beta 2)
+// src/routes/prefs.js — User preferences
 // =============================================================================
 // Endpoint per gestire il record UserPreference (theme, motto, cover design,
 // avatar style, view mode, sort default, ecc.). Sostituisce il legacy

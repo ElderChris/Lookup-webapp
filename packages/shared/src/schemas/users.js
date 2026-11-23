@@ -56,7 +56,7 @@ export const UpdateOrgProfileBody = z.object({
 }).strict();
 
 // -----------------------------------------------------------------------------
-// User preferences (Beta 2)
+// User preferences
 // -----------------------------------------------------------------------------
 
 /** DTO letto dal backend (allineato al modello Prisma UserPreference) */
@@ -162,7 +162,7 @@ export const ListReviewsResponse = PaginatedResponse(ReviewDto);
 export const FollowListResponse = PaginatedResponse(UserSummaryDto);
 
 // -----------------------------------------------------------------------------
-// Beta 2: LibraryData aggregato per profile page
+// LibraryData aggregato per profile page
 // -----------------------------------------------------------------------------
 
 /**
@@ -187,7 +187,7 @@ export const LibraryDataDto = z.object({
 });
 
 // -----------------------------------------------------------------------------
-// Beta 2: Export GDPR — dump JSON del proprio account
+// Export GDPR — dump JSON del proprio account
 // -----------------------------------------------------------------------------
 
 /**

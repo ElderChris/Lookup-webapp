@@ -22,7 +22,7 @@ export const books = {
   /**
    * GET /api/books — lista paginata con filtri opzionali.
    * @param {object} query - filtri (categoryId, ownerId, available, q, sort, limit, offset)
-   * @param {object} [options] - {cache: {ttlMs, key?}} per cache trasparente (Fase 2c.1+)
+   * @param {object} [options] - {cache: {ttlMs, key?}} per cache trasparente
    */
   list(query = {}, options = {}) {
     return apiClient.get('/api/books', { query, ...options });
@@ -57,7 +57,7 @@ export const books = {
   /**
    * GET /api/books/:id — dettaglio di un libro.
    * @param {number} id
-   * @param {object} [options] - {cache: {ttlMs, key?}} per cache trasparente (Fase 2c.1+)
+   * @param {object} [options] - {cache: {ttlMs, key?}} per cache trasparente
    */
   getById(id, options = {}) {
     return apiClient.get(`/api/books/${encodeURIComponent(id)}`, options);
