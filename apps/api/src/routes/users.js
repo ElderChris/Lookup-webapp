@@ -457,7 +457,7 @@ export default async function usersRoutes(fastify) {
       const { id } = request.params;
       const { limit, offset, role } = request.query;
 
-      // Beta 3 (Opzione W): role='received' → reviews su questo utente (default)
+      // role='received' → reviews su questo utente (default)
       //                     role='written'  → reviews scritte da questo utente
       // Solo recensioni con l'altra parte attiva (non sospesa)
       const whereClause =

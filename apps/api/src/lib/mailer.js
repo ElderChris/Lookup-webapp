@@ -1,8 +1,8 @@
 // =============================================================================
-// src/lib/mailer.js — SMTP transport condiviso (Beta 7)
+// src/lib/mailer.js — SMTP transport condiviso
 // =============================================================================
-// Wrapper unico per invio email dell'app. Nato in Fase 3.1 dentro auth.js per
-// le email di Better Auth (verify, reset password). Beta 7 lo estrae come
+// Wrapper unico per invio email dell'app. Usato da auth.js per
+// le email di Better Auth (verifica, reset password) ed estratto come
 // modulo indipendente perche' i job BullMQ (overdue loans reminder, ecc.)
 // hanno bisogno di inviare email fuori dal contesto Better Auth.
 //

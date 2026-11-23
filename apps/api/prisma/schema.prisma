@@ -1,20 +1,20 @@
 // =============================================================================
 // Lookup — Schema Prisma
 // =============================================================================
-// Generato in Fase 1b. Modelli derivati da:
+// Modelli derivati in origine da:
 //   - apps/api/prisma/_reference/schema.sql (riferimento storico, 15 tabelle)
-//   - apps/web/js/data.js (SAMPLE_* arrays — shape effettivo lato frontend)
+//   - i dati del prototipo (archive/prototipo/js/data.js)
 //
 // Convenzioni:
 //   - Field Prisma in camelCase
 //   - Colonne DB in snake_case via @map
 //   - Tabelle in snake_case plurale via @@map
-//   - ID interi (autoincrement) — match con SAMPLE_* del frontend
+//   - ID interi (autoincrement) per libri, prestiti, ecc.; CUID per gli utenti
 //
 // PostGIS: estensioni postgis/pg_trgm/citext sono abilitate dall'init.sql
-// del container (vedi infra/postgres/init.sql), ma in Fase 1b NON usiamo
-// geography(Point) — User ha semplici lat/lng Float. PostGIS arriverà in
-// Fase 1f come migration dedicata per indici GIST e query con ST_DWithin.
+// del container (vedi infra/postgres/init.sql). User ha lat/lng Float e le
+// colonne geography(Point) location / public_location, mantenute da trigger
+// (migrazioni PostGIS), con indici GIST per ST_DWithin.
 // =============================================================================
 
 generator client {
@@ -33,10 +33,10 @@ datasource db {
 // =============================================================================
 
 model User {
-  id             String    @id @default(cuid())               // Fase 3.0: CUID string per compat Better Auth (Fase 3.1)
+  id             String    @id @default(cuid())               // CUID string per compat Better Auth
   username       String    @unique @db.VarChar(30)
   email          String    @unique @db.VarChar(255)
-  // Fase 3.1: passwordHash rimosso. Better Auth memorizza le credenziali
+  // passwordHash rimosso. Better Auth memorizza le credenziali
   // nel modello Account (provider 'credential') con hash Argon2id gestito
   // internamente. Sessioni HTTP → modello Session (cookie httpOnly).
 
@@ -84,7 +84,7 @@ model User {
   termsAcceptedAt DateTime? @map("terms_accepted_at") @db.Timestamptz
   publicProfile  Boolean   @default(true) @map("public_profile")
 
-  // Welcome message rotation (Fase 2 v2.6)
+  // Rotazione dei messaggi di benvenuto
   welcomeIndex   Int       @default(0) @map("welcome_index")
 
   // Timestamps
@@ -110,7 +110,7 @@ model User {
   postReactions       PostReaction[]
   postReportsFiled    PostReport[]      @relation("PostReporter")
 
-  // Fase 3.1: relazioni Better Auth (sessioni + account credential/OAuth)
+  // relazioni Better Auth (sessioni + account credential/OAuth)
   sessions            Session[]
   accounts            Account[]
 
@@ -264,7 +264,7 @@ model LoanRequest {
 
   message       String?   @db.Text
 
-  // Ciclo a 5 stati (v1.5): requested → confirmed → borrowed → returning → returned
+  // Ciclo a 5 stati: requested → confirmed → borrowed → returning → returned
   // + rami terminali: rejected | cancelled
   status        String    @default("requested") @db.VarChar(20)
 
@@ -277,7 +277,7 @@ model LoanRequest {
   rejectedAt    DateTime? @map("rejected_at") @db.Timestamptz
   cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz
 
-  // Beta 7: durata prestito + deadline calcolata + flag reminder inviato.
+  // durata prestito + deadline calcolata + flag reminder inviato.
   // deadline = borrowedAt + daysRequested giorni (calcolata al passaggio a
   // status='borrowed'). Il job overdue-loans usa (status, deadline, reminderSentAt)
   // per generare solleciti automatici via email + notifica in-app.
@@ -285,7 +285,7 @@ model LoanRequest {
   deadline       DateTime? @db.Timestamptz
   reminderSentAt DateTime? @map("reminder_sent_at") @db.Timestamptz
 
-  // Beta 7.1: flag per il reminder PRE-scadenza (T-3 giorni). Usato dal job
+  // flag per il reminder PRE-scadenza (T-3 giorni). Usato dal job
   // upcoming-deadline per notificare requester + lender qualche giorno prima
   // del rientro. Idempotenza: un solo pre-reminder per prestito.
   preReminderSentAt DateTime? @map("pre_reminder_sent_at") @db.Timestamptz
@@ -295,7 +295,7 @@ model LoanRequest {
   requesterLastReadAt DateTime? @map("requester_last_read_at") @db.Timestamptz
   lenderLastReadAt    DateTime? @map("lender_last_read_at") @db.Timestamptz
 
-  // Fase 1g.2: motivazione del rifiuto, richiesta dal frontend in UX
+  // motivazione del rifiuto, richiesta dal frontend in UX
   // (min 10 char lato client, opzionale ma raccomandato). NULL quando lo
   // stato non e' "rejected" o quando il rifiuto e' stato fatto da
   // un'integrazione che non ha passato reason.
@@ -308,9 +308,9 @@ model LoanRequest {
   @@index([lenderId, requestedAt(sort: Desc)])
   @@index([bookId])
   @@index([status])
-  // Beta 7: indice composito per query overdue job (WHERE status + deadline + reminderSentAt)
+  // indice composito per query overdue job (WHERE status + deadline + reminderSentAt)
   @@index([status, deadline, reminderSentAt])
-  // Beta 7.1: indice per query pre-deadline job
+  // indice per query pre-deadline job
   @@index([status, deadline, preReminderSentAt])
   @@map("loan_requests")
 }
@@ -413,7 +413,7 @@ model Notification {
 }
 
 // =============================================================================
-// POSTS — micro-blog di libreria (v2.4)
+// POSTS — micro-blog di libreria
 // =============================================================================
 
 model Post {
@@ -527,7 +527,7 @@ model Verification {
 }
 
 // =============================================================================
-// Beta 5: Audit log azioni admin
+// Audit log azioni admin
 // =============================================================================
 // Traccia ogni operazione eseguita dagli amministratori sulla piattaforma.
 // Utile per: (a) accountability nel post-mortem incidenti, (b) rilevamento

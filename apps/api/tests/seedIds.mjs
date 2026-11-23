@@ -7,7 +7,7 @@
 // =============================================================================
 
 // IDs convenzionali dei dati seed (vedi prisma/seed.mjs)
-// Fase 3.0: gli USER IDs sono stringhe (CUID-like) per compat Better Auth.
+// gli USER IDs sono stringhe (CUID-like) per compat Better Auth.
 // Book/Category IDs restano Int (autoincrement).
 export const SEED = {
   USER_CHIARA: 'usr_chiara', // owner di libri 1, 2, 3

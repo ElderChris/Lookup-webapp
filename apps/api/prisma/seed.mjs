@@ -3,19 +3,13 @@
 // =============================================================================
 // Esegue: npm run db:seed (da apps/api/) oppure cd apps/api && npx prisma db seed
 //
-// Popola il database con dati di test che riproducono i SAMPLE_* del frontend
-// (apps/web/js/data.js). In Fase 1b si seedano:
+// Popola il database con dati di prova derivati da quelli del prototipo
+// (archive/prototipo/js/data.js):
 //   - 11 utenti (6 persone + 5 organizzazioni/librerie)
 //   - Tassonomia BISAC completa (prisma/taxonomy.mjs, 81 generi)
 //   - 20 libri di esempio (subset di SAMPLE_BOOKS)
 //   - Preferenze utente (UserPreference) per chi le ha settate
 //   - Profili organizzazione (OrganizationProfile) per i 5 enti
-//
-// In Fase 1b.2 (next session) espanderemo a:
-//   - Tutti i 50+ libri di SAMPLE_BOOKS
-//   - LoanRequest, LoanMessage, Review
-//   - Follow, Like, Notification
-//   - Post, PostReaction, PostReport
 //
 // Idempotenza: lo script usa upsert dove possibile, e disconnette pulito alla fine.
 // =============================================================================
@@ -531,12 +525,12 @@ const BOOKS = [
 // =============================================================================
 
 async function main() {
-  console.log('🌱 Seed Lookup — Fase 1b');
+  console.log('🌱 Seed Lookup');
   console.log('═══════════════════════════════════════════════');
 
   // 1. Pulizia (in ordine inverso di FK)
   console.log('🗑  Pulizia tabelle...');
-  // Fase 3.3: tabelle Better Auth (session/account/verification) prima delle
+  // tabelle Better Auth (session/account/verification) prima delle
   // altre perche' hanno FK verso users.
   await prisma.session.deleteMany();
   await prisma.account.deleteMany();
@@ -549,7 +543,7 @@ async function main() {
   await prisma.category.deleteMany();
 
   // 2. Reset sequences (per riavere ID che partono da 1)
-  //    Fase 3.0: users NON ha piu' sequence (id String CUID).
+  //    users NON ha piu' sequence (id String CUID).
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE books_id_seq RESTART WITH 1`);
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE categories_id_seq RESTART WITH 1`);
 
@@ -562,12 +556,12 @@ async function main() {
   // 4. Utenti
   console.log(`👤 Inserimento ${USERS.length} utenti...`);
   for (const u of USERS) {
-    // Fase 3.3: setto emailVerified: true di default per i seed users
+    // setto emailVerified: true di default per i seed users
     // (in produzione arriva via link email dopo signup)
     await prisma.user.create({ data: { ...u, emailVerified: true } });
   }
 
-  // 4b. Fase 3.3: Account credential per Better Auth (login vero possibile)
+  // 4b. Account credential per Better Auth (accesso con password)
   // -----------------------------------------------------------------------
   // Per ogni seed user, creo un record Account con providerId='credential'
   // e password hash pre-computato. Cosi' 'usr_chiara', 'usr_marco', ecc.
@@ -635,7 +629,7 @@ async function main() {
   // Postgres NON aggiorna automaticamente le sequences in questo caso.
   // setval() le allinea a MAX(id) così la prossima nextval() ritorna MAX+1.
   //
-  // Fase 3.0: users NON ha piu' sequence (users.id e' String CUID ora),
+  // users NON ha piu' sequence (users.id e' String CUID ora),
   // quindi nessun setval necessario per quella tabella.
   console.log('🔢 Allineamento sequences Postgres a max(id)...');
   await prisma.$executeRawUnsafe(

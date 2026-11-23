@@ -1,5 +1,5 @@
 // =============================================================================
-// src/jobs/overdueLoans.js — Handler check prestiti scaduti (Beta 7)
+// src/jobs/overdueLoans.js — Handler check prestiti scaduti
 // =============================================================================
 // Job schedulato ogni ora che:
 //   1. Trova loans in status='borrowed' con deadline < NOW() AND

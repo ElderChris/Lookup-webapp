@@ -1,5 +1,5 @@
 // =============================================================================
-// tests/routes/categories.test.js (Fase 1g.2)
+// tests/routes/categories.test.js
 // =============================================================================
 // Test per il nuovo endpoint GET /api/categories.
 // 3 scenari minimi: shape della risposta, ordinamento, idempotenza.

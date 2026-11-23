@@ -1,5 +1,5 @@
 // =============================================================================
-// src/jobs/upcomingDeadline.js — Reminder pre-scadenza T-N giorni (Beta 7.1)
+// src/jobs/upcomingDeadline.js — Reminder pre-scadenza T-N giorni
 // =============================================================================
 // Job schedulato ogni giorno alle 9:00 UTC che:
 //   1. Trova loans in status='borrowed' con deadline in [now, now + N giorni]

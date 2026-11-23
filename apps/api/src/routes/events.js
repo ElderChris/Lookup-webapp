@@ -1,5 +1,5 @@
 // =============================================================================
-// src/routes/events.js — Server-Sent Events per notifiche realtime (Beta 8)
+// src/routes/events.js — Server-Sent Events per notifiche realtime
 // =============================================================================
 // Endpoint di streaming: il client apre una GET persistente, il server tiene
 // aperta la connessione e invia messaggi appena disponibili sul canale
@@ -101,7 +101,7 @@ Uso client: \`const es = new EventSource('/api/me/events')\``,
       // il userId (utile per debug in DevTools)
       reply.raw.write(formatSSE('hello', { userId, connectedAt: new Date().toISOString() }));
 
-      // Beta 10: metrics — increment gauge connessioni attive
+      // metrics — increment gauge connessioni attive
       sseConnections.inc();
 
       // Subscribe al canale personale — chiama unsubscribe quando la
@@ -130,7 +130,7 @@ Uso client: \`const es = new EventSource('/api/me/events')\``,
       const cleanup = async () => {
         clearInterval(heartbeatTimer);
         await unsubscribe();
-        // Beta 10: metrics — decrement gauge connessioni attive
+        // metrics — decrement gauge connessioni attive
         sseConnections.dec();
         request.log.debug({ userId }, '[events] client disconnected');
       };

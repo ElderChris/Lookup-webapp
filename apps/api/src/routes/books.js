@@ -79,7 +79,7 @@ function toDto(book) {
 
 export default async function booksRoutes(fastify) {
   // ===========================================================================
-  // GET /api/books/nearby — Libri vicino a coordinata (PostGIS, Fase 1f)
+  // GET /api/books/nearby — Libri vicino a coordinata (PostGIS)
   // ===========================================================================
   // Variante PostGIS dell'esistente filtro geo su /api/books. Usa
   // ST_DWithin per match esatto su sfera (vs bounding box approssimato), e

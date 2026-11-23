@@ -1,5 +1,5 @@
 // =============================================================================
-// src/lib/eventBus.js — Redis pub/sub wrapper per SSE realtime (Beta 8)
+// src/lib/eventBus.js — Redis pub/sub wrapper per SSE realtime
 // =============================================================================
 // Wrapper thin sopra Redis pub/sub per broadcast di eventi realtime agli
 // utenti connessi via Server-Sent Events (SSE).
@@ -110,7 +110,7 @@ export async function publishToUser(userId, event) {
   const payload = { ...event, ts: event.ts || new Date().toISOString() };
   try {
     const receivers = await publisherConnection.publish(channel, JSON.stringify(payload));
-    // Beta 10: metrics — traccia publishes per tipo evento
+    // metrics — traccia publishes per tipo evento
     ssePublishes.labels(event.type || 'unknown').inc();
     return receivers;
   } catch (err) {

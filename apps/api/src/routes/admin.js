@@ -470,7 +470,7 @@ export default async function adminRoutes(fastify) {
   );
 
   // ===========================================================================
-  // PATCH /api/admin/books/:id — Update book (admin override, Beta 5)
+  // PATCH /api/admin/books/:id — Update book (admin override)
   // ===========================================================================
   // A differenza di PATCH /api/books/:id (owner-only), l'admin puo' modificare
   // qualsiasi libro. Utile per correzioni catalogo o interventi di moderation.
@@ -576,7 +576,7 @@ export default async function adminRoutes(fastify) {
   );
 
   // ===========================================================================
-  // DELETE /api/admin/books/:id — Delete book (admin override, Beta 5)
+  // DELETE /api/admin/books/:id — Delete book (admin override)
   // ===========================================================================
   fastify.delete(
     '/api/admin/books/:id',
@@ -613,7 +613,7 @@ export default async function adminRoutes(fastify) {
   );
 
   // ===========================================================================
-  // GET /api/admin/audit-log — Consulta il log delle azioni admin (Beta 5)
+  // GET /api/admin/audit-log — Consulta il log delle azioni admin
   // ===========================================================================
   fastify.get(
     '/api/admin/audit-log',
@@ -689,7 +689,7 @@ export default async function adminRoutes(fastify) {
   );
 
   // ===========================================================================
-  // GET /api/admin/jobs — Stato dei job schedulati (Beta 7)
+  // GET /api/admin/jobs — Stato dei job schedulati
   // ===========================================================================
   // Ritorna informazioni sui job in coda / attivi / completati per ogni queue
   // registrata. Utile per debugging + monitoring dashboard admin.
@@ -743,7 +743,7 @@ export default async function adminRoutes(fastify) {
   );
 
   // ===========================================================================
-  // POST /api/admin/jobs/:queue/run — Trigger manuale di un job (Beta 7)
+  // POST /api/admin/jobs/:queue/run — Trigger manuale di un job
   // ===========================================================================
   // Permette all'admin di forzare l'esecuzione di un job on-demand
   // (senza aspettare lo schedule). Utile per test dopo config changes,

@@ -1,5 +1,5 @@
 // =============================================================================
-// src/jobs/worker.js — BullMQ worker bootstrap (Beta 7)
+// src/jobs/worker.js — BullMQ worker bootstrap
 // =============================================================================
 // Registra i worker che processano i job dalle queue definite in queue.js.
 // Chiamato da app.js a startup (dietro flag env `JOBS_ENABLED`).
@@ -13,7 +13,7 @@
 // PATTERN concurrency:
 //   - `concurrency: 1` sui job di batch (overdue-loans, retention purge):
 //     non ha senso parallelizzare, meglio un'esecuzione seriale pulita
-//   - In futuro (Beta 8+) job "per-user" (es. invio verify email) possono
+//   - In futuro job "per-user" (es. invio verify email) possono
 //     avere concurrency > 1
 //
 // TEARDOWN: chiama `closeWorkers()` in shutdown per SIGTERM/SIGINT.
@@ -35,7 +35,7 @@ const workers = [];
 export function startWorkers(logger) {
   const connection = makeConnection();
 
-  // Beta 10: wrappa gli handler con instrumentazione metrics (durata + outcome)
+  // wrappa gli handler con instrumentazione metrics (durata + outcome)
   workers.push(
     new Worker(
       'overdue-loans',
@@ -56,7 +56,7 @@ export function startWorkers(logger) {
     )
   );
 
-  // Beta 7.1: pre-deadline reminder worker
+  // pre-deadline reminder worker
   workers.push(
     new Worker(
       'upcoming-deadline',

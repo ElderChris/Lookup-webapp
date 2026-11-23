@@ -7,7 +7,7 @@
 // creazione della notifica fallisce, l'azione principale non deve fallire
 // a cascata.
 //
-// Beta 8: dopo la persistenza in DB, ogni notifica viene pubblicata sul
+// dopo la persistenza in DB, ogni notifica viene pubblicata sul
 // pub/sub Redis via publishToUser() → i client connessi via SSE ricevono
 // l'evento in tempo reale (badge aggiornato + toast senza refresh).
 //
@@ -31,7 +31,7 @@ import { notificationsSent } from '../lib/metrics.js';
  * Helper bassissimo livello: crea una notifica.
  * Non-blocking: se fallisce, logga warn e ritorna null (non throw).
  *
- * Beta 8: dopo la persistenza pubblica anche via SSE (fire-and-forget).
+ * dopo la persistenza pubblica anche via SSE (fire-and-forget).
  *
  * @param {object} ctx - { prisma, log }
  * @param {object} data - { userId, type, actorId?, bookId?, loanId?, message }
@@ -44,10 +44,10 @@ async function emit(ctx, data) {
     }
     const notif = await ctx.prisma.notification.create({ data });
 
-    // Beta 10: metrics — traccia notifiche in-app persistite
+    // metrics — traccia notifiche in-app persistite
     notificationsSent.labels('in_app', data.type || 'unknown').inc();
 
-    // Beta 8: broadcast realtime via SSE.
+    // broadcast realtime via SSE.
     // Fire-and-forget: non aspettiamo il publish per non rallentare
     // l'endpoint principale. Se pub/sub e' giu', il client riceve
     // comunque la notifica al prossimo GET /api/me/notifications.

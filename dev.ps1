@@ -34,7 +34,7 @@ function Show-Help {
     Write-Host "    .\dev.ps1 db-reset   Ferma + cancella volumi + ricrea DB pulito"
     Write-Host "    .\dev.ps1 db-logs    Segui i log di postgres"
     Write-Host ""
-    Write-Host "  Backend API [Fase 1c+]:"
+    Write-Host "  Backend API:"
     Write-Host "    .\dev.ps1 api-dev    Avvia backend Fastify in dev [hot-reload] su :3000"
     Write-Host "    .\dev.ps1 api-build  Builda l'immagine Docker del backend"
     Write-Host "    .\dev.ps1 api-up     Avvia il backend nel container [profilo backend]"
@@ -126,7 +126,7 @@ switch ($Command.ToLower()) {
 
     "db-logs" { docker compose logs -f postgres }
 
-    # ==== Backend API commands (Fase 1c+) ====
+    # ==== Backend API commands ====
     "api-dev" {
         Write-Host "Avvio backend Fastify in dev (hot-reload) su http://localhost:3000" -ForegroundColor Cyan
         Push-Location apps/api

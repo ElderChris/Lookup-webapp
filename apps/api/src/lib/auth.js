@@ -222,8 +222,8 @@ export const auth = betterAuth({
   },
 
   // -- Rate limiting per prevenire brute-force -------------------------------
-  // Beta 6: disabilitato in NODE_ENV=test perche' i 89 test fanno tanti
-  // sign-in via signInAs()/signInAsCached() e triggererebbero rate limit.
+  // Disattivato in NODE_ENV=test: i test fanno molti accessi
+  // (signInAs()/signInAsCached()) e supererebbero i limiti.
   // In prod resta attivo (login stretto per prevenire brute force).
   rateLimit: {
     enabled: process.env.NODE_ENV !== 'test',

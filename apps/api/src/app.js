@@ -62,14 +62,14 @@ export async function buildApp(opts = {}) {
       }
       callback(new Error(`CORS: origin ${origin} non permessa`), false);
     },
-    credentials: true, // per session cookie (Fase 3)
+    credentials: true, // per session cookie
     // Da @fastify/cors 11 il default e' solo GET,HEAD,POST: senza questa
     // riga le preflight di PUT/PATCH/DELETE da un'origine diversa
     // (frontend di sviluppo su :8765) verrebbero rifiutate.
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   });
 
-  // --- Rate limit globale (Beta 5) ---
+  // --- Rate limit globale ---
   // Limita le richieste per IP per proteggere il backend da abusi e
   // scraping. In produzione si consiglia Redis come store per distribuire
   // il conteggio tra piu' istanze (workerId nel bucket).
@@ -196,7 +196,7 @@ export async function buildApp(opts = {}) {
     staticCSP: true,
   });
 
-  // --- Beta 10: HTTP metrics hook ---
+  // --- HTTP metrics hook ---
   // Registra latency e count di ogni request. Il routerPath e' il template
   // ("/api/books/:id"), non l'URL istanziato ("/api/books/42"), cosi' evitiamo
   // esplosione di cardinality nelle metriche Prometheus.
@@ -252,7 +252,7 @@ export async function buildApp(opts = {}) {
     }
   });
 
-  // --- Better Auth handler mount on /api/auth/* (Fase 3.1) ---
+  // --- Better Auth handler mount on /api/auth/* ---
   await fastify.register(authPlugin);
 
   // --- Routes ---
@@ -266,7 +266,7 @@ export async function buildApp(opts = {}) {
     void checkSmtp(fastify.log);
   }
 
-  // --- Background jobs (Beta 7) ---
+  // --- Background jobs ---
   // Startup dei worker BullMQ + registrazione dei repeat job (overdue-loans,
   // retention). Disabilitato in NODE_ENV=test (i test non hanno bisogno di
   // job async, e ci sarebbero flaky per il worker che gira in background
@@ -288,7 +288,7 @@ export async function buildApp(opts = {}) {
     startWorkers(fastify.log);
     attachQueueEvents(fastify.log);
     await registerRecurringJobs(fastify.log);
-    // Beta 10: polling gauge queue size ogni 30s per Prometheus
+    // polling gauge queue size ogni 30s per Prometheus
     if (metricsEnabled) await startQueueSizePolling();
     fastify.decorate('closeJobs', async () => {
       stopQueueSizePolling();
@@ -303,7 +303,7 @@ export async function buildApp(opts = {}) {
     if (instance.closeJobs) {
       await instance.closeJobs();
     }
-    // Beta 8: chiude subscriber SSE + libera canali pub/sub
+    // chiude subscriber SSE + libera canali pub/sub
     const { closeEventBus } = await import('./lib/eventBus.js');
     await closeEventBus();
     await prisma.$disconnect();
