@@ -778,21 +778,21 @@ export default async function statsRoutes(fastify) {
       const [kpiRows, activity, macroRows, childRows, coRows, macros, users] = await Promise.all([
         q(`
           SELECT
-            (SELECT COUNT(*) FROM books WHERE status = 'active' AND owner_id IN (SELECT id FROM users WHERE status = 'active'))::int AS total_books,
-            (SELECT COUNT(*) FROM users WHERE status = 'active' AND role <> 'admin')::int AS total_users,
+            (SELECT COUNT(*) FROM books WHERE status = 'active' AND owner_id IN (SELECT id FROM users WHERE status = 'active'))::int AS "totalBooks",
+            (SELECT COUNT(*) FROM users WHERE status = 'active' AND role <> 'admin')::int AS "totalUsers",
             (SELECT COUNT(*) FROM users WHERE status = 'active' AND role <> 'admin'
-               AND library_role = 'curator')::int AS curators_count,
+               AND library_role = 'curator')::int AS "curatorsCount",
             (SELECT COUNT(*) FROM users WHERE status = 'active' AND role <> 'admin'
-               AND library_role = 'borrower')::int AS borrowers_count,
-            (SELECT COUNT(*) FROM loan_requests)::int AS total_loans,
-            (SELECT COUNT(*) FROM loan_requests WHERE status = 'returned')::int AS completed_loans,
+               AND library_role = 'borrower')::int AS "borrowersCount",
+            (SELECT COUNT(*) FROM loan_requests)::int AS "totalLoans",
+            (SELECT COUNT(*) FROM loan_requests WHERE status = 'returned')::int AS "completedLoans",
             (SELECT COUNT(*) FROM loan_requests
-               WHERE status IN ('requested','confirmed','borrowed','returning'))::int AS active_loans,
-            (SELECT COUNT(*) FROM reviews)::int AS total_reviews,
-            (SELECT ROUND(AVG(rating)::numeric, 2) FROM reviews)::float AS avg_rating,
-            (SELECT COUNT(*) FROM loan_messages)::int AS total_messages,
-            (SELECT COUNT(*) FROM notifications)::int AS total_notifications,
-            (SELECT COALESCE(SUM(view_count), 0) FROM books WHERE status = 'active' AND owner_id IN (SELECT id FROM users WHERE status = 'active'))::int AS total_views
+               WHERE status IN ('requested','confirmed','borrowed','returning'))::int AS "activeLoans",
+            (SELECT COUNT(*) FROM reviews)::int AS "totalReviews",
+            (SELECT ROUND(AVG(rating)::numeric, 2) FROM reviews)::float AS "avgRating",
+            (SELECT COUNT(*) FROM loan_messages)::int AS "totalMessages",
+            (SELECT COUNT(*) FROM notifications)::int AS "totalNotifications",
+            (SELECT COALESCE(SUM(view_count), 0) FROM books WHERE status = 'active' AND owner_id IN (SELECT id FROM users WHERE status = 'active'))::int AS "totalViews"
         `),
         // 12 settimane (da lunedi'), la corrente compresa
         q(`
@@ -856,10 +856,10 @@ export default async function statsRoutes(fastify) {
         // Utenti attivi con le metriche delle classifiche
         q(`
           SELECT u.id, u.display_name AS name, u.username, u.public_city AS city,
-            (SELECT COUNT(*) FROM books b WHERE b.owner_id = u.id AND b.status = 'active' AND b.owner_id IN (SELECT id FROM users WHERE status = 'active'))::int AS books_count,
+            (SELECT COUNT(*) FROM books b WHERE b.owner_id = u.id AND b.status = 'active' AND b.owner_id IN (SELECT id FROM users WHERE status = 'active'))::int AS "booksCount",
             (SELECT COUNT(*) FROM loan_requests l WHERE l.status = 'returned'
-               AND (l.requester_id = u.id OR l.lender_id = u.id))::int AS completed_loans,
-            (SELECT COUNT(*) FROM reviews r WHERE r.reviewer_id = u.id)::int AS reviews_written,
+               AND (l.requester_id = u.id OR l.lender_id = u.id))::int AS "completedLoans",
+            (SELECT COUNT(*) FROM reviews r WHERE r.reviewer_id = u.id)::int AS "reviewsWritten",
             (SELECT COUNT(*) FROM user_follows f WHERE f.followed_id = u.id)::int AS followers
           FROM users u
           WHERE u.status = 'active' AND u.role <> 'admin'
@@ -870,7 +870,7 @@ export default async function statsRoutes(fastify) {
       const k = kpiRows[0];
       const kpi = {
         ...k,
-        avg_views_per_book: k.total_books ? Math.round(k.total_views / k.total_books) : 0,
+        avgViewsPerBook: k.totalBooks ? Math.round(k.totalViews / k.totalBooks) : 0,
       };
 
       // --- Generi: macro-aree con i sottogeneri ---
@@ -903,16 +903,16 @@ export default async function statsRoutes(fastify) {
               AND l.requested_at >= date_trunc('month', now()) - interval '11 months')
            + (SELECT COUNT(*) FROM book_likes k WHERE k.book_id = b.id
               AND k.created_at >= date_trunc('month', now()) - interval '11 months'))::int
-            AS total_interactions,
-          (SELECT COUNT(*) FROM loan_requests l WHERE l.book_id = b.id)::int AS total_loans,
+            AS "totalInteractions",
+          (SELECT COUNT(*) FROM loan_requests l WHERE l.book_id = b.id)::int AS "totalLoans",
           (SELECT COUNT(*) FROM loan_requests l WHERE l.book_id = b.id
-             AND l.status = 'returned')::int AS completed_loans,
+             AND l.status = 'returned')::int AS "completedLoans",
           (SELECT COUNT(*) FROM loan_requests l WHERE l.book_id = b.id
-             AND l.status IN ('requested','confirmed','borrowed','returning'))::int AS active_loans,
-          (SELECT COUNT(*) FROM book_likes k WHERE k.book_id = b.id)::int AS total_likes
+             AND l.status IN ('requested','confirmed','borrowed','returning'))::int AS "activeLoans",
+          (SELECT COUNT(*) FROM book_likes k WHERE k.book_id = b.id)::int AS "totalLikes"
         FROM books b
         WHERE b.status = 'active' AND b.owner_id IN (SELECT id FROM users WHERE status = 'active')
-        ORDER BY total_interactions DESC, b.view_count DESC, b.id
+        ORDER BY "totalInteractions" DESC, b.view_count DESC, b.id
         LIMIT $1
       `,
         limit
@@ -928,7 +928,7 @@ export default async function statsRoutes(fastify) {
                 interval '1 month'
               ) AS m
             ), ids AS (SELECT unnest($1::int[]) AS id)
-            SELECT ids.id AS book_id, months.m AS month,
+            SELECT ids.id AS "bookId", months.m AS month,
               (SELECT COUNT(*) FROM loan_requests l WHERE l.book_id = ids.id
                  AND l.requested_at >= months.m AND l.requested_at < months.m + interval '1 month')::int AS loans,
               (SELECT COUNT(*) FROM book_likes k WHERE k.book_id = ids.id
@@ -944,8 +944,8 @@ export default async function statsRoutes(fastify) {
       const months = [...new Set(monthly.map((r) => new Date(r.month).toISOString()))];
       const series = new Map();
       for (const r of monthly) {
-        if (!series.has(r.book_id)) series.set(r.book_id, { views: [], loans: [], likes: [] });
-        const sr = series.get(r.book_id);
+        if (!series.has(r.bookId)) series.set(r.bookId, { views: [], loans: [], likes: [] });
+        const sr = series.get(r.bookId);
         sr.views.push(r.views);
         sr.loans.push(r.loans);
         sr.likes.push(r.likes);
@@ -958,7 +958,7 @@ export default async function statsRoutes(fastify) {
       // --- Classifiche utenti ---
       const scored = users.map((u) => ({
         ...u,
-        score: u.completed_loans * 3 + u.reviews_written * 2 + u.books_count + u.followers,
+        score: u.completedLoans * 3 + u.reviewsWritten * 2 + u.booksCount + u.followers,
       }));
       const by = (key) =>
         [...scored]
@@ -973,11 +973,11 @@ export default async function statsRoutes(fastify) {
         months,
         topBooks,
         topUsers: {
-          by_score: by('score'),
-          by_loans: by('completed_loans'),
-          by_reviews: by('reviews_written'),
-          by_books: by('books_count'),
-          by_followers: by('followers'),
+          byScore: by('score'),
+          byLoans: by('completedLoans'),
+          byReviews: by('reviewsWritten'),
+          byBooks: by('booksCount'),
+          byFollowers: by('followers'),
         },
       };
     }

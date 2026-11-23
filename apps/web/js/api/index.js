@@ -33,17 +33,7 @@ export * as library from './endpoints/library.js';
 // Amministrazione
 export * as admin from './endpoints/admin.js';
 
-// Conversione delle risposte nella forma usata dalle pagine + cache
-export {
-  bookToLegacy,
-  bookToApi,
-  userToLegacy,
-  userPatchToApi,
-  loanToLegacy,
-  postToLegacy,
-  notificationToLegacy,
-  transform,
-} from './transformer.js';
+// Cache delle risposte (le pagine usano i dati cosi' come li manda il server)
 export { cache, CACHE_TTL } from './cache.js';
 
 // Better Auth client wrapper (endpoint /api/auth/*)

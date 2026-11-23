@@ -197,10 +197,10 @@
       const me = await window.LB_UI.requireUser('login.html');
       if (!me) return;
 
-      // i Lettori (library_role='borrower') non possono pubblicare
+      // i Lettori (libraryRole 'borrower') non possono pubblicare
       // volumi finché non hanno aperto ufficialmente la propria libreria
       // tramite il wizard dedicato sul profilo. Redirect cordiale.
-      if (me.library_role === 'borrower') {
+      if (window.LB_UI.isBorrower(me)) {
         UI.toast('Apri prima la tua libreria dal profilo per pubblicare volumi.', 'info');
         setTimeout(() => location.href = 'profile.html#panel-books', 1500);
         return;
@@ -303,16 +303,19 @@
         }
 
         try {
-          const body = window.LB_API.bookToApi({
+          // Corpo di POST /api/books: i campi facoltativi vuoti restano
+          // fuori (undefined non viene serializzato)
+          const body = {
             title: form.title.value.trim(),
             author: form.author.value.trim(),
+            categoryIds: catBox.getIds(),
             year: +form.year.value || undefined,
             language: form.language.value || undefined,
             isbn: form.isbn.value.trim() || undefined,
             pages: +form.pages.value || undefined,
             description: form.description.value.trim() || undefined,
             condition: form.condition.value || undefined,
-          }, catBox.getIds());
+          };
           const created = await window.LB_API.books.create(body);
           window.LB_API.cache.invalidate('books:');
           UI.toast('Volume pubblicato con successo!', 'success');

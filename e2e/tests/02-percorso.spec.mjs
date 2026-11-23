@@ -1,5 +1,6 @@
 // =============================================================================
 // Percorso completo con utenti nuovi: iscrizione con conferma dell'email,
+// pubblicazione di un volume,
 // prestito chiesto da ospite, ciclo del prestito, sospensione, recupero
 // della password, eliminazione degli account. Gli utenti creati vengono
 // cancellati alla fine anche se un passo fallisce.
@@ -13,6 +14,7 @@ import {
   emailsFor,
   loginWithForm,
   deleteTestUsers,
+  watchPage,
 } from '../helpers.mjs';
 
 test.describe.configure({ mode: 'serial' });
@@ -90,6 +92,29 @@ test("un lettore si iscrive con un volume, non entra finché non conferma l'emai
   const { data } = await shown.json();
   expect(data).toHaveLength(1);
   bookId = data[0].id;
+});
+
+test('il lettore pubblica un secondo volume e lo ritrova nella sua libreria', async () => {
+  const page = await lenderCtx.newPage();
+  const watch = watchPage(page);
+  await page.goto('/add-book.html');
+  await page.fill('#title', `${book.title} secondo`);
+  await page.fill('#author', book.author);
+  await page.fill('#year', '1998');
+  await page.locator('#category-tags .tag-input__field').fill('Roman');
+  await page.locator('#category-tags .tag-opt').first().click();
+  await expect(page.locator('#category-tags .tag-chip')).toHaveCount(1);
+  await page.fill('#description', 'Edizione tascabile in buono stato, con qualche segno a matita.');
+  await page.check('#consent');
+  await page.click('#submit-btn');
+  await page.waitForURL(/\/book-detail\.html\?id=\d+$/);
+
+  const me = await (await page.request.get('/api/users/me')).json();
+  await page.goto(`/library.html?id=${me.id}`);
+  const cards = page.locator('#books-container .book-card');
+  await expect(cards).toHaveCount(2);
+  await expect(cards.locator('.book-card__category').filter({ hasText: /\S/ })).toHaveCount(2);
+  expect(watch.errors).toEqual([]);
 });
 
 test('un ospite chiede il prestito, si iscrive e dopo la conferma ritrova la richiesta pronta', async () => {

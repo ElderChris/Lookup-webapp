@@ -241,7 +241,7 @@
           window.LB_API.library.nearby({ limit: 50 }).catch(() => ({ data: [] })),
         ]);
         libraryInfo = new Map(libsRes.data.map((l) => [l.id, l]));
-        updateMapMarkers(booksRes.data.map(window.LB_API.bookToLegacy));
+        updateMapMarkers(booksRes.data);
       } catch (err) {
         console.warn('Mappa non disponibile:', err);
         const mw = document.querySelector('.map-wrapper');
@@ -315,7 +315,7 @@
           ...(ids.length && { categories: ids.join(',') }),
           ...(radiusKm > 0 && ref && { lat: ref.lat, lng: ref.lng, radius: radiusKm * 1000 }),
         }, { maxItems: 500 });
-        results = res.data.map(window.LB_API.bookToLegacy);
+        results = res.data;
       } catch (err) {
         resultsBox.innerHTML = `<p class="alert alert--error">Server non raggiungibile: ricerca non disponibile. Riprova tra poco.</p>`;
         document.getElementById('results-count').textContent = '';
@@ -352,9 +352,10 @@
 
       const byOwner = new Map();
       books.forEach((b) => {
-        if (b.owner_lat == null || b.owner_lng == null) return;
-        if (!byOwner.has(b.owner_id)) byOwner.set(b.owner_id, []);
-        byOwner.get(b.owner_id).push(b);
+        const owner = b.owner;
+        if (!owner || owner.lat == null || owner.lng == null) return;
+        if (!byOwner.has(owner.id)) byOwner.set(owner.id, []);
+        byOwner.get(owner.id).push(b);
       });
 
       const customIcon = L.divIcon({
@@ -372,8 +373,8 @@
       });
 
       byOwner.forEach((ownerBooks, ownerId) => {
-        const first = ownerBooks[0];
-        const m = L.marker([first.owner_lat, first.owner_lng], { icon: customIcon });
+        const owner = ownerBooks[0].owner;
+        const m = L.marker([owner.lat, owner.lng], { icon: customIcon });
         const booksList = ownerBooks.slice(0, 5).map((b) =>
           `<li><a href="book-detail.html?id=${b.id}">${esc(b.title)}</a> <em>${esc(b.author)}</em></li>`
         ).join('');
@@ -384,9 +385,9 @@
         const available = ownerBooks.filter((b) => b.available).length;
 
         m.bindPopup(`
-          <h4>${esc(first.owner_name || 'Libreria')}</h4>
+          <h4>${esc(owner.displayName || 'Libreria')}</h4>
           ${starsLine}
-          <p class="popup-author">${esc(first.owner_city || '')}</p>
+          <p class="popup-author">${esc(owner.city || '')}</p>
           <p style="margin-top:.5rem; font-size:.85rem;">
             <strong>${available}</strong> volum${available === 1 ? 'e' : 'i'} disponibil${available === 1 ? 'e' : 'i'}
           </p>

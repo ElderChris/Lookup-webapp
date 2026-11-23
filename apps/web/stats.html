@@ -208,36 +208,36 @@
       const real = overview.kpi;
       document.getElementById('real-kpi-grid').innerHTML = `
         <div class="kpi-card kpi-card--real">
-          <div class="kpi-card__num">${real.total_books}</div>
+          <div class="kpi-card__num">${real.totalBooks}</div>
           <div class="kpi-card__lbl">volumi pubblicati</div>
         </div>
         <div class="kpi-card kpi-card--real">
-          <div class="kpi-card__num">${real.total_users}</div>
+          <div class="kpi-card__num">${real.totalUsers}</div>
           <div class="kpi-card__lbl">utenti registrati</div>
-          <div class="kpi-card__sub">${real.curators_count} curatori · ${real.borrowers_count} lettori</div>
+          <div class="kpi-card__sub">${real.curatorsCount} curatori · ${real.borrowersCount} lettori</div>
         </div>
         <div class="kpi-card kpi-card--real">
-          <div class="kpi-card__num">${real.total_loans}</div>
+          <div class="kpi-card__num">${real.totalLoans}</div>
           <div class="kpi-card__lbl">prestiti totali</div>
-          <div class="kpi-card__sub">${real.completed_loans} conclusi · ${real.active_loans} in corso</div>
+          <div class="kpi-card__sub">${real.completedLoans} conclusi · ${real.activeLoans} in corso</div>
         </div>
         <div class="kpi-card kpi-card--real">
-          <div class="kpi-card__num">${real.total_reviews}</div>
+          <div class="kpi-card__num">${real.totalReviews}</div>
           <div class="kpi-card__lbl">recensioni scritte</div>
-          ${real.avg_rating ? `<div class="kpi-card__sub">media ★ ${real.avg_rating}</div>` : ''}
+          ${real.avgRating ? `<div class="kpi-card__sub">media ★ ${real.avgRating}</div>` : ''}
         </div>
         <div class="kpi-card kpi-card--real">
-          <div class="kpi-card__num">${real.total_messages}</div>
+          <div class="kpi-card__num">${real.totalMessages}</div>
           <div class="kpi-card__lbl">messaggi in chat</div>
         </div>
         <div class="kpi-card kpi-card--real">
-          <div class="kpi-card__num">${real.total_notifications}</div>
+          <div class="kpi-card__num">${real.totalNotifications}</div>
           <div class="kpi-card__lbl">notifiche emesse</div>
         </div>
         <div class="kpi-card kpi-card--real">
-          <div class="kpi-card__num">${real.total_views.toLocaleString('it-IT')}</div>
+          <div class="kpi-card__num">${real.totalViews.toLocaleString('it-IT')}</div>
           <div class="kpi-card__lbl">visualizzazioni libri</div>
-          <div class="kpi-card__sub">media ${real.avg_views_per_book} per libro</div>
+          <div class="kpi-card__sub">media ${real.avgViewsPerBook} per libro</div>
         </div>
       `;
 
@@ -404,13 +404,13 @@
             likes: cumulate(b.monthly.likes),
           },
           summary: {
-            added_at: b.createdAt,
-            age_days: Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 86400000),
-            total_views: b.views,
-            total_loans: b.total_loans,
-            total_likes: b.total_likes,
-            completed_loans: b.completed_loans,
-            active_loans: b.active_loans,
+            createdAt: b.createdAt,
+            ageDays: Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 86400000),
+            views: b.views,
+            totalLoans: b.totalLoans,
+            totalLikes: b.totalLikes,
+            completedLoans: b.completedLoans,
+            activeLoans: b.activeLoans,
           },
         };
       }
@@ -436,7 +436,7 @@
                   </div>
                   <div class="sparkline" aria-label="Timeline mensile interazioni">${spark}</div>
                   <div class="top-book-item__count">
-                    <strong>${book.total_interactions}</strong>
+                    <strong>${book.totalInteractions}</strong>
                     <span>interazioni</span>
                   </div>
                   <button type="button" class="top-book-item__toggle"
@@ -474,14 +474,14 @@
             detail.innerHTML = `
               <div class="book-detail-stats">
                 <div class="book-detail-stats__kpis">
-                  <div class="mini-kpi"><div class="mini-kpi__num">${s.total_views}</div><div class="mini-kpi__lbl">visualizzazioni</div></div>
-                  <div class="mini-kpi"><div class="mini-kpi__num">${s.total_loans}</div><div class="mini-kpi__lbl">richieste prestito</div></div>
-                  <div class="mini-kpi"><div class="mini-kpi__num">${s.completed_loans}</div><div class="mini-kpi__lbl">prestiti conclusi</div></div>
-                  <div class="mini-kpi"><div class="mini-kpi__num">${s.active_loans}</div><div class="mini-kpi__lbl">prestiti attivi</div></div>
-                  <div class="mini-kpi"><div class="mini-kpi__num">${s.total_likes}</div><div class="mini-kpi__lbl">like ricevuti</div></div>
-                  <div class="mini-kpi"><div class="mini-kpi__num">${s.age_days}</div><div class="mini-kpi__lbl">giorni in piattaforma</div></div>
+                  <div class="mini-kpi"><div class="mini-kpi__num">${s.views}</div><div class="mini-kpi__lbl">visualizzazioni</div></div>
+                  <div class="mini-kpi"><div class="mini-kpi__num">${s.totalLoans}</div><div class="mini-kpi__lbl">richieste prestito</div></div>
+                  <div class="mini-kpi"><div class="mini-kpi__num">${s.completedLoans}</div><div class="mini-kpi__lbl">prestiti conclusi</div></div>
+                  <div class="mini-kpi"><div class="mini-kpi__num">${s.activeLoans}</div><div class="mini-kpi__lbl">prestiti attivi</div></div>
+                  <div class="mini-kpi"><div class="mini-kpi__num">${s.totalLikes}</div><div class="mini-kpi__lbl">like ricevuti</div></div>
+                  <div class="mini-kpi"><div class="mini-kpi__num">${s.ageDays}</div><div class="mini-kpi__lbl">giorni in piattaforma</div></div>
                 </div>
-                <p class="book-detail-stats__since">In piattaforma dal <strong>${new Date(s.added_at).toLocaleDateString('it-IT', { day:'numeric', month:'long', year:'numeric' })}</strong></p>
+                <p class="book-detail-stats__since">In piattaforma dal <strong>${new Date(s.createdAt).toLocaleDateString('it-IT', { day:'numeric', month:'long', year:'numeric' })}</strong></p>
                 <div class="book-detail-stats__chart-wrap">
                   <canvas id="book-chart-${bookId}"></canvas>
                 </div>
@@ -533,12 +533,13 @@
         followers: 'follower'
       };
       const fields = {
-        score: u => u.score + ' pt', loans: u => u.completed_loans + ' prestiti',
-        reviews: u => u.reviews_written + ' recensioni',
-        books: u => u.books_count + ' volumi', followers: u => u.followers + ' follower'
+        score: u => u.score + ' pt', loans: u => u.completedLoans + ' prestiti',
+        reviews: u => u.reviewsWritten + ' recensioni',
+        books: u => u.booksCount + ' volumi', followers: u => u.followers + ' follower'
       };
       const renderUserList = (tab) => {
-        const list = top['by_' + tab] || [];
+        // byScore, byLoans, byReviews, byBooks, byFollowers
+        const list = top['by' + tab[0].toUpperCase() + tab.slice(1)] || [];
         document.getElementById('top-users-list').innerHTML = list.length === 0
           ? '<p style="color: var(--color-ink-soft); padding: var(--sp-4);">Nessun utente con attività rilevante.</p>'
           : list.map((u, idx) => `

@@ -372,13 +372,7 @@
           }
         }
 
-        // Adattatore per la timeline condivisa (campi snake_case)
-        const t = loan.timestamps || {};
-        const timeline = UI.renderLoanTimeline({
-          status: loan.status,
-          requested_at: t.requested, confirmed_at: t.confirmed, borrowed_at: t.borrowed,
-          returning_at: t.returning, returned_at: t.returned,
-        });
+        const timeline = UI.renderLoanTimeline(loan);
 
         return `
           <article class="loan-card" id="loan-${loan.id}" data-status="${loan.status}">

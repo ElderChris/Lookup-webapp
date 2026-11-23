@@ -48,8 +48,8 @@ export const WELCOME_MESSAGES = [
  */
 export function getWelcomeMessage(user) {
   if (!user) return '';
-  const first = (user.display_name || user.displayName || user.username || '').split(' ')[0];
-  const idx = (user.welcome_index || user.welcomeIndex || 0) % WELCOME_MESSAGES.length;
+  const first = (user.displayName || user.username || '').split(' ')[0];
+  const idx = (user.welcomeIndex || 0) % WELCOME_MESSAGES.length;
   return WELCOME_MESSAGES[idx].replace('{name}', first);
 }
 
@@ -60,21 +60,18 @@ export function getWelcomeMessage(user) {
 /**
  * Restituisce i dati grafici della cover libreria: theme class, glyph,
  * design object, letter iniziale.
- * @param {object} user - l'utente proprietario
- * @param {object} prefs - preferenze (theme, avatar_style, cover_design, ...)
+ * @param {object} user - l'utente proprietario ({ displayName, username, accountType })
+ * @param {object} prefs - preferenze dal server (theme, avatarStyle, avatarSymbol, coverDesign)
  */
 export function libraryCoverData(user, prefs) {
   prefs = prefs || {};
   const themeClass = `cover--${prefs.theme || 'classic'}`;
-  const glyph =
-    prefs.avatar_style === 'symbol'
-      ? prefs.avatar_symbol || '§'
-      : (user.display_name || user.username || '?').trim()[0].toUpperCase();
+  const letter = (user.displayName || user.username || '?').trim()[0].toUpperCase();
+  const glyph = prefs.avatarStyle === 'symbol' ? prefs.avatarSymbol || '§' : letter;
 
   const defaultKey = isOrganization(user) ? 'i-shelf' : 'g-section';
-  const designKey = prefs.cover_design || defaultKey;
+  const designKey = prefs.coverDesign || defaultKey;
   const design = LIBRARY_COVER_DESIGN_MAP[designKey] || LIBRARY_COVER_DESIGN_MAP[defaultKey];
-  const letter = (user.display_name || user.username || '?').trim()[0].toUpperCase();
 
   return { themeClass, glyph, design, designKey, letter };
 }
@@ -105,14 +102,44 @@ export function orgCategoryLabel(key) {
 // Type check booleani
 // -----------------------------------------------------------------------------
 
-/** True se l'utente ha account_type='organization'. */
+/** True se l'utente e' un ente (accountType 'organization'). */
 export function isOrganization(user) {
-  return !!user && (user.account_type === 'organization' || user.accountType === 'organization');
+  return !!user && user.accountType === 'organization';
 }
 
-/** True se il ruolo libreria dell'utente e' 'borrower' (lettore erratico). */
+/** True se l'utente e' iscritto come lettore (libraryRole 'borrower'). */
 export function isBorrower(user) {
-  return !!user && (user.library_role === 'borrower' || user.libraryRole === 'borrower');
+  return !!user && user.libraryRole === 'borrower';
+}
+
+// -----------------------------------------------------------------------------
+// Libri (BookDto del server)
+// -----------------------------------------------------------------------------
+
+/** Colori del design system per le copertine generate. */
+const COVER_PALETTE = ['#7a1e2b', '#5a141f', '#b08840', '#6e7a5a', '#3d342e', '#1a1512'];
+
+/**
+ * Copertina generata di un libro senza immagine: sfumatura ricavata
+ * dall'id, quindi sempre la stessa per lo stesso libro.
+ * @param {{id: number}} book
+ */
+export function bookCoverGradient(book) {
+  const id = Number(book?.id) || 0;
+  const n = COVER_PALETTE.length;
+  const a = COVER_PALETTE[(id * 7) % n];
+  const b = COVER_PALETTE[(id * 13 + 3) % n];
+  const c = a === b ? COVER_PALETTE[(id + 1) % n] : b;
+  return `linear-gradient(135deg, ${a} 0%, ${c} 100%)`;
+}
+
+/**
+ * Genere principale del libro ({ id, name, slug }) o null.
+ * @param {{categories?: Array<{isPrimary?: boolean}>}} book
+ */
+export function bookCategory(book) {
+  const list = book?.categories || [];
+  return list.find((c) => c.isPrimary) || list[0] || null;
 }
 
 // -----------------------------------------------------------------------------
@@ -120,33 +147,31 @@ export function isBorrower(user) {
 // -----------------------------------------------------------------------------
 
 /**
- * Adatta l'oggetto Better Auth session (`window.LB_AUTH_USER`) alla shape
- * "legacy" che le pagine si aspettano da `API.getCurrentUser()`.
+ * Utente della sessione con gli stessi nomi dei campi delle risposte
+ * dell'API (UserDto). Better Auth chiama `name` e `image` quelli che nel
+ * resto dell'API sono `displayName` e `avatarUrl`.
  *
- * Backend camelCase → frontend snake_case, con derivate come `is_admin`
- * dal ruolo. Utile per pagine con inline scripts che leggono i campi
- * senza dover fare un adapter inline ogni volta.
- *
- * @param {object|null} beUser - oggetto session (o null se guest)
+ * @param {object|null} sessionUser - `session.user` di Better Auth (null se ospite)
  * @returns {object|null}
  */
-export function backendUserToLegacy(beUser) {
-  if (!beUser) return null;
+function fromSession(sessionUser) {
+  if (!sessionUser) return null;
   return {
-    id: beUser.id,
-    username: beUser.username,
-    display_name: beUser.name || beUser.displayName || beUser.username,
-    email: beUser.email,
-    city: beUser.city ?? null,
-    bio: beUser.bio ?? null,
-    lat: beUser.lat ?? null,
-    lng: beUser.lng ?? null,
-    avatar_url: beUser.image || beUser.avatarUrl || null,
-    account_type: beUser.accountType || 'person',
-    library_role: beUser.libraryRole || null,
-    is_admin: beUser.role === 'admin',
-    welcome_index: beUser.welcomeIndex || 0,
-    created_at: beUser.createdAt || new Date().toISOString(),
+    id: sessionUser.id,
+    username: sessionUser.username,
+    displayName: sessionUser.name || sessionUser.username,
+    email: sessionUser.email,
+    city: sessionUser.city ?? null,
+    bio: sessionUser.bio ?? null,
+    lat: sessionUser.lat ?? null,
+    lng: sessionUser.lng ?? null,
+    avatarUrl: sessionUser.image || null,
+    accountType: sessionUser.accountType || 'person',
+    libraryRole: sessionUser.libraryRole || null,
+    role: sessionUser.role || 'user',
+    isAdmin: sessionUser.role === 'admin',
+    welcomeIndex: sessionUser.welcomeIndex || 0,
+    createdAt: sessionUser.createdAt ?? null,
   };
 }
 
@@ -231,7 +256,7 @@ export async function requireAdmin(
 ) {
   const me = await requireUser(redirectIfMissing);
   if (!me) return null;
-  if (!me.is_admin) {
+  if (!me.isAdmin) {
     window.location.href = redirectIfForbidden;
     return null;
   }
@@ -240,7 +265,7 @@ export async function requireAdmin(
 
 /**
  * Rilegge la sessione dal server (senza cache) dopo una modifica del
- * profilo, aggiorna window.LB_AUTH_USER e ritorna l'utente in shape legacy.
+ * profilo, aggiorna window.LB_AUTH_USER e ritorna l'utente aggiornato.
  */
 export async function refreshCurrentUser() {
   const session = await window.LB_API.authClient.getSession({ fresh: true });
@@ -325,13 +350,13 @@ export function setAuthState(state) {
 }
 
 /**
- * Utente corrente (forma usata dalle pagine), letto da `window.LB_AUTH_USER`
- * che api-bootstrap.js popola dalla sessione del server.
+ * Utente corrente, letto da `window.LB_AUTH_USER` che api-bootstrap.js
+ * popola dalla sessione del server (campi come in UserDto, vedi fromSession).
  *
  * @returns {object|null}
  */
 export function currentUser() {
-  return backendUserToLegacy(window.LB_AUTH_USER);
+  return fromSession(window.LB_AUTH_USER);
 }
 
 /**

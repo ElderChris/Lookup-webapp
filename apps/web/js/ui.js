@@ -423,7 +423,8 @@ export const UI = {
     return y === 1 ? 'un anno fa' : `${y} anni fa`;
   },
 
-  /** Renderizza la timeline orizzontale a 5 stati di un prestito.
+  /** Renderizza la timeline orizzontale a 5 stati di un prestito
+      (LoanDto del server: status e timestamps).
       Disegna 5 nodi (cerchi) connessi da linee. Il nodo dello stato
       corrente è ingrossato; quelli già attraversati sono pieni con
       colore bordeaux; quelli futuri sono "ghost" (outline soft).
@@ -435,14 +436,8 @@ export const UI = {
     const states = LOAN_STATUS_ORDER; // ['requested', ..., 'returned']
     const currentIdx = states.indexOf(loan.status);
 
-    // Mappa: stato → timestamp di transizione (se presente)
-    const tsMap = {
-      requested: loan.requested_at,
-      confirmed: loan.confirmed_at,
-      borrowed: loan.borrowed_at,
-      returning: loan.returning_at,
-      returned: loan.returned_at,
-    };
+    // Stato → data di transizione (se presente)
+    const tsMap = loan.timestamps || {};
 
     const nodes = states
       .map((st, i) => {
@@ -696,19 +691,19 @@ export const UI = {
 
   /** Libro aggiunto negli ultimi `days` giorni (badge "Novità"). */
   _isRecent(book, days = 14) {
-    const iso = book.created_at || book.added;
+    const iso = book.createdAt;
     if (!iso) return false;
     return (Date.now() - new Date(iso).getTime()) / 86400000 <= days;
   },
 
-  /** Scheda libro (shape di bookToLegacy). Il proprietario viene dai campi
-      del libro; il "mi piace" da liked_by_me (server). */
+  /** Scheda libro (BookDto del server). Il proprietario viene da
+      book.owner; il "mi piace" da book.likedByMe. */
   renderBookCard(book, _user, options = {}) {
     const esc = (v) => this._escapeHtml(v);
-    const coverStyle = `style="background: ${book.cover_gradient};"`;
+    const coverStyle = `style="background: ${window.LB_UI.bookCoverGradient(book)};"`;
     const me = window.LB_UI.currentUser();
-    const liked = !!book.liked_by_me;
-    const isOwn = !!me && book.owner_id === me.id;
+    const liked = !!book.likedByMe;
+    const isOwn = !!me && book.owner?.id === me.id;
     const likeChip =
       me && !isOwn
         ? `<button type="button" class="like-chip auth-only ${liked ? 'is-liked' : ''}"
@@ -744,11 +739,11 @@ export const UI = {
           ${coverImg}
           <span class="book-card__cover-title">${esc(book.title)}</span>
         </div>
-        <span class="book-card__category">${esc(book.category_name || '')}</span>
+        <span class="book-card__category">${esc(window.LB_UI.bookCategory(book)?.name || '')}</span>
         <h3 class="book-card__title">${esc(book.title)}</h3>
         <p class="book-card__author">${esc(book.author)}${yearPart}</p>
         <div class="book-card__meta">
-          <span>${esc(book.owner_city || '')}</span>
+          <span>${esc(book.owner?.city || '')}</span>
           <span>${book.available ? 'Disponibile' : 'In prestito'}</span>
         </div>
       </a>`;
@@ -980,7 +975,7 @@ export const UI = {
     avatarEl.dataset.wired = '1';
     const me = window.LB_UI.currentUser();
     if (!me) return;
-    const hasPhoto = !!me.avatar_url;
+    const hasPhoto = !!me.avatarUrl;
 
     // Salva (o rimuove con null) la foto sul server, poi rilegge la sessione
     // perche' la barra di navigazione mostri subito la foto nuova
@@ -1084,11 +1079,11 @@ export const UI = {
   },
 
   /** Inietta un link "Admin" nella nav header solo per utenti
-      con is_admin=true. Inserito dopo "Profilo" se presente.
+      amministratori. Inserito dopo "Profilo" se presente.
       Icona SVG inline coerente con le altre nav icons. */
   initAdminLink() {
     const me = window.LB_UI.currentUser();
-    if (!me || !me.is_admin) return;
+    if (!me || !me.isAdmin) return;
     const nav = document.querySelector('header .site-nav');
     if (!nav) return;
     if (nav.querySelector('a[href="admin.html"]')) return;
@@ -1148,9 +1143,9 @@ export const UI = {
       <form class="post-composer" id="post-composer-form">
         <div class="post-composer__avatar" aria-hidden="true">
           ${
-            me.avatar_url
-              ? `<img class="post-composer__avatar-img" src="${this._escapeHtml(me.avatar_url)}" alt="">`
-              : this._escapeHtml(UI._initials(me.display_name || me.username))
+            me.avatarUrl
+              ? `<img class="post-composer__avatar-img" src="${this._escapeHtml(me.avatarUrl)}" alt="">`
+              : this._escapeHtml(UI._initials(me.displayName || me.username))
           }
         </div>
         <div class="post-composer__body">
@@ -1443,9 +1438,9 @@ export const UI = {
     container.innerHTML = books
       .map((b, i) => {
         const esc = (v) => this._escapeHtml(v);
-        const isOrg = b.owner_account_type === 'organization';
-        const ownerLabel = esc(b.owner_name || 'Utente');
-        const place = esc(b.owner_city || '—');
+        const isOrg = b.owner?.accountType === 'organization';
+        const ownerLabel = esc(b.owner?.displayName || 'Utente');
+        const place = esc(b.owner?.city || '—');
         const availBadge = b.available
           ? `<span class="result-badge result-badge--available">
              <span class="result-badge__dot" aria-hidden="true"></span>Disponibile
@@ -1454,11 +1449,11 @@ export const UI = {
 
         return `
         <a href="book-detail.html?id=${b.id}" class="result-item" style="--i: ${i};">
-          <div class="result-item__cover" style="background: ${b.cover_gradient};" aria-hidden="true">
+          <div class="result-item__cover" style="background: ${window.LB_UI.bookCoverGradient(b)};" aria-hidden="true">
             <span>${esc(b.title.split(' ').slice(0, 3).join(' '))}</span>
           </div>
           <div class="result-item__main">
-            <span class="result-item__category">${esc(b.category_name || '')}</span>
+            <span class="result-item__category">${esc(window.LB_UI.bookCategory(b)?.name || '')}</span>
             <h3 class="result-item__title">${esc(b.title)}</h3>
             <p class="result-item__author">${esc(b.author)}${b.year ? ` · ${b.year}` : ''}</p>
             <div class="result-item__place">
@@ -1593,18 +1588,8 @@ export const UI = {
   renderNearbyLibraryCard(lib) {
     // lib: elemento di GET /api/libraries (distanza sulla posizione pubblica)
     const esc = (v) => this._escapeHtml(v);
-    const asUser = {
-      display_name: lib.displayName,
-      username: lib.username,
-      account_type: lib.accountType,
-    };
-    const prefs = {
-      theme: lib.theme,
-      avatar_style: lib.avatarStyle,
-      avatar_symbol: lib.avatarSymbol,
-      cover_design: lib.coverDesign,
-    };
-    const { themeClass, design, letter } = window.LB_UI.libraryCoverData(asUser, prefs);
+    // L'elemento porta sia i dati dell'utente sia le sue preferenze grafiche
+    const { themeClass, design, letter } = window.LB_UI.libraryCoverData(lib, lib);
     const isOrg = lib.accountType === 'organization';
 
     /* Distanza in linguaggio naturale (solo se c'e' un punto di riferimento
@@ -1704,13 +1689,12 @@ export const UI = {
      Logica condivisa fra library.html e l'anteprima di
      profile-setup.html.
      ------------------------------------------------------------- */
-  renderBooksInMode(container, books, mode, gradientFallback) {
+  renderBooksInMode(container, books, mode) {
     if (!books.length) {
       container.innerHTML = `<p style="color: var(--color-ink-soft); font-style: italic; padding: var(--sp-6) 0;">
         Questa libreria non ha ancora volumi pubblicati.</p>`;
       return;
     }
-    const grad = gradientFallback || 'linear-gradient(135deg, #7a1e2b, #b08840)';
     const esc = (v) => this._escapeHtml(v);
 
     switch (mode) {
@@ -1720,12 +1704,12 @@ export const UI = {
             .map(
               (b) => `
             <a href="book-detail.html?id=${b.id}" class="books-list__item">
-              <div class="books-list__cover" style="background: ${b.cover_gradient || grad};">
+              <div class="books-list__cover" style="background: ${window.LB_UI.bookCoverGradient(b)};">
                 ${esc(b.title.split(' ').slice(0, 2).join(' '))}
               </div>
               <div class="books-list__main">
                 <h4>${esc(b.title)}</h4>
-                <span>${[b.author, b.year, b.category_name].filter(Boolean).map(esc).join(' · ')}</span>
+                <span>${[b.author, b.year, window.LB_UI.bookCategory(b)?.name].filter(Boolean).map(esc).join(' · ')}</span>
               </div>
               <div class="books-list__meta">
                 ${b.available ? 'disponibile' : 'in prestito'}<br/>
@@ -1743,7 +1727,7 @@ export const UI = {
             .map(
               (b) => `
             <a href="book-detail.html?id=${b.id}" class="books-shelf__book"
-               style="background: ${b.cover_gradient || grad};"
+               style="background: ${window.LB_UI.bookCoverGradient(b)};"
                title="${esc(b.title)} — ${esc(b.author)}">${esc(b.title)}</a>`
             )
             .join('')}
@@ -1759,7 +1743,7 @@ export const UI = {
             <a href="book-detail.html?id=${b.id}" class="books-timeline__item" style="text-decoration:none;display:block;">
               <div class="books-timeline__year">${b.year || '—'}</div>
               <div class="books-timeline__title">${esc(b.title)}</div>
-              <div class="books-timeline__author">${esc(b.author)}${b.category_name ? ` — ${esc(b.category_name)}` : ''}</div>
+              <div class="books-timeline__author">${esc(b.author)}${window.LB_UI.bookCategory(b) ? ` — ${esc(window.LB_UI.bookCategory(b).name)}` : ''}</div>
             </a>`
             )
             .join('')}
@@ -1938,19 +1922,19 @@ export const UI = {
       if (!me) return;
       const themeClass = `cover--${prefs.theme || 'classic'}`;
       // Foto profilo se presente, altrimenti iniziale o simbolo scelto
-      if (me.avatar_url) {
+      if (me.avatarUrl) {
         button.className = `nav-avatar nav-avatar--photo ${themeClass}`;
-        glyph.innerHTML = `<img class="nav-avatar__img" src="${UI._escapeHtml(me.avatar_url)}" alt="">`;
+        glyph.innerHTML = `<img class="nav-avatar__img" src="${UI._escapeHtml(me.avatarUrl)}" alt="">`;
       } else {
         const symbol =
           prefs.avatarStyle === 'symbol' && prefs.avatarSymbol
             ? prefs.avatarSymbol
-            : (me.display_name || me.username || '?').trim()[0].toUpperCase();
+            : (me.displayName || me.username || '?').trim()[0].toUpperCase();
         button.className = `nav-avatar ${themeClass}`;
         glyph.textContent = symbol;
       }
-      button.title = me.display_name || me.username || '';
-      nameEl.textContent = me.display_name || '';
+      button.title = me.displayName || me.username || '';
+      nameEl.textContent = me.displayName || '';
       userEl.textContent = '@' + (me.username || '');
     }
 

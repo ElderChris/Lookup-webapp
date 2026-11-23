@@ -261,7 +261,7 @@
             <!-- =========== Decorazione della copertina ===========
                  15 grafiche minimali (5 pattern + 5 icone + 5 glifi
                  tipografici) selezionabili come copertina della propria
-                 libreria. La selezione viene salvata in prefs.cover_design
+                 libreria. La selezione viene salvata nelle preferenze (coverDesign)
                  e si applica a tutte le anteprime e card nearby. -->
             <div class="form__group" style="margin-top: var(--sp-6);">
               <label class="form__label">Decorazione della libreria</label>
@@ -522,18 +522,8 @@
           window.LB_API.users.getMe(),
         ]);
         myProfile = beMe;
-        // Adapter backend camelCase → snake_case usato dalla pagina
-        prefs = {
-          view_mode: bePrefs.viewMode,
-          theme: bePrefs.theme,
-          avatar_style: bePrefs.avatarStyle,
-          avatar_symbol: bePrefs.avatarSymbol,
-          motto: bePrefs.motto,
-          sort_by: bePrefs.sortBy,
-          cover_design: bePrefs.coverDesign,
-          show_email: bePrefs.showEmail,
-        };
-        userBooks = booksRes.data.map(window.LB_API.bookToLegacy);
+        prefs = bePrefs;
+        userBooks = booksRes.data;
       } catch (err) {
         console.debug(`[profile-setup] caricamento fallito: ${err.code || err.message}`);
         UI.toast('Server non raggiungibile: impossibile caricare le impostazioni.', 'error');
@@ -617,30 +607,30 @@
       }
 
       /* ----- Pre-popolamento dei campi con i valori esistenti ----- */
-      document.getElementById('display-name').value = currentUser.display_name || '';
+      document.getElementById('display-name').value = currentUser.displayName || '';
       document.getElementById('motto').value         = prefs.motto || '';
       document.getElementById('bio').value           = currentUser.bio || '';
       document.getElementById('city').value          = currentUser.city || '';
-      document.getElementById('email-pub').value     = String(prefs.show_email);
+      document.getElementById('email-pub').value     = String(prefs.showEmail);
 
-      // Radio: avatar_style, theme, view_mode
+      // Scelte a pulsanti: stile dell'avatar, tema, modalità di visualizzazione
       function setRadio(name, value) {
         const r = document.querySelector(`input[name="${name}"][value="${value}"]`);
         if (r) r.checked = true;
       }
-      setRadio('avatar_style', prefs.avatar_style);
-      setRadio('avatar_symbol', prefs.avatar_symbol);
+      setRadio('avatar_style', prefs.avatarStyle);
+      setRadio('avatar_symbol', prefs.avatarSymbol);
       setRadio('theme',        prefs.theme);
-      setRadio('view_mode',    prefs.view_mode);
-      document.getElementById('sort-by').value = prefs.sort_by;
+      setRadio('view_mode',    prefs.viewMode);
+      document.getElementById('sort-by').value = prefs.sortBy;
 
       /* ----- Picker delle 15 grafiche cover -----
          Renderizza una griglia di anteprime: ciascuna mostra il design
          in miniatura con i colori del tema scelto. Click → seleziona. */
       const picker = document.getElementById('cover-picker');
       const defaultCover = window.LB_UI.isOrganization(currentUser) ? 'i-shelf' : 'g-section';
-      let selectedCover = prefs.cover_design || defaultCover;
-      const initialLetter = (currentUser.display_name || currentUser.username || 'A').trim()[0].toUpperCase();
+      let selectedCover = prefs.coverDesign || defaultCover;
+      const initialLetter = (currentUser.displayName || currentUser.username || 'A').trim()[0].toUpperCase();
       function paintCoverPicker() {
         const themeClass = `cover--${prefs.theme || 'classic'}`;
         picker.innerHTML = LIBRARY_COVER_DESIGNS.map(d => `
@@ -721,18 +711,19 @@
         // Statistiche reali dell'utente (libri caricati all'avvio)
         document.getElementById('preview-books').textContent = userBooks.length;
         document.getElementById('preview-views').textContent =
-          userBooks.reduce((s, b) => s + b.views, 0).toLocaleString('it-IT');
+          userBooks.reduce((s, b) => s + (b.viewCount || 0), 0).toLocaleString('it-IT');
 
         // Mostra/nascondi selettore simbolo
         document.getElementById('symbol-picker').style.display =
           avatarStyle === 'symbol' ? 'block' : 'none';
 
         // Anteprima della libreria nella modalità scelta
-        renderLibraryPreview(viewMode, userBooks, themeColors[theme]);
+        renderLibraryPreview(viewMode, userBooks);
       }
 
-      /** Renderizza l'anteprima della libreria nella modalità scelta */
-      function renderLibraryPreview(mode, books, [c1, c2]) {
+      /** Renderizza l'anteprima della libreria nella modalità scelta
+          (BookDto del server; copertine come nella pagina della libreria) */
+      function renderLibraryPreview(mode, books) {
         const container = document.getElementById('library-preview');
 
         if (!books.length) {
@@ -742,9 +733,11 @@
           return;
         }
 
+        const esc = (v) => UI._escapeHtml(v);
+        const cover = (b) => window.LB_UI.bookCoverGradient(b);
+        const genre = (b) => window.LB_UI.bookCategory(b)?.name || '';
         // Limita a 6 libri di anteprima
         const sample = books.slice(0, 6);
-        const grad = `linear-gradient(135deg, ${c1}, ${c2})`;
 
         switch (mode) {
 
@@ -753,10 +746,10 @@
               ${sample.map(b => `
                 <div class="book-card">
                   <div class="book-card__cover book-card__cover--placeholder"
-                       style="background: ${b.cover_gradient || grad};">${b.title}</div>
-                  <span class="book-card__category">${b.category}</span>
-                  <h3 class="book-card__title">${b.title}</h3>
-                  <p class="book-card__author">${b.author}, ${b.year}</p>
+                       style="background: ${cover(b)};">${esc(b.title)}</div>
+                  <span class="book-card__category">${esc(genre(b))}</span>
+                  <h3 class="book-card__title">${esc(b.title)}</h3>
+                  <p class="book-card__author">${esc(b.author)}${b.year ? `, ${b.year}` : ''}</p>
                 </div>`).join('')}
             </div>`;
             break;
@@ -765,16 +758,16 @@
             container.innerHTML = `<div class="books-list">
               ${sample.map(b => `
                 <div class="books-list__item">
-                  <div class="books-list__cover" style="background: ${b.cover_gradient || grad};">
-                    ${b.title.split(' ').slice(0, 2).join(' ')}
+                  <div class="books-list__cover" style="background: ${cover(b)};">
+                    ${esc(b.title.split(' ').slice(0, 2).join(' '))}
                   </div>
                   <div class="books-list__main">
-                    <h4>${b.title}</h4>
-                    <span>${b.author} · ${b.year} · ${b.category}</span>
+                    <h4>${esc(b.title)}</h4>
+                    <span>${[b.author, b.year, genre(b)].filter(Boolean).map(esc).join(' · ')}</span>
                   </div>
                   <div class="books-list__meta">
-                    ${b.views} visualizzazioni<br/>
-                    <small>${b.condition}</small>
+                    ${b.viewCount || 0} visualizzazioni<br/>
+                    <small>${esc(b.condition || '')}</small>
                   </div>
                 </div>`).join('')}
             </div>`;
@@ -784,25 +777,26 @@
             container.innerHTML = `<div class="books-shelf">
               ${sample.map(b => `
                 <div class="books-shelf__book"
-                     style="background: ${b.cover_gradient || grad};"
-                     title="${b.title} — ${b.author}">
-                  ${b.title}
+                     style="background: ${cover(b)};"
+                     title="${esc(b.title)} — ${esc(b.author)}">
+                  ${esc(b.title)}
                 </div>`).join('')}
             </div>`;
             break;
 
-          case 'timeline':
+          case 'timeline': {
             // Ordine cronologico dal più antico al più recente
-            const sorted = [...sample].sort((a, b) => a.year - b.year);
+            const sorted = [...sample].sort((a, b) => (a.year || 0) - (b.year || 0));
             container.innerHTML = `<div class="books-timeline">
               ${sorted.map(b => `
                 <div class="books-timeline__item">
-                  <div class="books-timeline__year">${b.year}</div>
-                  <div class="books-timeline__title">${b.title}</div>
-                  <div class="books-timeline__author">${b.author} — ${b.category}</div>
+                  <div class="books-timeline__year">${b.year || '—'}</div>
+                  <div class="books-timeline__title">${esc(b.title)}</div>
+                  <div class="books-timeline__author">${esc(b.author)}${genre(b) ? ` — ${esc(genre(b))}` : ''}</div>
                 </div>`).join('')}
             </div>`;
             break;
+          }
         }
       }
 
@@ -834,14 +828,14 @@
         const city = document.getElementById('city').value.trim();
 
         const newPrefs = {
-          view_mode: document.querySelector('input[name="view_mode"]:checked').value,
-          theme:     document.querySelector('input[name="theme"]:checked').value,
-          avatar_style: document.querySelector('input[name="avatar_style"]:checked').value,
-          avatar_symbol: document.querySelector('input[name="avatar_symbol"]:checked')?.value || '§',
-          cover_design: selectedCover,
-          motto:     document.getElementById('motto').value.trim(),
-          sort_by:   document.getElementById('sort-by').value,
-          show_email: document.getElementById('email-pub').value === 'true'
+          viewMode: document.querySelector('input[name="view_mode"]:checked').value,
+          theme: document.querySelector('input[name="theme"]:checked').value,
+          avatarStyle: document.querySelector('input[name="avatar_style"]:checked').value,
+          avatarSymbol: document.querySelector('input[name="avatar_symbol"]:checked')?.value || '§',
+          coverDesign: selectedCover,
+          motto: document.getElementById('motto').value.trim() || null,
+          sortBy: document.getElementById('sort-by').value,
+          showEmail: document.getElementById('email-pub').value === 'true',
         };
 
         // Salvataggio sul server: profilo e preferenze
@@ -856,16 +850,7 @@
           }
           await window.LB_API.users.updateMe(profilePatch);
           locationChanged = false;
-          await window.LB_API.prefs.updateMe({
-            viewMode: newPrefs.view_mode,
-            theme: newPrefs.theme,
-            avatarStyle: newPrefs.avatar_style,
-            avatarSymbol: newPrefs.avatar_symbol,
-            motto: newPrefs.motto || null,
-            sortBy: newPrefs.sort_by,
-            coverDesign: newPrefs.cover_design,
-            showEmail: newPrefs.show_email,
-          });
+          await window.LB_API.prefs.updateMe(newPrefs);
           // Nome nella barra di navigazione aggiornato subito
           await window.LB_UI.refreshCurrentUser();
           if (UI._refreshAvatar) UI._refreshAvatar();

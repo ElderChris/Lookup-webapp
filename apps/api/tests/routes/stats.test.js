@@ -154,8 +154,8 @@ describe('GET /api/stats/overview', () => {
     const res = await app.inject({ method: 'GET', url: '/api/stats/overview' });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.kpi.total_books).toBeGreaterThan(0);
-    expect(body.kpi).toHaveProperty('avg_views_per_book');
+    expect(body.kpi.totalBooks).toBeGreaterThan(0);
+    expect(body.kpi).toHaveProperty('avgViewsPerBook');
     expect(body.activity).toHaveLength(12);
     expect(body.hierarchy.length).toBeGreaterThan(0);
     expect(body.hierarchy[0]).toHaveProperty('children');
@@ -164,8 +164,9 @@ describe('GET /api/stats/overview', () => {
     expect(body.months).toHaveLength(12);
     expect(body.topBooks.length).toBeGreaterThan(0);
     expect(body.topBooks[0].monthly.loans).toHaveLength(12);
-    expect(body.topUsers.by_score.length).toBeGreaterThan(0);
-    expect(body.topUsers.by_score.every((u) => typeof u.id === 'string')).toBe(true);
+    expect(body.topBooks[0]).toHaveProperty('totalInteractions');
+    expect(body.topUsers.byScore.length).toBeGreaterThan(0);
+    expect(body.topUsers.byScore.every((u) => typeof u.id === 'string')).toBe(true);
   });
 });
 
