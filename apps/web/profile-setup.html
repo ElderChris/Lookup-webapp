@@ -1013,9 +1013,11 @@
       // Eliminazione dell'account (password come conferma)
       const deleteForm = document.getElementById('delete-account-form');
       const deleteBtn = document.getElementById('delete-account-btn');
-      document.getElementById('delete-confirm').addEventListener('change', (e) => {
-        deleteBtn.disabled = !e.target.checked;
-      });
+      const deleteConfirm = document.getElementById('delete-confirm');
+      const syncDeleteBtn = () => { deleteBtn.disabled = !deleteConfirm.checked; };
+      deleteConfirm.addEventListener('change', syncDeleteBtn);
+      // La casella puo' essere gia' spuntata mentre la pagina caricava i dati
+      syncDeleteBtn();
       deleteForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const errBox = document.getElementById('delete-account-error');

@@ -288,7 +288,7 @@
           summary.hidden = false;
           summary.innerHTML = `<strong>Correggi ${errors.length} ${errors.length === 1 ? 'errore' : 'errori'} prima di pubblicare:</strong>
             <ul style="margin: .5rem 0 0; padding-left: 1.4rem;">${errors.map(e => `<li>${e}</li>`).join('')}</ul>`;
-          summary.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          summary.scrollIntoView({ behavior: window.LB_UI.scrollBehavior(), block: 'center' });
           return;
         }
 

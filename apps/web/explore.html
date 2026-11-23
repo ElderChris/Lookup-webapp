@@ -340,7 +340,7 @@
       if (scrollOnSearch) {
         const header = document.getElementById('results-title').closest('.section-header');
         const y = header.getBoundingClientRect().top + window.scrollY - 80;
-        window.scrollTo({ top: y, behavior: 'smooth' });
+        window.scrollTo({ top: y, behavior: window.LB_UI.scrollBehavior() });
       }
     }
 

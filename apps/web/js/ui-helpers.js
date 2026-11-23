@@ -333,3 +333,12 @@ export function setAuthState(state) {
 export function currentUser() {
   return backendUserToLegacy(window.LB_AUTH_USER);
 }
+
+/**
+ * Scorrimento animato solo se l'utente non ha chiesto di ridurre le
+ * animazioni (prefers-reduced-motion): valore per `behavior` di scrollTo e
+ * scrollIntoView.
+ */
+export function scrollBehavior() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+}
