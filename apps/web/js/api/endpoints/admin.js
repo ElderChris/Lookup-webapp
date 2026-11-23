@@ -60,7 +60,7 @@ export function auditLog(query = {}, options = {}) {
 }
 
 /**
- * Beta 7: stato delle queue background jobs.
+ * stato delle queue background jobs.
  * Ritorna counts (waiting/active/completed/failed) + next runs per ogni queue.
  */
 export function jobsStatus(options = {}) {
@@ -68,9 +68,8 @@ export function jobsStatus(options = {}) {
 }
 
 /**
- * Beta 7: trigger manuale di un job.
+ * trigger manuale di un job.
  * @param {'overdue-loans' | 'retention' | 'upcoming-deadline'} queueName
- *   'upcoming-deadline' e' stato aggiunto in Beta 7.1
  */
 export function runJob(queueName) {
   return apiClient.post(`/api/admin/jobs/${queueName}/run`);

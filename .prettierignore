@@ -5,12 +5,15 @@ dist/
 build/
 *.zip
 
-# Per Fase 1a esclude HTML/CSS (verranno formattati in fase dedicata).
+# HTML e CSS non sono formattati da Prettier.
 *.html
 apps/web/css/
 
-# Archivio storico del vecchio frontend: conservato invariato
-apps/web/js/legacy/
+# Archivio del prototipo: conservato invariato
+archive/
+
+# Librerie e caratteri di terze parti, copiati invariati
+apps/web/vendor/
 
 # Prisma generated
 apps/api/src/generated/

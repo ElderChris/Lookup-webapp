@@ -1,5 +1,5 @@
 // =============================================================================
-// apps/web/js/pwa.js — Service worker registration + install prompt (Beta 9)
+// apps/web/js/pwa.js — Service worker registration + install prompt
 // =============================================================================
 // Espone `window.LB_PWA` con:
 //   - install()  → mostra il prompt di installazione se disponibile

@@ -1,5 +1,5 @@
 // =============================================================================
-// apps/web/js/api/endpoints/orgProfile.js — Beta 2
+// apps/web/js/api/endpoints/orgProfile.js
 // =============================================================================
 
 import { apiClient } from '../apiClient.js';

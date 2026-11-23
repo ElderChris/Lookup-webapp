@@ -11,7 +11,6 @@ import globals from 'globals';
  * - regole stilistiche minime che riflettono lo stile esistente
  * - globals appropriati per browser modules
  *
- * In Fase 1 quando ci sarà TypeScript aggiungeremo typescript-eslint.
  */
 
 export default [
@@ -95,8 +94,10 @@ export default [
       'node_modules/**',
       'dist/**',
       '.husky/**',
-      // Archivio storico del vecchio frontend: conservato invariato
-      'apps/web/js/legacy/**',
+      // Archivio del prototipo: conservato invariato, non servito dal sito
+      'archive/**',
+      // Librerie di terze parti copiate invariate
+      'apps/web/vendor/**',
       'apps/api/coverage/**',
       'apps/api/src/generated/**'
     ]

@@ -2,7 +2,8 @@
    ui.js — Rendering e wiring DOM
    =============================================================================
    L'oggetto UI contiene tutti i metodi che producono HTML e collegano event
-   handler agli elementi del DOM. Dipende da API per i dati, ma non viceversa.
+   handler agli elementi del DOM. I dati arrivano dal server tramite
+   window.LB_API (vedi api-bootstrap.js).
 
    Cosa contiene (~1800 righe):
    - Render: bookCard, libraryCard, postCard, nearbyCard, stars, ridgeline
@@ -12,18 +13,11 @@
    - Init: initMobileNav, highlightActiveNav, initAuthToggle, etc.
    ============================================================================= */
 
-import { API } from './legacy/api.js';
-import {
-  LIBRARY_COVER_DESIGNS,
-  LIBRARY_COVER_DESIGN_MAP,
-  LOAN_STATUS_LABEL,
-  LOAN_STATUS_HINT,
-  LOAN_STATUS_ORDER,
-} from './data.js';
+import { LOAN_STATUS_LABEL, LOAN_STATUS_HINT, LOAN_STATUS_ORDER } from './loanStatus.js';
 
 export const UI = {
   /* =============================================================
-     v2.5 — Icone SVG inline minimali.
+     Icone SVG inline minimali.
      Generate da Claude (Anthropic) per Lookup.
      Tutte 24×24 viewBox, stroke 1.8 px, currentColor, line-cap round.
      Pensate per essere coerenti come "tratto" — la stessa mano grafica.
@@ -48,7 +42,7 @@ export const UI = {
 
   /** Render scheda libro */
   /* =============================================================
-     RECENSIONI E STELLE (v1.4)
+     RECENSIONI E STELLE
      Componenti UI per visualizzare la valutazione media (stelle d'oro
      coerenti con la palette editoriale) e renderizzare la lista delle
      recensioni e il form per scriverne una nuova.
@@ -74,7 +68,7 @@ export const UI = {
       if (diff >= 0.75) state = 'full';
       else if (diff >= 0.25) state = 'half';
       else state = 'empty';
-      stars.push(this._starSVG(state, i));
+      stars.push(this._starSVG(state));
     }
     const avgLbl = showAverage && r > 0 ? `<span class="stars__avg">${r.toFixed(1)}</span>` : '';
     const countLbl =
@@ -96,7 +90,7 @@ export const UI = {
       duplicano due path: lo sfondo (outline) e il riempimento clippato
       a 50% di larghezza via clip-path inline. Le stelle sono SVG inline
       per garantire stroke/fill coerenti col colore --color-gold. */
-  _starSVG(state, idx) {
+  _starSVG(state) {
     const path = 'M12 2 L14.5 9 L22 9 L16 13.5 L18.2 21 L12 16.5 L5.8 21 L8 13.5 L2 9 L9.5 9 Z';
     if (state === 'full') {
       return `<svg class="star star--full" viewBox="0 0 24 24" aria-hidden="true">
@@ -324,7 +318,7 @@ export const UI = {
     const errBox = form.querySelector('.review-form__error');
     let currentRating = initialRating;
 
-    function paintStars(value, isHover = false) {
+    function paintStars(value) {
       starBtns.forEach((btn, i) => {
         const n = i + 1;
         btn.classList.toggle('is-filled', n <= value);
@@ -341,9 +335,9 @@ export const UI = {
         currentRating = n;
         paintStars(currentRating);
       });
-      btn.addEventListener('mouseenter', () => paintStars(n, true));
+      btn.addEventListener('mouseenter', () => paintStars(n));
       btn.addEventListener('mouseleave', () => paintStars(currentRating));
-      btn.addEventListener('focus', () => paintStars(n, true));
+      btn.addEventListener('focus', () => paintStars(n));
       btn.addEventListener('blur', () => paintStars(currentRating));
     });
 
@@ -950,7 +944,7 @@ export const UI = {
     return container;
   },
 
-  /** v2.5: ridimensiona e centra-crop un'immagine in un quadrato di
+  /** ridimensiona e centra-crop un'immagine in un quadrato di
       lato `size` px. Restituisce un data URL JPEG ottimizzato.
       Usato per la foto profilo (riadattata a quadrato → renderizzata
       a cerchio via CSS border-radius). */
@@ -974,7 +968,7 @@ export const UI = {
     });
   },
 
-  /** v2.5: collega il menu a tendina al cerchio dell'avatar nel profilo.
+  /** collega il menu a tendina al cerchio dell'avatar nel profilo.
       Apre un drop-menu con due voci:
         • "Carica foto…" → apre file input
         • "Rimuovi foto" → resetta (visibile solo se foto esistente)
@@ -1064,7 +1058,7 @@ export const UI = {
               try {
                 const cropped = await UI.cropImageToSquare(re.target.result, 320, 0.85);
                 await saveAvatar(cropped, 'Foto profilo aggiornata.');
-              } catch (err) {
+              } catch {
                 UI.toast("Impossibile elaborare l'immagine.", 'error');
               }
             };
@@ -1089,9 +1083,9 @@ export const UI = {
     });
   },
 
-  /** v2.2: Inietta un link "Admin" nella nav header solo per utenti
+  /** Inietta un link "Admin" nella nav header solo per utenti
       con is_admin=true. Inserito dopo "Profilo" se presente.
-      v2.5: icona SVG inline coerente con le altre nav icons. */
+      Icona SVG inline coerente con le altre nav icons. */
   initAdminLink() {
     const me = window.LB_UI.currentUser();
     if (!me || !me.is_admin) return;
@@ -1103,7 +1097,7 @@ export const UI = {
     adminLink.className = 'nav-admin nav-icon';
     adminLink.setAttribute('aria-label', 'Pannello amministrazione');
     adminLink.setAttribute('title', 'Pannello amministrazione');
-    // v2.5 quick fix: solo icona, niente label
+    // Solo icona, niente etichetta
     adminLink.innerHTML = UI.ICON.admin.replace('<svg ', '<svg class="nav-icon__svg" ');
     // Inserisci prima del bottone "Pubblica" (così l'ordine è
     // Esplora · Stats · Prestiti · Admin · Pubblica)
@@ -1115,7 +1109,7 @@ export const UI = {
     }
   },
 
-  /* v2.4: rendering condiviso dei post — composer + feed.
+  /* rendering condiviso dei post — composer + feed.
      Usato da profile.html (tab Post), library.html (tab Post sul
      profilo pubblico), index.html (aggiornamenti recenti). */
 
@@ -1494,7 +1488,7 @@ export const UI = {
     const nav = document.querySelector('.site-nav');
     if (!toggle || !nav) return;
 
-    // Beta 9: focus trap + ESC close per accessibilita' mobile
+    // focus trap + ESC close per accessibilita' mobile
     const openMenu = () => {
       nav.classList.add('open');
       toggle.setAttribute('aria-expanded', 'true');
@@ -1549,7 +1543,7 @@ export const UI = {
   },
 
   /**
-   * Beta 9: Feedback offline. Aggiunge un badge fisso in alto se navigator.onLine
+   * Feedback offline. Aggiunge un badge fisso in alto se navigator.onLine
    * ritorna false, e lo rimuove quando torna online.
    */
   initOfflineBadge() {
@@ -1876,7 +1870,7 @@ export const UI = {
   },
 
   /* -------------------------------------------------------------
-     ICONA-AVATAR PROFILO NELLA BARRA (v1.2)
+     ICONA-AVATAR PROFILO NELLA BARRA
      Inietta automaticamente, accanto alla campanella, un pallino
      circolare con il simbolo/iniziale dell'utente loggato. Il
      pallino prende il colore dal tema cromatico scelto. Click →
@@ -1886,7 +1880,7 @@ export const UI = {
     const nav = document.querySelector('.site-nav');
     if (!nav || nav.querySelector('.nav-avatar-wrap')) return;
 
-    /* Wrapper avatar + dropdown. v1.3: l'avatar non è più un semplice
+    /* Wrapper avatar + dropdown: l'avatar non è più un semplice
        link, ma un bottone che apre un menu a tendina (logout + scorciatoia
        al profilo), pattern standard per webapp loggate. */
     const wrap = document.createElement('div');
@@ -1916,7 +1910,7 @@ export const UI = {
         </button>
       </div>`;
 
-    // v3.0.0-alpha.0: il vecchio .auth-toggle è stato rimosso;
+    // Il vecchio .auth-toggle è stato rimosso;
     // inserisco l'avatar in coda alla nav.
     nav.appendChild(wrap);
 
@@ -1985,7 +1979,7 @@ export const UI = {
        Lasciamo intatti like/follow/notifiche/preferenze (sono attribuiti
        all'utente per ID, riappaiono al login successivo). */
     logoutBtn.addEventListener('click', async () => {
-      // Beta 8: chiude la connessione SSE prima del signOut
+      // chiude la connessione SSE prima del signOut
       if (window.LB_EVENTS) window.LB_EVENTS.stop();
 
       // Chiude la sessione sul server (cancella il cookie)
@@ -2056,7 +2050,7 @@ export const UI = {
         <div class="notif__list"></div>
       </div>`;
 
-    // v3.0.0-alpha.0: il vecchio .auth-toggle è stato rimosso;
+    // Il vecchio .auth-toggle è stato rimosso;
     // inserisco la campanella in coda alla nav (verrà naturalmente
     // alla sinistra dell'avatar, anch'esso appended in coda).
     nav.appendChild(wrap);
@@ -2205,7 +2199,7 @@ export const UI = {
     });
     readAll.addEventListener('click', markAllRead);
 
-    // v1.7: wiring chip-filtro
+    // wiring chip-filtro
     wrap.querySelectorAll('.notif__filter').forEach((btn) => {
       btn.addEventListener('click', () => {
         wrap.querySelectorAll('.notif__filter').forEach((b) => b.classList.remove('is-active'));
@@ -2228,7 +2222,7 @@ export const UI = {
     // Espone un refresh globale per altri script (es. dopo un follow/like)
     UI._refreshNotifications = render;
 
-    // Beta 8: aggiornamento realtime via SSE.
+    // aggiornamento realtime via SSE.
     // Quando arriva un evento 'notification', ricalcola il badge e mostra
     // un toast se la campanella non e' aperta (evita rumore visivo se
     // l'utente sta gia' consultando le notifiche).

@@ -65,10 +65,6 @@ export const stats = {
     return apiClient.get('/api/stats/bisac-cooccurrence', { query, ...options });
   },
 
-  // ===========================================================================
-  // Beta 2 — nuovi endpoint
-  // ===========================================================================
-
   /**
    * GET /api/stats/global — Aggregato "quanti X ci sono nella piattaforma".
    * Usato per KPI in admin.html + landing.

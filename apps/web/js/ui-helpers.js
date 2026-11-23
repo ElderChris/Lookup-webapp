@@ -1,14 +1,10 @@
 // =============================================================================
-// apps/web/js/ui-helpers.js — UX helpers estratti dal legacy (Beta 3)
+// apps/web/js/ui-helpers.js — Funzioni di supporto delle pagine
 // =============================================================================
-// Piccoli helper puramente presentazionali che restano frontend-only:
-// welcome message rotation, library cover graphics, org category labels,
-// helper booleani sul tipo di account. Il backend non li serve — sono
-// solo interpretazione di dati esistenti per la UI.
-//
-// L'obiettivo di estrarli qui e' rimuovere la dipendenza da `API.<funzione>`
-// legacy nelle pagine principali. In una fase futura il modulo `legacy/api.js`
-// verra' ridotto ancora, e queste funzioni troveranno casa in modo pulito.
+// Utente corrente e stato di accesso, accesso alle pagine riservate,
+// messaggi di benvenuto, copertine delle librerie, etichette delle categorie
+// degli enti, punto di riferimento per le distanze. Interpretano per
+// l'interfaccia i dati che arrivano dal server.
 //
 // USO nelle pagine:
 //   import { getWelcomeMessage, libraryCoverData } from './js/ui-helpers.js';
@@ -23,8 +19,8 @@
 /** Messaggi di benvenuto, neutri rispetto al genere (niente
     "Bentornato/Bentornata"); rotazione basata su user.welcomeIndex. */
 // Disegni delle copertine (con le funzioni render) e le loro chiavi: un'unica
-// fonte in data.js, usata anche dal selettore delle impostazioni
-import { LIBRARY_COVER_DESIGN_MAP } from './data.js';
+// fonte, usata anche dal selettore delle impostazioni
+import { LIBRARY_COVER_DESIGN_MAP } from './coverDesigns.js';
 
 export const WELCOME_MESSAGES = [
   'Ciao {name}, buona lettura.',
@@ -120,7 +116,7 @@ export function isBorrower(user) {
 }
 
 // -----------------------------------------------------------------------------
-// Beta 6 sess 2: currentUser() — legge da LB_AUTH_USER
+// currentUser() — legge da LB_AUTH_USER
 // -----------------------------------------------------------------------------
 
 /**

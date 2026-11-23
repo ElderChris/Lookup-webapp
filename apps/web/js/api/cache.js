@@ -3,7 +3,7 @@
 // =============================================================================
 // Cache in-memory con TTL e invalidation per il layer API.
 //
-// Use case (Fase 2c+):
+// Use case:
 //   - Categorie BISAC (TTL lungo, ~1h): fetched al boot, usate da add-book
 //   - Profili utente (TTL medio, ~5min): condivisi tra pagine
 //   - Liste libri per utente (TTL breve, ~30s): invalidate dopo create/edit

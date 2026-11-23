@@ -176,7 +176,7 @@ export function userPatchToApi(legacy) {
  * Backend LoanDto → legacy loan shape.
  *
  * Backend: timestamps annidati in `timestamps: {requested, confirmed, ...}`,
- *          campo `role` ('requester'|'lender'), `rejectReason` (Fase 1g.2)
+ *          campo `role` ('requester'|'lender'), `rejectReason`
  * Legacy:  timestamps sparsi (requested_at, confirmed_at, ...), niente role,
  *          requester_id / lender_id come riferimenti diretti
  */

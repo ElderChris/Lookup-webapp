@@ -3,45 +3,19 @@
    =============================================================================
    Punto di ingresso comune delle pagine (<script type="module">):
    inizializza header, navigazione, notifiche e avatar quando la sessione
-   e' nota (evento `lb-auth-ready` di api-bootstrap.js).
-
-   Espone ancora `window.API` e `window.Storage` del prototipo
-   (js/legacy/) per le parti delle pagine non ancora collegate al backend:
-   vanno eliminati quando nessuna pagina li usa piu'.
+   e' nota (evento `lb-auth-ready` di api-bootstrap.js). Tutti i dati
+   arrivano dal server (window.LB_API, vedi api-bootstrap.js).
    ============================================================================= */
 
-import { Storage } from './legacy/storage.js';
-import { API } from './legacy/api.js';
 import { UI } from './ui.js';
-import {
-  LIBRARY_COVER_DESIGNS,
-  LIBRARY_COVER_DESIGN_MAP,
-  LOAN_STATUS,
-  LOAN_STATUS_ORDER,
-  LOAN_STATUS_LABEL,
-  LOAN_STATUS_HINT,
-} from './data.js';
+import { LIBRARY_COVER_DESIGNS } from './coverDesigns.js';
 
 /* -----------------------------------------------------------------
-   ESPOSIZIONE GLOBALE
+   GLOBALI USATI DAGLI SCRIPT DELLE PAGINE
    ----------------------------------------------------------------- */
-/* I 15 HTML hanno script inline che usano API/UI/Storage come globali
-   (es. <script>API.getBooks()...</script>). Manteniamo questa convenzione
-   per non toccare gli HTML: gli inline script restano page-specific wiring
-   auto-contenuto. */
-window.API = API;
 window.UI = UI;
-window.Storage = Storage;
+// Selettore della copertina in profile-setup.html
 window.LIBRARY_COVER_DESIGNS = LIBRARY_COVER_DESIGNS;
-window.LIBRARY_COVER_DESIGN_MAP = LIBRARY_COVER_DESIGN_MAP;
-window.LOAN_STATUS = LOAN_STATUS;
-window.LOAN_STATUS_ORDER = LOAN_STATUS_ORDER;
-window.LOAN_STATUS_LABEL = LOAN_STATUS_LABEL;
-window.LOAN_STATUS_HINT = LOAN_STATUS_HINT;
-
-/* -----------------------------------------------------------------
-   INIZIALIZZAZIONE GLOBALE (al DOMContentLoaded, dopo la sessione)
-   ----------------------------------------------------------------- */
 
 /* -----------------------------------------------------------------
    DATI DEL PROTOTIPO NEL BROWSER
@@ -77,7 +51,7 @@ function runInits() {
   UI.initProfileAvatar();
   UI.initLikeChips();
   UI.initAdminLink();
-  UI.initOfflineBadge(); // Beta 9: badge PWA offline
+  UI.initOfflineBadge(); // badge PWA offline
 }
 
 document.addEventListener('DOMContentLoaded', () => {
