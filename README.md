@@ -154,7 +154,8 @@ pagine, iscrizione con conferma via email, richiesta di prestito da ospite,
 ciclo completo del prestito, sospensione da parte dell'amministratore,
 recupero della password ed eliminazione dell'account.
 
-Una sola volta, per scaricare il browser usato dai test:
+Una sola volta, dalla cartella del progetto (così viene scaricata la versione
+del browser adatta a quella di Playwright installata):
 
 ```bash
 npx playwright install chromium

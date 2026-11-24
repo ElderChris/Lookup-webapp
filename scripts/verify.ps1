@@ -530,8 +530,10 @@ Invoke-Step 'Test end-to-end (Playwright)' $SkipE2E.IsPresent {
     # Usa solo utenti propri (prefisso e2e.), eliminati alla fine
     $probe = Invoke-Native 'node e2e/check-browser.mjs'
     if ($probe.Code -ne 0) {
-        return @{ Status = 'WARN'; Detail = 'Chromium per Playwright non installato: eseguire una tantum npx playwright install chromium' }
+        # Motivo nel log; di solito manca il browser della versione di Playwright installata
+        return @{ Status = 'WARN'; Detail = 'Chromium per Playwright non avviabile (motivo nel log): eseguire una tantum npx playwright install chromium' }
     }
+    $browser = ($probe.Output -split "`r?`n")[-1]
     $env:E2E_BASE_URL = $WebUrl
     $env:E2E_MAILPIT_URL = $MailUrl
     $t = Invoke-Native 'npm run test:e2e'
@@ -539,7 +541,7 @@ Invoke-Step 'Test end-to-end (Playwright)' $SkipE2E.IsPresent {
     if ($t.Output -match '(?m)^\s*(\d+) passed') { $passed = [int]$Matches[1] }
     if ($t.Output -match '(?m)^\s*(\d+) failed') { $failed = [int]$Matches[1] }
     if ($t.Code -ne 0) { return @{ Status = 'FAIL'; Detail = "$passed superati, $failed falliti: report in e2e/report/index.html" } }
-    return @{ Status = 'PASS'; Detail = "$passed superati" }
+    return @{ Status = 'PASS'; Detail = "$passed superati ($browser)" }
 }
 
 if ($Down) {

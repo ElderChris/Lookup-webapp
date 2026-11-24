@@ -1,6 +1,13 @@
-// Esce con 0 se il Chromium usato da Playwright e' installato, 3 altrimenti.
-// Usato da scripts/verify.ps1 per decidere se eseguire i test nel browser.
-import { existsSync } from 'node:fs';
+// Esce con 0 se Playwright riesce ad avviare Chromium (la stessa versione
+// usata dai test), 3 altrimenti stampando il motivo. Usato da
+// scripts/verify.ps1 per decidere se eseguire i test nel browser.
 import { chromium } from '@playwright/test';
 
-process.exit(existsSync(chromium.executablePath()) ? 0 : 3);
+try {
+  const browser = await chromium.launch();
+  console.log(`Chromium ${browser.version()}`);
+  await browser.close();
+} catch (err) {
+  console.log(String(err.message || err).split('\n')[0]);
+  process.exit(3);
+}
