@@ -73,6 +73,12 @@ $Results = New-Object System.Collections.ArrayList
 $Esc     = [char]27
 
 # Output dei tool senza colori ANSI, cosi' il log resta leggibile.
+# Le variabili d'ambiente toccate dallo script vengono ripristinate alla
+# fine (Write-Summary): restano altrimenti nella sessione di PowerShell.
+$SavedEnv = @{}
+foreach ($name in 'NO_COLOR', 'FORCE_COLOR', 'E2E_BASE_URL', 'E2E_MAILPIT_URL') {
+    $SavedEnv[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+}
 $env:NO_COLOR    = '1'
 $env:FORCE_COLOR = '0'
 
@@ -194,12 +200,13 @@ function Write-Summary {
     if ($overall -eq 'FAIL') { $color = 'Red' }
     Say "ESITO: $overall   (log: logs\verify-$Stamp.log)" $color
     Say ''
-    Say 'Restano da verificare a mano (UI):'
-    Say "  1. $WebUrl - login con un utente seed"
-    Say '  2. richiesta di prestito da un utente, accettazione dall altro'
-    Say '  3. notifica realtime visibile nel secondo browser senza ricaricare'
+    Say 'Resta da verificare a mano (non coperto dai test nel browser):'
+    Say "  notifica in tempo reale visibile in un secondo browser senza ricaricare ($WebUrl)"
 
     Copy-Item $LogFile (Join-Path $LogDir 'verify-latest.log') -Force
+    foreach ($name in $SavedEnv.Keys) {
+        [Environment]::SetEnvironmentVariable($name, $SavedEnv[$name], 'Process')
+    }
     if ($failed -gt 0) { exit 1 } else { exit 0 }
 }
 
