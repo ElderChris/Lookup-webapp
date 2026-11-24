@@ -73,6 +73,12 @@ $Results = New-Object System.Collections.ArrayList
 $Esc     = [char]27
 
 # Output dei tool senza colori ANSI, cosi' il log resta leggibile.
+# Le variabili d'ambiente toccate dallo script vengono ripristinate alla
+# fine (Write-Summary): restano altrimenti nella sessione di PowerShell.
+$SavedEnv = @{}
+foreach ($name in 'NO_COLOR', 'FORCE_COLOR', 'E2E_BASE_URL', 'E2E_MAILPIT_URL') {
+    $SavedEnv[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+}
 $env:NO_COLOR    = '1'
 $env:FORCE_COLOR = '0'
 
@@ -194,12 +200,13 @@ function Write-Summary {
     if ($overall -eq 'FAIL') { $color = 'Red' }
     Say "ESITO: $overall   (log: logs\verify-$Stamp.log)" $color
     Say ''
-    Say 'Restano da verificare a mano (UI):'
-    Say "  1. $WebUrl - login con un utente seed"
-    Say '  2. richiesta di prestito da un utente, accettazione dall altro'
-    Say '  3. notifica realtime visibile nel secondo browser senza ricaricare'
+    Say 'Resta da verificare a mano (non coperto dai test nel browser):'
+    Say "  notifica in tempo reale visibile in un secondo browser senza ricaricare ($WebUrl)"
 
     Copy-Item $LogFile (Join-Path $LogDir 'verify-latest.log') -Force
+    foreach ($name in $SavedEnv.Keys) {
+        [Environment]::SetEnvironmentVariable($name, $SavedEnv[$name], 'Process')
+    }
     if ($failed -gt 0) { exit 1 } else { exit 0 }
 }
 
@@ -530,8 +537,10 @@ Invoke-Step 'Test end-to-end (Playwright)' $SkipE2E.IsPresent {
     # Usa solo utenti propri (prefisso e2e.), eliminati alla fine
     $probe = Invoke-Native 'node e2e/check-browser.mjs'
     if ($probe.Code -ne 0) {
-        return @{ Status = 'WARN'; Detail = 'Chromium per Playwright non installato: eseguire una tantum npx playwright install chromium' }
+        # Motivo nel log; di solito manca il browser della versione di Playwright installata
+        return @{ Status = 'WARN'; Detail = 'Chromium per Playwright non avviabile (motivo nel log): eseguire una tantum npx playwright install chromium' }
     }
+    $browser = ($probe.Output -split "`r?`n")[-1]
     $env:E2E_BASE_URL = $WebUrl
     $env:E2E_MAILPIT_URL = $MailUrl
     $t = Invoke-Native 'npm run test:e2e'
@@ -539,7 +548,7 @@ Invoke-Step 'Test end-to-end (Playwright)' $SkipE2E.IsPresent {
     if ($t.Output -match '(?m)^\s*(\d+) passed') { $passed = [int]$Matches[1] }
     if ($t.Output -match '(?m)^\s*(\d+) failed') { $failed = [int]$Matches[1] }
     if ($t.Code -ne 0) { return @{ Status = 'FAIL'; Detail = "$passed superati, $failed falliti: report in e2e/report/index.html" } }
-    return @{ Status = 'PASS'; Detail = "$passed superati" }
+    return @{ Status = 'PASS'; Detail = "$passed superati ($browser)" }
 }
 
 if ($Down) {
