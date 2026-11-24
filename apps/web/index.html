@@ -519,7 +519,7 @@
         const res = await window.LB_API.stats.featured({ limit: 4, days: 7 }, {
           cache: { ttlMs: window.LB_API.CACHE_TTL.STATS, key: 'stats:featured:4:7' },
         });
-        UI.renderBooksGrid(featuredBox, res.data.map(window.LB_API.bookToLegacy));
+        UI.renderBooksGrid(featuredBox, res.data);
       } catch (_err) {
         featuredBox.innerHTML = `<p style="color:var(--color-ink-soft);font-style:italic;">
           Server non raggiungibile: selezione non disponibile.</p>`;
@@ -552,7 +552,7 @@
         const wTitle = document.getElementById('welcome-title');
         if (wTitle) {
           const msg = window.LB_UI.getWelcomeMessage(me);
-          const first = (me.display_name || me.username).split(' ')[0];
+          const first = (me.displayName || me.username).split(' ')[0];
           wTitle.innerHTML = esc(msg).replace(esc(first), `<em>${esc(first)}</em>`);
           wTitle.removeAttribute('aria-busy');
         }
@@ -574,7 +574,7 @@
           if (followRes.status === 'rejected') {
             feed.innerHTML = unavailable;
           } else if (followRes.value.data.length) {
-            UI.renderBooksGrid(feed, followRes.value.data.map(window.LB_API.bookToLegacy), {
+            UI.renderBooksGrid(feed, followRes.value.data, {
               highlightRecent: true,
             });
           } else {
@@ -591,7 +591,7 @@
           if (likedRes.status === 'rejected') {
             likedBox.innerHTML = unavailable;
           } else if (likedRes.value.data.length) {
-            UI.renderBooksGrid(likedBox, likedRes.value.data.map(window.LB_API.bookToLegacy));
+            UI.renderBooksGrid(likedBox, likedRes.value.data);
           } else {
             likedBox.innerHTML = `<div class="empty-feed">
               <p>Non hai ancora preferiti. Premi il <strong>cuore</strong> su un volume

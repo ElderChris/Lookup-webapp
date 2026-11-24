@@ -1150,7 +1150,10 @@ a:hover { color: var(--color-burgundy-dk); }
   font-size: var(--fs-xs);
   font-style: italic;
   margin-top: 2px;
-  min-height: 1em;
+  /* Spazio riservato a una riga: il messaggio che compare all'uscita dal
+     campo non sposta il resto della pagina sotto il puntatore */
+  line-height: 1.4;
+  min-height: 1.4em;
 }
 .form__feedback--ok    { color: var(--color-sage); }
 .form__feedback--error { color: var(--color-burgundy); }

@@ -124,59 +124,18 @@
             { cache: { ttlMs: window.LB_API.CACHE_TTL.BOOKS_LIST, key: `books:owner=${libId}` } }
           ),
         ]);
-        const beUser = agg.user;
         const me = window.LB_UI.currentUser();
+        // Risposte del server cosi' come arrivano (utente, preferenze,
+        // statistiche, scheda dell'ente), piu' i dati derivati per la pagina
         return {
-          user: {
-            id: beUser.id,
-            username: beUser.username,
-            display_name: beUser.displayName,
-            bio: beUser.bio,
-            city: beUser.city,
-            lat: beUser.lat,
-            lng: beUser.lng,
-            avatar_url: beUser.avatarUrl,
-            account_type: beUser.accountType,
-            library_role: beUser.libraryRole,
-            joined: beUser.createdAt,
-          },
-          prefs: agg.prefs
-            ? {
-                motto: agg.prefs.motto,
-                theme: agg.prefs.theme,
-                cover_design: agg.prefs.coverDesign,
-                avatar_style: agg.prefs.avatarStyle,
-                avatar_symbol: agg.prefs.avatarSymbol,
-                view_mode: agg.prefs.viewMode,
-                sort_by: agg.prefs.sortBy,
-              }
-            : {},
-          books: booksRes.data.map(window.LB_API.bookToLegacy),
-          stats: {
-            total: agg.stats.booksCount,
-            available: agg.stats.booksAvailable,
-            on_loan: agg.stats.booksCount - agg.stats.booksAvailable,
-            followers: agg.stats.followersCount,
-            completed_loans: agg.stats.completedLoansCount,
-            review_average: agg.stats.avgRatingReceived || 0,
-            review_count: agg.stats.reviewsReceivedCount,
-          },
-          org_profile: agg.orgProfile
-            ? {
-                legal_name: agg.orgProfile.legalName,
-                org_category: agg.orgProfile.orgCategory,
-                contact_person: agg.orgProfile.contactPerson,
-                website: agg.orgProfile.website,
-                public_email: agg.orgProfile.publicEmail,
-                public_phone: agg.orgProfile.publicPhone,
-                public_address: agg.orgProfile.publicAddress,
-                opening_hours: agg.orgProfile.openingHours,
-              }
-            : null,
-          is_organization: beUser.accountType === 'organization',
-          distance_km: null,
-          can_edit: !!me && me.id === beUser.id,
-          is_following: !!agg.isFollowing,
+          user: agg.user,
+          prefs: agg.prefs || {},
+          books: booksRes.data,
+          stats: agg.stats,
+          orgProfile: agg.orgProfile || null,
+          isOrganization: agg.user.accountType === 'organization',
+          canEdit: !!me && me.id === agg.user.id,
+          isFollowing: !!agg.isFollowing,
         };
       }
 
@@ -198,43 +157,34 @@
       await loadAndRender();
 
       /* Se cambia lo stato di autenticazione, ricalcola (il flag
-         can_edit dipende dall'utente corrente) */
+         canEdit dipende dall'utente corrente) */
       document.addEventListener('auth:change', loadAndRender);
 
       /* =========================================================
          RENDER PRINCIPALE
          ========================================================= */
       function renderLibrary(d) {
-        const { user, prefs, books, stats, org_profile, is_organization, distance_km, can_edit } = d;
-        let followerCount = stats.followers;
-        let isFollowing = d.is_following;
+        const { user, prefs, books, stats, orgProfile, isOrganization, canEdit } = d;
+        let followerCount = stats.followersCount;
+        let isFollowing = d.isFollowing;
 
-        document.getElementById('crumb-name').textContent = user.display_name;
-        document.title = `${user.display_name} — Lookup`;
+        document.getElementById('crumb-name').textContent = user.displayName;
+        document.title = `${user.displayName} — Lookup`;
 
         const { themeClass, glyph } = window.LB_UI.libraryCoverData(user, prefs);
 
         /* Etichetta tipo libreria: per i lettori senza volumi mostriamo
            "Lettore" invece di "Libreria personale". */
         const borrowerNoBooks = window.LB_UI.isBorrower(user) && books.length === 0;
-        const typeLabel = is_organization
-          ? window.LB_UI.orgCategoryLabel(org_profile && org_profile.org_category)
+        const typeLabel = isOrganization
+          ? window.LB_UI.orgCategoryLabel(orgProfile && orgProfile.orgCategory)
           : (borrowerNoBooks ? 'Lettore' : 'Libreria personale');
-        const typeClass = is_organization ? 'library-hero__type--org' : '';
-
-        /* Distanza: mostrata solo per i visitatori. Per il proprietario
-           "a 0 m da te" è ridondante. */
-        let distLabel = '';
-        if (!can_edit && distance_km !== null) {
-          distLabel = distance_km < 1
-            ? `a ${Math.round(distance_km * 1000)} m da te`
-            : `a ${distance_km.toFixed(1).replace('.', ',')} km da te`;
-        }
+        const typeClass = isOrganization ? 'library-hero__type--org' : '';
 
         /* banner di proprietà solo per il proprietario.
            Per i visitatori il fatto di non poter modificare è ovvio
            dal contesto, niente banner. */
-        const ownershipBanner = can_edit
+        const ownershipBanner = canEdit
           ? `<div class="ownership-banner ownership-banner--owner">
                <span aria-hidden="true">✦</span>
                <span>Questa è la tua libreria. Puoi modificarne i contenuti e l'aspetto dalla pagina
@@ -245,30 +195,30 @@
         /* Azioni: il proprietario gestisce, il visitatore esplora i volumi
            e — se autenticato — può seguire la libreria. */
         const me = window.LB_UI.currentUser();
-        const followBtn = (!can_edit && me)
+        const followBtn = (!canEdit && me)
           ? renderFollowButton(user.id, isFollowing)
           : '';
-        const actions = can_edit
+        const actions = canEdit
           ? `<a href="profile.html" class="btn btn--primary">Vai al profilo</a>
              <a href="add-book.html" class="btn btn--ghost">Aggiungi un volume</a>`
-          : `<a href="#volumi" class="btn btn--primary">Sfoglia i ${stats.total} volumi</a>
+          : `<a href="#volumi" class="btn btn--primary">Sfoglia i ${stats.booksCount} volumi</a>
              ${followBtn}`;
 
         /* Riga "nome ufficiale" solo per gli enti */
-        const legalRow = (is_organization && org_profile && org_profile.legal_name)
-          ? `<p class="library-hero__legal">${esc(org_profile.legal_name)}</p>`
+        const legalRow = (isOrganization && orgProfile && orgProfile.legalName)
+          ? `<p class="library-hero__legal">${esc(orgProfile.legalName)}</p>`
           : '';
 
         /* Pannello informativo dell'ente */
-        const orgPanel = (is_organization && org_profile)
-          ? renderOrgPanel(org_profile)
+        const orgPanel = (isOrganization && orgProfile)
+          ? renderOrgPanel(orgProfile)
           : '';
 
         /* Suggerimento per i lettori: se il proprietario è iscritto come
            "lettore" e non ha ancora pubblicato volumi, lo invitiamo ad
            aprire la propria libreria aggiungendo il primo libro. */
         const isBorrower = window.LB_UI.isBorrower(user);
-        const borrowerCta = (can_edit && isBorrower && stats.total === 0)
+        const borrowerCta = (canEdit && isBorrower && stats.booksCount === 0)
           ? `<div class="borrower-cta">
                <div class="borrower-cta__text">
                  <h3>Sei iscritto come lettore</h3>
@@ -290,12 +240,12 @@
             </div>
             <div class="library-hero__info">
               <span class="library-hero__type ${typeClass}">${esc(typeLabel)}</span>
-              <h1 class="library-hero__name">${esc(user.display_name)}</h1>
+              <h1 class="library-hero__name">${esc(user.displayName)}</h1>
               ${(() => {
-                const completed = stats.completed_loans;
+                const completed = stats.completedLoansCount;
                 return `<div class="library-hero__stars">
-                  ${UI.renderStars(stats.review_average, {
-                    count: stats.review_count,
+                  ${UI.renderStars(stats.avgRatingReceived || 0, {
+                    count: stats.reviewsReceivedCount,
                     asLink: '#recensioni',
                     size: 'md'
                   })}
@@ -313,9 +263,8 @@
               <p class="library-hero__bio">${user.bio ? esc(user.bio) : 'Questa libreria non ha ancora una descrizione.'}</p>
               <div class="library-hero__meta">
                 ${user.city ? `<span>📍 <strong>${esc(user.city)}</strong></span>` : ''}
-                ${distLabel ? `<span>${distLabel}</span>` : ''}
                 <span class="follower-count"><strong id="follower-count">${followerCount}</strong> follower</span>
-                <span>Su Lookup dal <strong>${formatDate(user.joined)}</strong></span>
+                <span>Su Lookup dal <strong>${formatDate(user.createdAt)}</strong></span>
               </div>
               <div class="library-hero__actions">${actions}</div>
             </div>
@@ -323,11 +272,11 @@
 
           <div class="library-stats library-stats--hero">
             <div class="library-stat library-stat--lg library-stat--available">
-              <div class="library-stat__value">${stats.available}</div>
+              <div class="library-stat__value">${stats.booksAvailable}</div>
               <div class="library-stat__label">disponibili al prestito</div>
             </div>
             <div class="library-stat library-stat--lg">
-              <div class="library-stat__value">${stats.total}</div>
+              <div class="library-stat__value">${stats.booksCount}</div>
               <div class="library-stat__label">volumi totali</div>
             </div>
           </div>
@@ -339,8 +288,8 @@
             <div class="library-map" id="library-map"></div>
             <div class="library-map__caption">
               <strong>${esc(user.city || '—')}</strong>
-              ${org_profile && org_profile.public_address
-                ? ` · ${esc(org_profile.public_address)}` : ''}
+              ${orgProfile && orgProfile.publicAddress
+                ? ` · ${esc(orgProfile.publicAddress)}` : ''}
             </div>
           </div>` : ''}
 
@@ -351,7 +300,7 @@
               <h2>I volumi della libreria</h2>
               <!-- rimossi i bottoni di switch layout: la pagina
                    rispetta la preferenza salvata dal curatore in
-                   profile-setup (prefs.view_mode). I visitatori vedono
+                   profile-setup (prefs.viewMode). I visitatori vedono
                    sempre la libreria come l'ha pensata il proprietario. -->
             </div>
 
@@ -410,7 +359,7 @@
             }
             UI.renderPostsFeed(container, posts, {
               showAuthor: false,
-              emptyMessage: `${esc(user.display_name)} non ha ancora pubblicato aggiornamenti.`,
+              emptyMessage: `${esc(user.displayName)} non ha ancora pubblicato aggiornamenti.`,
               onChange: paint
             });
           }
@@ -421,8 +370,8 @@
            curatore in profile-setup. Niente switcher — la pagina
            rispetta sempre l'impostazione del proprietario. ----- */
         const booksContainer = document.getElementById('books-container');
-        const sorted = sortBooks(books, prefs.sort_by);
-        UI.renderBooksInMode(booksContainer, sorted, prefs.view_mode || 'grid');
+        const sorted = sortBooks(books, prefs.sortBy);
+        UI.renderBooksInMode(booksContainer, sorted, prefs.viewMode || 'grid');
 
         // Wiring del pulsante "Segui" (presente solo per visitatori autenticati)
         wireFollowButton(user.id, isFollowing, (following) => {
@@ -563,14 +512,13 @@
           if (tags.length) {
             const set = new Set(tags);
             filtered = filtered.filter(b => {
-              const bookTags = b.categories || (b.category ? [b.category] : []);
-              return bookTags.some(t => set.has(t));
+              return (b.categories || []).some(c => set.has(c.slug));
             });
           }
           if (onlyA) filtered = filtered.filter(b => b.available);
-          const sorted = sortBooks(filtered, prefs.sort_by);
+          const sorted = sortBooks(filtered, prefs.sortBy);
           // riusa il rendering della modalità corrente
-          const activeMode = prefs.view_mode || 'grid';
+          const activeMode = prefs.viewMode || 'grid';
           UI.renderBooksInMode(document.getElementById('books-container'), sorted, activeMode);
         }
       }
@@ -628,19 +576,19 @@
         const website = org.website && /^https?:\/\//i.test(org.website)
           ? `<a href="${esc(org.website)}" target="_blank" rel="noopener noreferrer">${esc(org.website.replace(/^https?:\/\//i, ''))}</a>`
           : '';
-        const email = org.public_email
-          ? `<a href="mailto:${esc(org.public_email)}">${esc(org.public_email)}</a>`
+        const email = org.publicEmail
+          ? `<a href="mailto:${esc(org.publicEmail)}">${esc(org.publicEmail)}</a>`
           : '';
 
         return `
           <section class="org-panel" aria-labelledby="org-title">
             <h2 id="org-title">Informazioni sull'ente</h2>
             <div class="org-panel__grid">
-              ${field('Categoria', esc(window.LB_UI.orgCategoryLabel(org.org_category)))}
-              ${field('Referente', org.contact_person && esc(org.contact_person))}
-              ${field('Indirizzo', org.public_address && esc(org.public_address))}
-              ${field('Orari di apertura', org.opening_hours && esc(org.opening_hours))}
-              ${field('Telefono', org.public_phone && esc(org.public_phone))}
+              ${field('Categoria', esc(window.LB_UI.orgCategoryLabel(org.orgCategory)))}
+              ${field('Referente', org.contactPerson && esc(org.contactPerson))}
+              ${field('Indirizzo', org.publicAddress && esc(org.publicAddress))}
+              ${field('Orari di apertura', org.openingHours && esc(org.openingHours))}
+              ${field('Telefono', org.publicPhone && esc(org.publicPhone))}
               ${field('Email', email)}
               ${field('Sito web', website)}
             </div>
@@ -655,9 +603,9 @@
         switch (sortBy) {
           case 'title':  return copy.sort((a, b) => a.title.localeCompare(b.title, 'it'));
           case 'author': return copy.sort((a, b) => a.author.localeCompare(b.author, 'it'));
-          case 'year':   return copy.sort((a, b) => b.year - a.year);
+          case 'year':   return copy.sort((a, b) => (b.year || 0) - (a.year || 0));
           case 'recent':
-          default:       return copy.sort((a, b) => (b.added || '').localeCompare(a.added || ''));
+          default:       return copy.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
         }
       }
 

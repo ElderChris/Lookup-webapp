@@ -299,26 +299,14 @@
           window.LB_API.library.getByUser(me.id),
           window.LB_API.books.listAll({ ownerId: me.id }),
         ]);
-        user = {
-          ...me,
-          id: agg.user.id,
-          username: agg.user.username,
-          display_name: agg.user.displayName,
-          bio: agg.user.bio,
-          city: agg.user.city,
-          lat: agg.user.lat,
-          lng: agg.user.lng,
-          avatar_url: agg.user.avatarUrl,
-          account_type: agg.user.accountType,
-          library_role: agg.user.libraryRole,
-          joined: agg.user.createdAt,
-        };
+        // Profilo dal server; email e ruolo restano quelli della sessione
+        user = { ...me, ...agg.user };
         reviewSummary = {
           average: agg.stats.avgRatingReceived || 0,
           count: agg.stats.reviewsReceivedCount,
         };
         completedLoans = agg.stats.completedLoansCount;
-        books = booksRes.data.map(window.LB_API.bookToLegacy);
+        books = booksRes.data;
       } catch (err) {
         console.debug(`[profile] caricamento fallito: ${err.code || err.message}`);
         document.getElementById('profile-header').innerHTML = `
@@ -332,10 +320,10 @@
       }
 
       // Render header profilo
-      const initials = esc(user.display_name.split(' ').map(w => w[0]).join('').slice(0, 2));
+      const initials = esc(user.displayName.split(' ').map(w => w[0]).join('').slice(0, 2));
       // Avatar cliccabile con menu per cambiare/rimuovere la foto
-      const avatarInner = user.avatar_url
-        ? `<img class="profile-avatar__img" src="${esc(user.avatar_url)}" alt="">`
+      const avatarInner = user.avatarUrl
+        ? `<img class="profile-avatar__img" src="${esc(user.avatarUrl)}" alt="">`
         : `<span class="profile-avatar__initials">${initials}</span>`;
       document.getElementById('profile-header').innerHTML = `
         <div class="profile-avatar profile-avatar--editable" id="profile-avatar"
@@ -350,7 +338,7 @@
           </span>
         </div>
         <div>
-          <h1 class="profile-name">${esc(user.display_name)}</h1>
+          <h1 class="profile-name">${esc(user.displayName)}</h1>
           <div class="profile-stars">
             ${UI.renderStars(reviewSummary.average, {
               count: reviewSummary.count,
@@ -370,7 +358,7 @@
             ${esc(user.bio || '')}
           </p>
           <p style="color: var(--color-ink-soft); font-size: .8rem; margin-top: .75rem; font-family: var(--font-mono); letter-spacing: .1em; text-transform: uppercase;">
-            Iscritto dal ${new Date(user.joined).toLocaleDateString('it-IT')}
+            Iscritto dal ${new Date(user.createdAt).toLocaleDateString('it-IT')}
           </p>
         </div>`;
 
@@ -387,7 +375,7 @@
       // stato di visibilità della libreria + enfasi per Lettori
       // ────────────────────────────────────────────────────────────────
       // Tre scenari distinti:
-      //   (a) library_role==='borrower'  → libreria NON aperta, invisibile.
+      //   (a) libraryRole==='borrower'  → libreria NON aperta, invisibile.
       //       Pill rossa "non ancora visibile", banner forte, bottoni
       //       "+ Aggiungi" e "Personalizza" NASCOSTI.
       //   (b) curator con 0 libri        → libreria aperta ma senza
@@ -398,7 +386,7 @@
       const pill = document.getElementById('library-visibility-pill');
       const banner = document.getElementById('library-visibility-banner');
       const headerActions = document.getElementById('library-header-actions');
-      const isBorrowerRole = user.library_role === 'borrower';
+      const isBorrowerRole = user.libraryRole === 'borrower';
 
       if (isBorrowerRole) {
         // (a) Lettore puro: libreria non aperta
@@ -448,7 +436,7 @@
       // nella toolbar sopra, ma qui replichiamo un CTA enorme che fa
       // chiaramente capire "questa è la cosa da fare adesso".
       const myBooks = document.getElementById('my-books');
-      const isBorrower = user.library_role === 'borrower';
+      const isBorrower = user.libraryRole === 'borrower';
 
       if (books.length === 0) {
         myBooks.classList.remove('books-grid');
@@ -509,7 +497,7 @@
          Sostituisce in-place l'empty-state con un wizard a 3 step
          (Identità → Estetica → Conferma) usando le stesse classi
          visuali della registrazione. Al termine: aggiorna
-         user.library_role a 'curator', salva profile_prefs, e re-render
+         user.libraryRole a 'curator', salva profile_prefs, e re-render
          dell'empty-state classico (con CTA "Aggiungi il primo volume"). */
       function startOpenLibraryWizard(container, user) {
         container.classList.add('is-transitioning');

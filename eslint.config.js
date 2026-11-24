@@ -61,7 +61,7 @@ export default [
     // Stesse regole del frontend, con i globali di Node al posto di quelli
     // del browser. Fino al 19 nov 2026 questi file venivano letti senza
     // nessuna regola attiva.
-    files: ['apps/api/**/*.{js,mjs}', 'packages/**/*.js', 'scripts/**/*.mjs'],
+    files: ['apps/api/**/*.{js,mjs}', 'packages/**/*.js', 'scripts/**/*.mjs', 'e2e/**/*.mjs'],
     languageOptions: {
       ecmaVersion: 2025,
       sourceType: 'module',

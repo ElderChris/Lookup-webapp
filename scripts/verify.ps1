@@ -4,7 +4,8 @@
 # Esegue in sequenza: prerequisiti, npm ci, pull/build delle immagini, avvio
 # dei container con attesa degli healthcheck, migrazioni Prisma, controllo
 # delle versioni dentro i container, smoke test HTTP (infrastruttura e
-# applicativo: login, prestiti, SSE) e test suite Vitest.
+# applicativo: login, prestiti, SSE), test suite Vitest e test end-to-end
+# nel browser (Playwright).
 #
 # Uso (dalla root del progetto):
 #   .\scripts\verify.ps1                      tutto
@@ -12,6 +13,9 @@
 #                                             e' piu' recente di node_modules)
 #   .\scripts\verify.ps1 -SkipPull -SkipBuild riusa immagini gia' presenti
 #   .\scripts\verify.ps1 -SkipTests           salta Vitest
+#   .\scripts\verify.ps1 -SkipE2E             salta i test nel browser
+#                                             (Chromium per Playwright, una tantum:
+#                                              npx playwright install chromium)
 #   .\scripts\verify.ps1 -Down                ferma i container alla fine
 #   .\scripts\verify.ps1 -Reseed              ricarica i dati di prova (AZZERA il DB)
 #   .\scripts\verify.ps1 -Monitoring          verifica anche Prometheus e Grafana
@@ -35,6 +39,7 @@ param(
     [switch]$SkipPull,
     [switch]$SkipBuild,
     [switch]$SkipTests,
+    [switch]$SkipE2E,
     [switch]$SkipSmoke,
     [switch]$Down,
     [switch]$Reseed,
@@ -519,6 +524,22 @@ Invoke-Step 'Test suite Vitest' $SkipTests.IsPresent {
     if ($t.Output -match '(?m)^\s*Tests\s+(.+)$') { $line = $Matches[1].Trim() }
     if ($t.Code -ne 0) { return @{ Status = 'FAIL'; Detail = "Tests: $line" } }
     return @{ Status = 'PASS'; Detail = "Tests: $line" }
+}
+
+Invoke-Step 'Test end-to-end (Playwright)' $SkipE2E.IsPresent {
+    # Usa solo utenti propri (prefisso e2e.), eliminati alla fine
+    $probe = Invoke-Native 'node e2e/check-browser.mjs'
+    if ($probe.Code -ne 0) {
+        return @{ Status = 'WARN'; Detail = 'Chromium per Playwright non installato: eseguire una tantum npx playwright install chromium' }
+    }
+    $env:E2E_BASE_URL = $WebUrl
+    $env:E2E_MAILPIT_URL = $MailUrl
+    $t = Invoke-Native 'npm run test:e2e'
+    $passed = 0; $failed = 0
+    if ($t.Output -match '(?m)^\s*(\d+) passed') { $passed = [int]$Matches[1] }
+    if ($t.Output -match '(?m)^\s*(\d+) failed') { $failed = [int]$Matches[1] }
+    if ($t.Code -ne 0) { return @{ Status = 'FAIL'; Detail = "$passed superati, $failed falliti: report in e2e/report/index.html" } }
+    return @{ Status = 'PASS'; Detail = "$passed superati" }
 }
 
 if ($Down) {

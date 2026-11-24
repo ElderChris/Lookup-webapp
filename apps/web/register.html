@@ -645,7 +645,7 @@
           <ul style="margin: .5rem 0 0; padding-left: 1.4rem;">
             ${errors.map((e) => `<li>${esc(e)}</li>`).join('')}
           </ul>`;
-        errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        errorBox.scrollIntoView({ behavior: window.LB_UI.scrollBehavior(), block: 'center' });
         return true;
       }
 
@@ -656,7 +656,7 @@
         }
         if (showErrors(errors)) return;
         showStep(currentStep + 1);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: window.LB_UI.scrollBehavior() });
       });
       backBtn.addEventListener('click', () => showStep(currentStep - 1));
 
@@ -774,7 +774,7 @@
         const panel = document.getElementById('check-email');
         panel.hidden = false;
         panel.focus();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: window.LB_UI.scrollBehavior() });
 
         const resendBtn = document.getElementById('resend-btn');
         const resendMsg = document.getElementById('resend-msg');

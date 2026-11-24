@@ -185,8 +185,8 @@
 
       const owner = book.owner || {};
       const isOwner = !!me && me.id === owner.id;
-      const primaryCategory = (book.categories || []).find((c) => c.isPrimary) || (book.categories || [])[0];
-      const gradient = window.LB_API.bookToLegacy(book).cover_gradient;
+      const primaryCategory = window.LB_UI.bookCategory(book);
+      const gradient = window.LB_UI.bookCoverGradient(book);
 
       document.title = `${book.title} — Lookup`;
       document.getElementById('breadcrumb-title').textContent = book.title;
@@ -393,7 +393,7 @@
       // === Altri volumi dello stesso proprietario ===
       try {
         const res = await window.LB_API.books.list({ ownerId: owner.id, limit: 9 });
-        const others = (res.data || []).filter((b) => b.id !== book.id).map(window.LB_API.bookToLegacy);
+        const others = (res.data || []).filter((b) => b.id !== book.id);
         document.getElementById('other-books-count').textContent =
           `${others.length} altr${others.length === 1 ? 'o titolo' : 'i titoli'}`;
         UI.renderBooksGrid(document.getElementById('other-books'), others.slice(0, 4));
