@@ -79,10 +79,17 @@ test.describe('pagine da ospite', () => {
   });
 
   test('esplora: la ricerca trova anche con un errore di battitura', async ({ page }) => {
-    await page.goto('/explore.html');
+    // Invio subito, anche mentre la pagina carica ancora la mappa
+    await page.goto('/explore.html', { waitUntil: 'domcontentloaded' });
     await page.fill('input[type="search"]', 'Calvno');
     await page.keyboard.press('Enter');
     await expect(page.locator('.result-item__title')).toContainText(['Le città invisibili']);
+  });
+
+  test('esplora: un link con ?q= mostra subito i risultati', async ({ page }) => {
+    await page.goto('/explore.html?q=Gattopardo');
+    await expect(page.locator('#search-query')).toHaveValue('Gattopardo');
+    await expect(page.locator('.result-item__title')).toContainText(['Il Gattopardo']);
   });
 
   test("le pagine riservate rimandano all'accesso con ritorno", async ({ page }) => {
