@@ -204,7 +204,13 @@ test('ciclo del prestito: accettato, consegnato, restituito', async () => {
   await lenderPage.goto(`/book-detail.html?id=${bookId}`);
   await lenderPage.click('#delete-book-btn');
   // Conferma con la finestra dell'app (non quella del browser)
-  await expect(lenderPage.locator('dialog.app-confirm')).toBeVisible();
+  const dialog = lenderPage.locator('dialog.app-confirm');
+  await expect(dialog).toBeVisible();
+  // Centrata nella finestra (non in alto a sinistra)
+  const box = await dialog.boundingBox();
+  const { width } = lenderPage.viewportSize();
+  expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThan(2);
+  expect(box.y).toBeGreaterThan(0);
   await lenderPage.click('#app-confirm-ok');
   await lenderPage.waitForURL(/\/profile\.html$/);
   expect((await borrowerPage.request.get(`/api/books/${bookId}`)).status()).toBe(404);
