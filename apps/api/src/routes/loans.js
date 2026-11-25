@@ -25,6 +25,7 @@ import {
   notifyNewLoanMessage,
 } from '../services/notifications.js';
 import { loansCreated, loansTransitions } from '../lib/metrics.js';
+import { ACTIVE_LOAN_STATUSES } from '../lib/loanStatus.js';
 
 // -----------------------------------------------------------------------------
 // State machine: definizione transizioni ammesse
@@ -100,6 +101,8 @@ function loanDto(loan, currentUserId, unreadCount = 0) {
           author: loan.book.author,
           coverUrl: loan.book.coverUrl,
           available: loan.book.available,
+          // 'removed': ritirato dal proprietario dopo la fine del prestito
+          status: loan.book.status,
         }
       : null,
     requester: userSummaryDto(loan.requester),
@@ -166,7 +169,15 @@ function loanMessageDto(msg) {
 
 const LOAN_INCLUDE = {
   book: {
-    select: { id: true, title: true, author: true, coverUrl: true, available: true, ownerId: true },
+    select: {
+      id: true,
+      title: true,
+      author: true,
+      coverUrl: true,
+      available: true,
+      ownerId: true,
+      status: true,
+    },
   },
   requester: {
     select: {
@@ -279,12 +290,11 @@ export default async function loansRoutes(fastify) {
       }
 
       // Verifica niente prestiti attivi già esistenti per (book, requester)
-      const activeStates = ['requested', 'confirmed', 'borrowed', 'returning'];
       const existing = await fastify.prisma.loanRequest.findFirst({
         where: {
           bookId,
           requesterId,
-          status: { in: activeStates },
+          status: { in: ACTIVE_LOAN_STATUSES },
         },
         select: { id: true, status: true },
       });

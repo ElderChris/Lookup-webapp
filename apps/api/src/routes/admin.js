@@ -13,6 +13,7 @@ import { requireUserId } from '../lib/authHelpers.js';
 import { logAdminAction } from '../lib/adminAudit.js';
 import { activateVerifiedAccount, revokeSessions, deleteAccount } from '../lib/accountStatus.js';
 import { sendAccountDeletedEmail } from '../lib/accountEmails.js';
+import { findActiveLoan, bookOnLoanError } from '../lib/loanStatus.js';
 
 /**
  * Middleware admin: verifica che l'utente autenticato abbia role='admin'.
@@ -600,7 +601,11 @@ export default async function adminRoutes(fastify) {
       });
       if (!existing)
         return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Libro non trovato' } });
-      // Cascade su bookCategories, loanRequests, likes, ecc. (definito nel schema Prisma)
+      // Con un prestito in corso no (chi l'ha chiesto o lo ha in mano lo
+      // perderebbe): l'amministratore puo' nasconderlo. Altrimenti eliminazione
+      // definitiva, a cascata su generi, prestiti conclusi, mi piace, ecc.
+      const activeLoan = await findActiveLoan(fastify.prisma, id);
+      if (activeLoan) return reply.code(409).send(bookOnLoanError(activeLoan));
       await fastify.prisma.book.delete({ where: { id } });
       await logAdminAction(fastify, request, {
         adminId,

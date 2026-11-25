@@ -382,7 +382,9 @@
                   <span class="loan-card__cover-text">${esc(book.title || '')}</span>
                 </div>
                 <div class="loan-card__info">
-                  <h3 class="loan-card__title"><a href="book-detail.html?id=${book.id}">${esc(book.title || '—')}</a></h3>
+                  <h3 class="loan-card__title">${book.status === 'removed'
+                    ? `${esc(book.title || '—')} <small class="loan-card__retired">(ritirato dal proprietario)</small>`
+                    : `<a href="book-detail.html?id=${book.id}">${esc(book.title || '—')}</a>`}</h3>
                   <p class="loan-card__author"><em>${esc(book.author || '')}</em></p>
                   <p class="loan-card__lender">
                     ${loan.role === 'requester' ? 'Prestato da' : 'Richiesto da'}
@@ -473,6 +475,18 @@
         view.selectedId = Number(item.dataset.openLoan);
         history.replaceState(null, '', `#loan-${view.selectedId}`);
         render();
+      });
+
+      // Link a un altro prestito con la pagina gia' aperta (per esempio dalla
+      // campanella delle notifiche): cambia solo #loan-N, la pagina non si
+      // ricarica
+      window.addEventListener('hashchange', () => {
+        const id = Number((location.hash.match(/^#loan-(\d+)/) || [])[1]);
+        if (!id || id === view.selectedId) return;
+        view.selectedId = id;
+        // Un prestito appena arrivato potrebbe non essere ancora nell'elenco
+        if (view.loans.some((l) => l.id === id)) render();
+        else load();
       });
 
       document.getElementById('loans-detail-back').addEventListener('click', () => {
