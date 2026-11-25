@@ -78,6 +78,20 @@ test.describe('pagine da ospite', () => {
     await expectNoMissingFields(page, 'library.html');
   });
 
+  test('esplora: la ricerca trova anche con un errore di battitura', async ({ page }) => {
+    // Invio subito, anche mentre la pagina carica ancora la mappa
+    await page.goto('/explore.html', { waitUntil: 'domcontentloaded' });
+    await page.fill('input[type="search"]', 'Calvno');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.result-item__title')).toContainText(['Le città invisibili']);
+  });
+
+  test('esplora: un link con ?q= mostra subito i risultati', async ({ page }) => {
+    await page.goto('/explore.html?q=Gattopardo');
+    await expect(page.locator('#search-query')).toHaveValue('Gattopardo');
+    await expect(page.locator('.result-item__title')).toContainText(['Il Gattopardo']);
+  });
+
   test("le pagine riservate rimandano all'accesso con ritorno", async ({ page }) => {
     await page.goto('/loans.html');
     await expect(page).toHaveURL(/\/login\.html\?next=%2Floans\.html$/);
@@ -88,5 +102,61 @@ test.describe('pagine da amministratore', () => {
   test.use({ storageState: ADMIN_STATE });
   for (const path of PRIVATE_PAGES) {
     test(path, async ({ page }) => checkPage(page, path));
+  }
+
+  test("il service worker non salva le risposte dell'API (dati personali)", async ({ page }) => {
+    await page.goto('/profile.html');
+    await page.waitForFunction(() => globalThis.navigator.serviceWorker.controller !== null);
+    for (const path of ['/profile.html', '/loans.html', '/index.html']) {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+    }
+    const cached = await page.evaluate(async () => {
+      const urls = [];
+      for (const name of await globalThis.caches.keys()) {
+        const cache = await globalThis.caches.open(name);
+        urls.push(...(await cache.keys()).map((r) => new URL(r.url).pathname));
+      }
+      return urls;
+    });
+    expect(cached.length).toBeGreaterThan(0);
+    expect(cached.filter((u) => u.startsWith('/api/'))).toEqual([]);
+  });
+});
+
+// Su un telefono nessuna pagina scorre in orizzontale e il testo non tocca i
+// bordi dello schermo
+/* global document */
+async function checkMobile(page, path) {
+  await page.goto(`/${path}`);
+  await page.waitForLoadState('networkidle');
+  const r = await page.evaluate(() => {
+    const cw = document.documentElement.clientWidth;
+    const edge = [...document.querySelectorAll('main h1, main h2, main p')]
+      .filter((e) => e.offsetParent && !e.closest('.leaflet-container'))
+      .filter((e) => e.getBoundingClientRect().left < 8)
+      .map((e) => e.textContent.trim().slice(0, 40));
+    return { overflow: document.documentElement.scrollWidth - cw, edge };
+  });
+  expect(r.overflow, `scorrimento orizzontale in ${path}`).toBeLessThanOrEqual(0);
+  expect(r.edge, `testo a filo del bordo in ${path}`).toEqual([]);
+}
+
+test.describe('vista mobile (375 px)', () => {
+  test.use({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
+  for (const path of PUBLIC_PAGES) {
+    test(path, async ({ page }) => checkMobile(page, path));
+  }
+});
+
+test.describe('vista mobile (375 px) da amministratore', () => {
+  test.use({
+    storageState: ADMIN_STATE,
+    viewport: { width: 375, height: 812 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  for (const path of PRIVATE_PAGES) {
+    test(path, async ({ page }) => checkMobile(page, path));
   }
 });

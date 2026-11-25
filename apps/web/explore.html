@@ -159,6 +159,8 @@
 
     let map, markersLayer;
     let scrollOnSearch = false;   // true solo dopo una ricerca esplicita dell'utente
+    let searchStarted = false;    // dopo la prima ricerca la mappa mostra i risultati
+    let lastResults = [];         // risultati dell'ultima ricerca (per la mappa)
     const DEFAULT_CENTER = [40.8358, 14.2488];   // Napoli: solo inquadratura iniziale della mappa
     const DEFAULT_ZOOM = 12;
     const esc = (v) => UI._escapeHtml(v);
@@ -227,30 +229,10 @@
       if (params.get('cat')) tagsBox.setTags([params.get('cat')]);
       if (params.get('q')) document.getElementById('search-query').value = params.get('q');
 
-      // La mappa dipende da Leaflet (CDN): senza, la ricerca funziona comunque
-      try {
-        initMap();
-        const ref = window.LB_UI.referencePosition();
-        if (ref) map.setView([ref.lat, ref.lng], 13);
-        // All'avvio la mappa mostra tutte le librerie con posizione pubblica
-        const [booksRes, libsRes] = await Promise.all([
-          window.LB_API.books.listAll({}, {
-            maxItems: 500,
-            cache: { ttlMs: window.LB_API.CACHE_TTL.BOOKS_LIST, key: 'books:all' },
-          }),
-          window.LB_API.library.nearby({ limit: 50 }).catch(() => ({ data: [] })),
-        ]);
-        libraryInfo = new Map(libsRes.data.map((l) => [l.id, l]));
-        updateMapMarkers(booksRes.data);
-      } catch (err) {
-        console.warn('Mappa non disponibile:', err);
-        const mw = document.querySelector('.map-wrapper');
-        if (mw) mw.innerHTML =
-          '<p class="alert alert--info" style="margin:0;">Mappa non disponibile al momento. Usa la ricerca qui sotto.</p>';
-      }
-
-      // Nessuna ricerca automatica all'avvio: la sezione risultati compare
-      // solo dopo una ricerca esplicita.
+      // Ricerca: collegata subito, prima di caricare la mappa (altrimenti un
+      // Invio premuto durante il caricamento inviava il modulo al browser e
+      // la ricerca andava persa). La sezione risultati compare solo dopo una
+      // ricerca esplicita o un link con ?q= / ?cat=.
       const form = document.getElementById('search-form');
       const queryInput = document.getElementById('search-query');
 
@@ -278,6 +260,36 @@
         queryInput.classList.remove('input-error');
         queryInput.removeAttribute('aria-invalid');
       });
+
+      // Con ?q= o ?cat= la ricerca parte subito (i generi servono caricati)
+      if (params.get('q') || params.get('cat')) {
+        scrollOnSearch = true;
+        (tagsBox.ready || Promise.resolve()).then(runSearch);
+      }
+
+      // La mappa dipende da Leaflet (CDN): senza, la ricerca funziona comunque
+      try {
+        initMap();
+        const ref = window.LB_UI.referencePosition();
+        if (ref) map.setView([ref.lat, ref.lng], 13);
+        // All'avvio la mappa mostra tutte le librerie con posizione pubblica
+        const [booksRes, libsRes] = await Promise.all([
+          window.LB_API.books.listAll({}, {
+            maxItems: 500,
+            cache: { ttlMs: window.LB_API.CACHE_TTL.BOOKS_LIST, key: 'books:all' },
+          }),
+          window.LB_API.library.nearby({ limit: 50 }).catch(() => ({ data: [] })),
+        ]);
+        libraryInfo = new Map(libsRes.data.map((l) => [l.id, l]));
+        // Se nel frattempo e' partita una ricerca, la mappa mostra i suoi risultati
+        updateMapMarkers(searchStarted ? lastResults : booksRes.data);
+      } catch (err) {
+        console.warn('Mappa non disponibile:', err);
+        const mw = document.querySelector('.map-wrapper');
+        if (mw) mw.innerHTML =
+          '<p class="alert alert--info" style="margin:0;">Mappa non disponibile al momento. Usa la ricerca qui sotto.</p>';
+      }
+
     });
 
     /** Inizializzazione mappa Leaflet */
@@ -297,6 +309,7 @@
     /** Ricerca sul server (testo su titolo, autore e luogo; generi con i
         loro sottogeneri; raggio esatto sulle posizioni pubbliche) */
     async function runSearch() {
+      searchStarted = true;
       const query = document.getElementById('search-query').value.trim();
       const tagsBox = document.getElementById('search-tags');
       const ids = tagsBox.getIds ? tagsBox.getIds() : [];
@@ -323,6 +336,7 @@
         return;
       }
 
+      lastResults = results;
       UI.renderSearchResults(resultsBox, results);
       document.getElementById('results-count').textContent =
         `${results.length} volum${results.length === 1 ? 'e' : 'i'}`;

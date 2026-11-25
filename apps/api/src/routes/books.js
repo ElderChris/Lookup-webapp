@@ -75,6 +75,27 @@ function toDto(book) {
 }
 
 // -----------------------------------------------------------------------------
+// Ricerca tollerante agli errori di battitura
+// -----------------------------------------------------------------------------
+// word_similarity (pg_trgm) confronta la ricerca con la parola piu' simile di
+// titolo e autore: "Calvno" trova "Italo Calvino" (0,57), mentre parole
+// diverse restano sotto 0,45. Le ricerche corte darebbero troppi risultati.
+const SIMILARITY_MIN = 0.5;
+const SIMILARITY_MIN_LENGTH = 4;
+
+async function similarBookIds(prisma, q) {
+  const text = q.trim().toLowerCase();
+  if (text.length < SIMILARITY_MIN_LENGTH) return [];
+  const rows = await prisma.$queryRaw`
+    SELECT id FROM books
+    WHERE status = 'active'
+      AND (word_similarity(${text}, lower(title)) >= ${SIMILARITY_MIN}
+        OR word_similarity(${text}, lower(author)) >= ${SIMILARITY_MIN})
+    LIMIT 200`;
+  return rows.map((r) => Number(r.id));
+}
+
+// -----------------------------------------------------------------------------
 // Plugin Fastify
 // -----------------------------------------------------------------------------
 
@@ -267,7 +288,8 @@ export default async function booksRoutes(fastify) {
       const where = { status: 'active', owner: { status: 'active' } };
 
       // Testo: titolo, autore e luogo (citta' pubblica del proprietario,
-      // indirizzo pubblico degli enti)
+      // indirizzo pubblico degli enti). Titolo e autore anche con piccoli
+      // errori di battitura (pg_trgm), da 4 caratteri in su
       if (q) {
         where.OR = [
           { title: { contains: q, mode: 'insensitive' } },
@@ -279,6 +301,8 @@ export default async function booksRoutes(fastify) {
             },
           },
         ];
+        const similar = await similarBookIds(fastify.prisma, q);
+        if (similar.length) where.OR.push({ id: { in: similar } });
       }
       const and = [];
       if (typeof available === 'boolean') where.available = available;

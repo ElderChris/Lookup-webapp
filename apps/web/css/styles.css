@@ -41,8 +41,11 @@
   --sp-2: 0.5rem;
   --sp-3: 0.75rem;
   --sp-4: 1rem;
+  --sp-5: 1.25rem;
   --sp-6: 1.5rem;
+  --sp-7: 1.75rem;
   --sp-8: 2rem;
+  --sp-10: 2.5rem;
   --sp-12: 3rem;
   --sp-16: 4rem;
 
@@ -54,6 +57,7 @@
      centratura e i margini — non serve scrivere altro CSS. */
   --max-width: 1080px;          /* contenuto raccolto e otticamente centrato */
   --max-width-narrow: 760px;    /* per pagine di sola lettura / form stretti */
+  --radius-sm: 2px;
   --radius: 2px;            /* angoli quasi squadrati, stile editoriale */
   --radius-md: 4px;
 }
@@ -156,7 +160,9 @@ a:hover { color: var(--color-burgundy-dk); }
 
 .container--narrow { max-width: var(--max-width-narrow); }
 
-.section { padding: var(--sp-16) 0; }
+/* Solo spaziatura verticale: in "section container" il margine laterale
+   resta quello di .container (altrimenti su mobile il testo tocca i bordi) */
+.section { padding-block: var(--sp-16); }
 
 /* ---- 6. Header e navigazione --------------------------- */
 .site-header {
@@ -526,6 +532,8 @@ a:hover { color: var(--color-burgundy-dk); }
 /* ---- 10. Sezione con intestazione editoriale ----------- */
 .section-header {
   display: flex;
+  flex-wrap: wrap;            /* su schermi stretti le azioni vanno a capo */
+  gap: var(--sp-3);
   justify-content: space-between;
   align-items: flex-end;
   border-bottom: 2px solid var(--color-ink);
@@ -894,7 +902,7 @@ a:hover { color: var(--color-burgundy-dk); }
 @media (max-width: 768px) {
   :root { --fs-3xl: 2.5rem; --fs-2xl: 2rem; }
   .container, .site-header__inner { padding: 0 var(--sp-4); }
-  .section { padding: var(--sp-12) 0; }
+  .section { padding-block: var(--sp-12); }
 
   /* Menu mobile */
   .nav-toggle { display: block; }
@@ -5665,7 +5673,9 @@ a:hover { color: var(--color-burgundy-dk); }
   margin-bottom: var(--sp-4);
 }
 .chart-wrap--square {
-  height: 380px;
+  /* Quadrato che si adatta alla larghezza disponibile (anche su mobile) */
+  width: 100%;
+  height: auto;
   aspect-ratio: 1;
   max-width: 480px;
   margin: 0 auto;
@@ -5674,12 +5684,12 @@ a:hover { color: var(--color-burgundy-dk); }
 /* ---- Genere grid (sunburst + matrice) --------------------------- */
 .stats-genre-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--sp-4);
   margin-bottom: var(--sp-4);
 }
 @media (max-width: 900px) {
-  .stats-genre-grid { grid-template-columns: 1fr; }
+  .stats-genre-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ---- Matrice co-occorrenza ------------------------------------- */
@@ -7307,3 +7317,41 @@ body.is-offline .offline-badge {
 }
 .range-control input[type="range"]:disabled { opacity: 0.45; cursor: not-allowed; }
 
+
+/* =====================================================================
+   Finestra di conferma dell'app (UI.confirm), al posto di window.confirm
+   ===================================================================== */
+.app-confirm {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: min(480px, calc(100vw - 2 * var(--sp-4)));
+  width: 100%;
+}
+.app-confirm::backdrop {
+  background: rgba(26, 21, 18, 0.6);
+  backdrop-filter: blur(2px);
+}
+.app-confirm__card {
+  background: var(--color-paper);
+  border-radius: var(--radius);
+  padding: var(--sp-6);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+.app-confirm__title {
+  margin: 0 0 var(--sp-3);
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--color-ink);
+}
+.app-confirm__body p {
+  margin: 0 0 var(--sp-3);
+  color: var(--color-ink-soft);
+}
+.app-confirm__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+  margin-top: var(--sp-4);
+}

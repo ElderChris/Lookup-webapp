@@ -507,7 +507,16 @@
           if (loan) UI.openRejectLoanModal(loan, load);
           return;
         }
-        if (action === 'cancel' && !confirm('Annullare questo prestito?')) return;
+        if (action === 'cancel') {
+          const ok = await UI.confirm({
+            title: 'Annullare il prestito?',
+            message: "L'altra persona riceverà una notifica. Il prestito resterà nell'elenco come annullato.",
+            okLabel: 'Annulla il prestito',
+            cancelLabel: 'Indietro',
+            danger: true,
+          });
+          if (!ok) return;
+        }
         btn.disabled = true;
         const ok = await transition(loanId, action);
         if (!ok) btn.disabled = false;

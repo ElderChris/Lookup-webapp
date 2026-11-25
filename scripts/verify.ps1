@@ -290,7 +290,18 @@ Invoke-Step 'Database: migrazioni + dati di prova' $false {
     if ($sql.Count -eq 0) {
         return @{ Status = 'FAIL'; Detail = 'nessuna migrazione in apps/api/prisma/migrations: eseguire npm run db:baseline -w apps/api' }
     }
-    $r = Invoke-Native 'npm run db:migrate:deploy -w apps/api'
+    # Subito dopo npm ci l'antivirus puo' bloccare per qualche secondo il
+    # motore di Prisma appena scaricato (spawn UNKNOWN / EBUSY / EPERM):
+    # in quel caso si attende e si riprova, fino a 3 tentativi.
+    $retryNote = ''
+    for ($try = 1; $try -le 3; $try++) {
+        $r = Invoke-Native 'npm run db:migrate:deploy -w apps/api'
+        if ($r.Code -eq 0) { break }
+        if ($try -eq 3 -or $r.Output -notmatch 'spawn UNKNOWN|EBUSY|EPERM') { break }
+        Write-Log "motore di Prisma non avviabile (tentativo $try), nuovo tentativo fra 10 s"
+        Start-Sleep -Seconds 10
+        $retryNote = " (riuscito al tentativo $($try + 1))"
+    }
     if ($r.Code -ne 0) { return @{ Status = 'FAIL'; Detail = 'prisma migrate deploy fallito, vedi log' } }
 
     # Deriva tra schema.prisma e database reale (solo informativo): exit code
@@ -305,9 +316,9 @@ Invoke-Step 'Database: migrazioni + dati di prova' $false {
     if ($count -eq '0' -or $Reseed) {
         $seed = Invoke-Native 'npm run db:seed -w apps/api'
         if ($seed.Code -ne 0) { return @{ Status = 'FAIL'; Detail = 'seed fallito, vedi log' } }
-        return @{ Status = $(if ($drift.Code -eq 0) { 'PASS' } else { 'WARN' }); Detail = "$($sql.Count) migrazioni, dati di prova caricati, $driftNote" }
+        return @{ Status = $(if ($drift.Code -eq 0) { 'PASS' } else { 'WARN' }); Detail = "$($sql.Count) migrazioni$retryNote, dati di prova caricati, $driftNote" }
     }
-    return @{ Status = $(if ($drift.Code -eq 0) { 'PASS' } else { 'WARN' }); Detail = "$($sql.Count) migrazioni, $count utenti gia' presenti (seed non rieseguito), $driftNote" }
+    return @{ Status = $(if ($drift.Code -eq 0) { 'PASS' } else { 'WARN' }); Detail = "$($sql.Count) migrazioni$retryNote, $count utenti gia' presenti (seed non rieseguito), $driftNote" }
 }
 
 Invoke-Step 'Versioni nei container' $false {

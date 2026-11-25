@@ -202,8 +202,10 @@ test('ciclo del prestito: accettato, consegnato, restituito', async () => {
   // Prestito concluso: il volume si elimina, ma resta nello storico di chi
   // l'ha preso (ritirato)
   await lenderPage.goto(`/book-detail.html?id=${bookId}`);
-  lenderPage.once('dialog', (d) => d.accept());
   await lenderPage.click('#delete-book-btn');
+  // Conferma con la finestra dell'app (non quella del browser)
+  await expect(lenderPage.locator('dialog.app-confirm')).toBeVisible();
+  await lenderPage.click('#app-confirm-ok');
   await lenderPage.waitForURL(/\/profile\.html$/);
   expect((await borrowerPage.request.get(`/api/books/${bookId}`)).status()).toBe(404);
   // La pagina e' gia' su questo indirizzo: va ricaricata

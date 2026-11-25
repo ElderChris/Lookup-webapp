@@ -12,25 +12,22 @@
  *      Ottimizzato per "asset che non cambiano mai" — se cambia, cambia il
  *      cache name (CACHE_VERSION) e si scarica di nuovo.
  *
- *   3. NETWORK-FIRST per API JSON e HTML dinamiche: prova la rete;
- *      se fallisce (offline), serve la versione cachata (se esiste).
- *      Preferisce dati freschi ma degrada gracefully offline.
+ *   3. NETWORK-FIRST per le pagine HTML: prova la rete; se fallisce
+ *      (offline), serve la versione in cache (se esiste).
  *
- *   4. STALE-WHILE-REVALIDATE per liste che possono essere leggermente stale
- *      (feed, categorie): serve subito la cache + fetcha rete in background
- *      per aggiornare la cache per la prossima volta.
- *
- *   5. BYPASS per SSE (/api/me/events) e auth (/api/auth/*): passano sempre
- *      alla rete senza toccare la cache. Streaming e cookie non si cacheranno mai.
+ *   4. NIENTE CACHE per l'API (/api/*): le risposte contengono dati personali
+ *      (profilo, prestiti, messaggi, notifiche) che non devono restare nel
+ *      browser dopo l'uscita, e i dati vengono sempre dal server. Senza rete
+ *      le pagine mostrano "Server non raggiungibile", mai dati vecchi.
  * =============================================================================
  */
 
 // Da cambiare a ogni rilascio del sito: il service worker nuovo cancella le
 // cache precedenti e le pagine ricaricano CSS e JS aggiornati
-const CACHE_VERSION = 'lookup-v18';
+// (cancella anche le cache dell'API delle versioni che le salvavano)
+const CACHE_VERSION = 'lookup-v21';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
-const API_CACHE = `${CACHE_VERSION}-api`;
 
 // Asset da precacheare al primo install. Include solo quello essenziale:
 // la home + CSS core + JS bootstrap + manifest + icone.
@@ -125,16 +122,12 @@ self.addEventListener('fetch', (event) => {
   // Solo GET (POST/PATCH/DELETE devono sempre andare in rete)
   if (request.method !== 'GET') return;
 
-  // BYPASS per SSE stream — deve sempre stare in rete, mai cache
-  if (url.pathname === '/api/me/events') return;
-
-  // BYPASS per auth endpoints (cookie session, no cache mai)
-  if (url.pathname.startsWith('/api/auth/')) return;
+  // API (compresi accesso e notifiche in tempo reale): sempre e solo rete,
+  // mai in cache (dati personali)
+  if (url.pathname.startsWith('/api/')) return;
 
   // Route by resource type
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirstStrategy(request));
-  } else if (isStaticAsset(url.pathname)) {
+  if (isStaticAsset(url.pathname)) {
     event.respondWith(cacheFirstStrategy(request));
   } else if (url.pathname.endsWith('.html') || url.pathname === '/') {
     event.respondWith(networkFirstStrategy(request));
@@ -170,13 +163,13 @@ async function cacheFirstStrategy(request) {
 
 /**
  * Network-first: prova la rete; se fallisce, serve dalla cache.
- * Ideale per HTML e API che devono essere fresh ma degradare offline.
+ * Per le pagine HTML: sempre aggiornate, ma disponibili anche offline.
  */
 async function networkFirstStrategy(request) {
   try {
     const response = await fetch(request);
     if (response.ok) {
-      const cache = await caches.open(request.url.includes('/api/') ? API_CACHE : RUNTIME_CACHE);
+      const cache = await caches.open(RUNTIME_CACHE);
       cache.put(request, response.clone());
     }
     return response;
