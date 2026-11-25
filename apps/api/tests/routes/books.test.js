@@ -11,6 +11,20 @@ afterAll(async () => {
 });
 
 describe('GET /api/books', () => {
+  it('la ricerca tollera piccoli errori di battitura su titolo e autore', async () => {
+    const app = await buildTestApp();
+    const titles = async (q) =>
+      (await app.inject({ method: 'GET', url: `/api/books?q=${encodeURIComponent(q)}` }))
+        .json()
+        .data.map((b) => b.title);
+    expect(await titles('Calvno')).toContain('Le città invisibili');
+    expect(await titles('Gatopardo')).toContain('Il Gattopardo');
+    expect(await titles('promesi sposi')).toContain('I Promessi Sposi');
+    // Parole diverse e ricerche corte restano senza risultati imprecisi
+    expect(await titles('zzzqqq')).toEqual([]);
+    expect(await titles('Gtp')).not.toContain('Il Gattopardo');
+  });
+
   it('ritorna la lista paginata di libri attivi', async () => {
     const app = await buildTestApp();
     const res = await app.inject({ method: 'GET', url: '/api/books' });
