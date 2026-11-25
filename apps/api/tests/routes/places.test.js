@@ -130,8 +130,14 @@ describe('GET /api/books con un luogo', () => {
     const app = await buildTestApp();
     const body = await search(app, { q: 'Napoli', sort: 'title', limit: 100 });
     const titles = body.data.map((b) => b.title);
-    // Ordine del database (collation C): come il confronto di stringhe JS
-    expect(titles).toEqual([...titles].sort());
+    // Lo stesso ordine che da' il database (la collation cambia fra
+    // installazioni: non si confronta con l'ordinamento di JavaScript)
+    const expected = await prisma.book.findMany({
+      where: { id: { in: body.data.map((b) => b.id) } },
+      orderBy: { title: 'asc' },
+      select: { title: true },
+    });
+    expect(titles).toEqual(expected.map((b) => b.title));
     expect(body.data[0]).not.toHaveProperty('distanceMeters');
   });
 
