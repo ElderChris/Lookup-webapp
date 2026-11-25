@@ -188,6 +188,18 @@
       const primaryCategory = window.LB_UI.bookCategory(book);
       const gradient = window.LB_UI.bookCoverGradient(book);
 
+      // Un prestito in corso impedisce l'eliminazione (il server risponde 409):
+      // il pulsante resta visibile ma disattivato, con cosa fare per sbloccarlo
+      const loanLink = (text) => book.activeLoan
+        ? `<a href="loans.html#loan-${book.activeLoan.id}">${text}</a>` : text;
+      const DELETE_BLOCK = {
+        requested: `C'è una richiesta di prestito in attesa: ${loanLink('rifiutala dai prestiti')} per poter eliminare il volume.`,
+        confirmed: `Hai accettato un prestito non ancora consegnato: ${loanLink('annullalo dai prestiti')} per poter eliminare il volume.`,
+        borrowed: `Il volume è in prestito: potrai eliminarlo dopo la restituzione (${loanLink('vedi il prestito')}).`,
+        returning: `La restituzione è in corso: potrai eliminare il volume dopo averla confermata (${loanLink('vedi il prestito')}).`,
+      };
+      const deleteBlock = isOwner && book.activeLoan ? DELETE_BLOCK[book.activeLoan.status] : '';
+
       document.title = `${book.title} — Lookup`;
       document.getElementById('breadcrumb-title').textContent = book.title;
 
@@ -223,10 +235,16 @@
             ${!book.available && !isOwner
               ? '<span class="like-waiting">⏳ metti «mi piace» per essere avvisato quando torna disponibile</span>'
               : ''}
-            <button type="button" class="btn btn--ghost btn--small btn--danger" id="delete-book-btn" ${isOwner ? '' : 'hidden'}>
+            ${isOwner ? `
+            <a href="add-book.html?id=${book.id}" class="btn btn--ghost btn--small" id="edit-book-btn">
+              <span aria-hidden="true">✎</span> Modifica
+            </a>` : ''}
+            <button type="button" class="btn btn--ghost btn--small btn--danger" id="delete-book-btn"
+                    ${isOwner ? '' : 'hidden'} ${deleteBlock ? 'disabled aria-describedby="delete-block-note"' : ''}>
               <span aria-hidden="true">🗑</span> Elimina volume
             </button>
           </div>
+          ${deleteBlock ? `<p class="form__help book-detail__delete-note" id="delete-block-note" role="note">${deleteBlock}</p>` : ''}
 
           <dl class="book-detail__metadata">
             <div class="book-detail__meta-item">
@@ -314,10 +332,11 @@
 
       // === Eliminazione (solo proprietario; l'admin usa il pannello) ===
       document.getElementById('delete-book-btn')?.addEventListener('click', async (e) => {
-        if (!isOwner) return;
+        if (!isOwner || deleteBlock) return;
         if (!confirm(
-          `Vuoi davvero eliminare definitivamente "${book.title}"?\n\n` +
-          'Verranno cancellati anche le richieste di prestito, le visualizzazioni e i «mi piace» collegati.\n\n' +
+          `Vuoi davvero eliminare "${book.title}"?\n\n` +
+          'Il volume sparirà dal catalogo e dalla tua libreria. Se è già stato prestato, ' +
+          'resterà solo nello storico dei prestiti di chi l\'ha preso.\n\n' +
           'Questa azione non può essere annullata.'
         )) return;
         const btn = e.currentTarget;
@@ -328,6 +347,12 @@
           UI.toast('Volume eliminato. Reindirizzamento al profilo…', 'success');
           setTimeout(() => (location.href = 'profile.html'), 1000);
         } catch (err) {
+          // BOOK_ON_LOAN: un prestito e' arrivato dopo l'apertura della pagina
+          if (err.code === 'BOOK_ON_LOAN') {
+            UI.toast(err.message, 'error');
+            setTimeout(() => location.reload(), 1500);
+            return;
+          }
           UI.toast('Eliminazione non riuscita: ' + (err.message || 'riprova tra poco.'), 'error');
           btn.disabled = false;
         }

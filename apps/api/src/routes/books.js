@@ -15,6 +15,7 @@
 // =============================================================================
 
 import { getCurrentUserId, requireUserId, requireOwner } from '../lib/authHelpers.js';
+import { findActiveLoan, bookOnLoanError } from '../lib/loanStatus.js';
 
 // -----------------------------------------------------------------------------
 // Helper: trasforma il record Prisma "raw" nel DTO che esponiamo via API
@@ -420,14 +421,22 @@ export default async function booksRoutes(fastify) {
       // proprietario, nascosto o rimosso) o di un account sospeso lo vedono
       // solo il proprietario e gli amministratori
       const userId = await getCurrentUserId(request);
-      if ((book.status !== 'active' || book.owner.status !== 'active') && userId !== book.ownerId) {
-        const viewer = userId
-          ? await fastify.prisma.user.findUnique({ where: { id: userId }, select: { role: true } })
-          : null;
-        if (viewer?.role !== 'admin') return notFound();
+      const isOwner = !!userId && userId === book.ownerId;
+      let isAdmin = false;
+      if (!isOwner && userId && (book.status !== 'active' || book.owner.status !== 'active')) {
+        const viewer = await fastify.prisma.user.findUnique({
+          where: { id: userId },
+          select: { role: true },
+        });
+        isAdmin = viewer?.role === 'admin';
+      }
+      if ((book.status !== 'active' || book.owner.status !== 'active') && !isOwner && !isAdmin) {
+        return notFound();
       }
 
       const dto = toDto(book);
+      // Al proprietario serve sapere se un prestito blocca l'eliminazione
+      if (isOwner) dto.activeLoan = await findActiveLoan(fastify.prisma, id);
       dto.likesCount = book._count?.likes ?? 0;
       // Stato del "mi piace" per l'utente autenticato (false per gli ospiti)
       dto.likedByMe = userId
@@ -537,10 +546,11 @@ export default async function booksRoutes(fastify) {
             author: { type: 'string', minLength: 1, maxLength: 300 },
             year: { type: 'integer', minimum: 1400, maximum: 2100 },
             language: { type: 'string', maxLength: 50 },
-            isbn: { type: 'string', maxLength: 13 },
-            publisher: { type: 'string', maxLength: 200 },
-            pages: { type: 'integer', minimum: 1 },
-            description: { type: 'string', maxLength: 5000 },
+            // null svuota i campi facoltativi (modifica dal proprietario)
+            isbn: { type: ['string', 'null'], pattern: '^(\\d{10}|\\d{13})?$' },
+            publisher: { type: ['string', 'null'], maxLength: 200 },
+            pages: { type: ['integer', 'null'], minimum: 1 },
+            description: { type: ['string', 'null'], maxLength: 5000 },
             tags: { type: 'array', items: { type: 'string', maxLength: 50 }, maxItems: 20 },
             coverUrl: { type: 'string', format: 'uri', maxLength: 500 },
             coverDataUrl: { type: 'string', maxLength: 5_000_000 },
@@ -554,7 +564,6 @@ export default async function booksRoutes(fastify) {
                 'da restauro',
               ],
             },
-            available: { type: 'boolean' },
             loanPolicy: { type: 'string', enum: ['loan', 'consult', 'display'] },
             categoryIds: {
               type: 'array',
@@ -571,12 +580,13 @@ export default async function booksRoutes(fastify) {
       const { id } = request.params;
       const { categoryIds, ...patchData } = request.body;
 
-      // Verifica esistenza + ownership
+      // Verifica esistenza + ownership (un volume ritirato non si modifica).
+      // La disponibilita' la decidono i prestiti, non si cambia da qui.
       const existing = await fastify.prisma.book.findUnique({
         where: { id },
-        select: { ownerId: true },
+        select: { ownerId: true, status: true },
       });
-      if (!existing) {
+      if (!existing || existing.status === 'removed') {
         return reply.status(404).send({
           error: { code: 'NOT_FOUND', message: `Libro con id ${id} non trovato` },
         });
@@ -619,8 +629,14 @@ export default async function booksRoutes(fastify) {
   );
 
   // ===========================================================================
-  // DELETE /api/books/:id — Cancella (owner only)
+  // DELETE /api/books/:id — Elimina (solo il proprietario)
   // ===========================================================================
+  // - con un prestito in corso: 409 BOOK_ON_LOAN (si conclude, rifiuta o
+  //   annulla prima il prestito);
+  // - con soli prestiti conclusi: il volume viene ritirato (status
+  //   'removed'), sparisce dalle parti pubbliche ma resta nei prestiti di chi
+  //   l'ha preso, con chat e possibilita' di recensire;
+  // - senza prestiti: eliminazione definitiva.
   fastify.delete(
     '/api/books/:id',
     {
@@ -637,16 +653,27 @@ export default async function booksRoutes(fastify) {
 
       const existing = await fastify.prisma.book.findUnique({
         where: { id },
-        select: { ownerId: true },
+        select: { ownerId: true, status: true },
       });
-      if (!existing) {
+      if (!existing || existing.status === 'removed') {
         return reply.status(404).send({
           error: { code: 'NOT_FOUND', message: `Libro con id ${id} non trovato` },
         });
       }
       await requireOwner(request, existing.ownerId);
 
-      await fastify.prisma.book.delete({ where: { id } });
+      const activeLoan = await findActiveLoan(fastify.prisma, id);
+      if (activeLoan) return reply.status(409).send(bookOnLoanError(activeLoan));
+
+      const hasHistory = (await fastify.prisma.loanRequest.count({ where: { bookId: id } })) > 0;
+      if (hasHistory) {
+        await fastify.prisma.book.update({
+          where: { id },
+          data: { status: 'removed', available: false },
+        });
+      } else {
+        await fastify.prisma.book.delete({ where: { id } });
+      }
       return reply.status(204).send();
     }
   );

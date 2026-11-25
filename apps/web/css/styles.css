@@ -5973,6 +5973,27 @@ a:hover { color: var(--color-burgundy-dk); }
   opacity: .5;
   cursor: not-allowed;
 }
+/* Pulsanti disattivati (es. "Elimina volume" con un prestito in corso):
+   attenuati e senza effetto al passaggio del mouse */
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn--ghost.btn--danger:disabled:hover {
+  background: transparent;
+  color: var(--color-burgundy);
+  border-color: rgba(122, 30, 43, 0.4);
+}
+/* Volume ritirato dal proprietario dopo la fine del prestito (prestiti) */
+.loan-card__retired {
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  font-style: italic;
+  color: var(--color-ink-soft);
+}
+/* Perche' non si puo' eliminare il volume (dettaglio, solo proprietario) */
+.book-detail__delete-note {
+  margin: -0.5rem 0 1.25rem;
+  max-width: 60ch;
+}
 
 /* ---- Top-book item espandibile ---------------------------------- */
 .top-book-item {

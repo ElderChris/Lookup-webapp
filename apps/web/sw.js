@@ -27,7 +27,7 @@
 
 // Da cambiare a ogni rilascio del sito: il service worker nuovo cancella le
 // cache precedenti e le pagine ricaricano CSS e JS aggiornati
-const CACHE_VERSION = 'lookup-v17';
+const CACHE_VERSION = 'lookup-v18';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const API_CACHE = `${CACHE_VERSION}-api`;

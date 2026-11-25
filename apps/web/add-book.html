@@ -40,9 +40,9 @@
 
     <section class="section container">
       <span class="eyebrow">contribuisci al catalogo</span>
-      <h1 style="font-size: 2.75rem; margin-bottom: 1rem;">Pubblica un <em style="color: var(--color-burgundy);">nuovo volume</em></h1>
+      <h1 id="page-title" style="font-size: 2.75rem; margin-bottom: 1rem;">Pubblica un <em style="color: var(--color-burgundy);">nuovo volume</em></h1>
       <p style="max-width: 60ch; color: var(--color-ink-soft); margin-bottom: 2rem;">
-        Compila il modulo per aggiungere un libro alla tua collezione pubblica.
+        <span id="page-intro">Compila il modulo per aggiungere un libro alla tua collezione pubblica.</span>
         Tutti i campi contrassegnati con asterisco (<span aria-hidden="true">*</span>) sono obbligatori.
         Ogni campo viene <strong>verificato in tempo reale</strong>: il bordo
         diventa <span style="color: var(--color-sage); font-weight: 500;">verde</span>
@@ -134,8 +134,8 @@
           <span class="form__help" id="desc-help">Minimo 20 caratteri, massimo 1000.</span>
         </div>
 
-        <!-- Consenso pubblicazione -->
-        <div class="form__check">
+        <!-- Consenso pubblicazione (solo per un volume nuovo) -->
+        <div class="form__check" id="consent-row">
           <input type="checkbox" id="consent" required aria-required="true" />
           <label for="consent">
             Dichiaro di essere il proprietario di questo volume e acconsento alla sua pubblicazione nel catalogo di Lookup. *
@@ -147,7 +147,7 @@
 
         <div style="display: flex; gap: 1rem; align-items: center; margin-top: 1rem;">
           <button type="submit" class="btn btn--primary" id="submit-btn">Pubblica il volume</button>
-          <a href="profile.html" class="btn btn--ghost">Annulla</a>
+          <a href="profile.html" class="btn btn--ghost" id="cancel-link">Annulla</a>
         </div>
       </form>
     </section>
@@ -208,11 +208,56 @@
 
       const form = document.getElementById('book-form');
 
-      /* ----- Generi del volume (dal server, fino a 5) ----- */
+      /* ----- Modifica di un volume esistente (?id=N) -----
+         Stesso modulo, precompilato con i dati del server; solo il
+         proprietario, e non per un volume ritirato. */
+      const editId = Number(new URLSearchParams(location.search).get('id')) || null;
+      let editing = null;
+      if (editId) {
+        try {
+          editing = await window.LB_API.books.getById(editId);
+        } catch (err) {
+          UI.toast(err.status === 404 ? 'Volume non trovato.' : 'Server non raggiungibile: riprova tra poco.', 'error');
+          return;
+        }
+        if (editing.owner?.id !== me.id || editing.status === 'removed') {
+          location.replace(`book-detail.html?id=${editId}`);
+          return;
+        }
+        document.title = 'Modifica il volume — Lookup';
+        document.getElementById('page-title').innerHTML =
+          'Modifica <em style="color: var(--color-burgundy);">il volume</em>';
+        document.getElementById('page-intro').textContent =
+          'Aggiorna i dati del volume: le modifiche sono subito visibili nel catalogo.';
+        document.getElementById('submit-btn').textContent = 'Salva le modifiche';
+        document.getElementById('cancel-link').href = `book-detail.html?id=${editId}`;
+        document.getElementById('consent-row').hidden = true;
+        document.getElementById('consent').required = false;
+
+        form.title.value = editing.title || '';
+        form.author.value = editing.author || '';
+        form.year.value = editing.year ?? '';
+        form.isbn.value = editing.isbn || '';
+        form.pages.value = editing.pages ?? '';
+        form.description.value = editing.description || '';
+        for (const [name, value] of [['language', editing.language], ['condition', editing.condition]]) {
+          if (!value) continue;
+          const select = form[name];
+          // Valori gia' salvati ma non piu' fra le opzioni restano selezionabili
+          if (![...select.options].some((o) => o.value === value)) select.add(new Option(value, value));
+          select.value = value;
+        }
+      }
+
+      /* ----- Generi del volume (dal server, fino a 5) -----
+         Il primo e' il genere principale. */
       const catBox = document.getElementById('category-tags');
       UI.initTagInput(catBox, {
         placeholder: 'Aggiungi un genere (es. Poesia, Storia, Gialli…)',
-        maxTags: 5
+        maxTags: 5,
+        initial: editing
+          ? [...editing.categories].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary)).map((c) => c.slug)
+          : [],
       });
 
       /* ----- Validazione live --------------------------------
@@ -276,7 +321,8 @@
           catBox.classList.remove('input-error');
         }
 
-        if (invalidGroups.length > 0 || !form.checkValidity() || !consent.checked || tagsMissing) {
+        const consentMissing = !editing && !consent.checked;
+        if (invalidGroups.length > 0 || !form.checkValidity() || consentMissing || tagsMissing) {
           const errors = [];
           invalidGroups.forEach(g => {
             const label = g.querySelector('.form__label')?.textContent.replace(/\s*\*$/, '');
@@ -284,9 +330,9 @@
             if (label) errors.push(`${label}: ${msg || 'errore'}`);
           });
           if (tagsMissing) errors.push('Generi: aggiungi almeno un genere.');
-          if (!consent.checked) errors.push('Devi confermare di essere il proprietario del volume.');
+          if (consentMissing) errors.push('Devi confermare di essere il proprietario del volume.');
           summary.hidden = false;
-          summary.innerHTML = `<strong>Correggi ${errors.length} ${errors.length === 1 ? 'errore' : 'errori'} prima di pubblicare:</strong>
+          summary.innerHTML = `<strong>Correggi ${errors.length} ${errors.length === 1 ? 'errore' : 'errori'} prima di ${editing ? 'salvare' : 'pubblicare'}:</strong>
             <ul style="margin: .5rem 0 0; padding-left: 1.4rem;">${errors.map(e => `<li>${e}</li>`).join('')}</ul>`;
           summary.scrollIntoView({ behavior: window.LB_UI.scrollBehavior(), block: 'center' });
           return;
@@ -299,7 +345,7 @@
         const originalBtnText = submitBtn ? submitBtn.textContent : null;
         if (submitBtn) {
           submitBtn.disabled = true;
-          submitBtn.textContent = 'Pubblicazione…';
+          submitBtn.textContent = editing ? 'Salvataggio…' : 'Pubblicazione…';
         }
 
         try {
@@ -316,15 +362,23 @@
             description: form.description.value.trim() || undefined,
             condition: form.condition.value || undefined,
           };
-          const created = await window.LB_API.books.create(body);
+          let saved;
+          if (editing) {
+            // In modifica i campi facoltativi svuotati vanno cancellati (null)
+            for (const key of ['isbn', 'pages', 'description']) if (body[key] === undefined) body[key] = null;
+            saved = await window.LB_API.books.update(editing.id, body);
+          } else {
+            saved = await window.LB_API.books.create(body);
+          }
           window.LB_API.cache.invalidate('books:');
-          UI.toast('Volume pubblicato con successo!', 'success');
-          setTimeout(() => location.href = `book-detail.html?id=${created.id}`, 1200);
+          UI.toast(editing ? 'Modifiche salvate.' : 'Volume pubblicato con successo!', 'success');
+          setTimeout(() => location.href = `book-detail.html?id=${saved.id}`, 1200);
         } catch (err) {
+          const what = editing ? 'Salvataggio' : 'Pubblicazione';
           UI.toast(
             err.status >= 400 && err.status < 500
-              ? `Pubblicazione non riuscita: ${err.message || err.code}`
-              : 'Server non raggiungibile: il volume non è stato pubblicato. Riprova tra poco.',
+              ? `${what} non riuscit${editing ? 'o' : 'a'}: ${err.message || err.code}`
+              : `Server non raggiungibile: ${editing ? 'le modifiche non sono state salvate' : 'il volume non è stato pubblicato'}. Riprova tra poco.`,
             'error'
           );
           if (submitBtn) {
