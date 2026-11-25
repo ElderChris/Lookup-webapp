@@ -352,7 +352,8 @@ export function requestBrowserPosition() {
             }[err?.code] || 'Posizione non disponibile o permesso negato.'
           )
         ),
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+      // Su Windows la prima lettura puo' superare i 10 secondi
+      { enableHighAccuracy: false, timeout: 20000, maximumAge: 600000 }
     );
   });
 }

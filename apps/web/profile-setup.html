@@ -597,7 +597,7 @@
             if (locationMap) locationMap.setView([myLocation.lat, myLocation.lng], 16);
           },
           () => UI.toast('Posizione non disponibile: scegli il punto sulla mappa.', 'error'),
-          { enableHighAccuracy: true, timeout: 10000 }
+          { enableHighAccuracy: true, timeout: 20000 }
         );
       });
 

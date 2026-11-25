@@ -7383,3 +7383,17 @@ body.is-offline .offline-badge {
   justify-content: flex-end;
   margin-top: var(--sp-4);
 }
+
+/* Avvisi brevi (UI.toast): centrati in alto, sopra l'intestazione */
+.toast {
+  position: fixed;
+  top: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: max-content;
+  max-width: min(480px, calc(100vw - 2 * var(--sp-4)));
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transition: opacity 0.4s;
+}

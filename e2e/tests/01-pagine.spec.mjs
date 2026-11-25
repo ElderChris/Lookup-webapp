@@ -108,6 +108,8 @@ test.describe('pagine da ospite', () => {
       await expect(page.locator('#search-radius')).toBeEnabled();
       await expect(page.locator('#radius-ref')).toContainText('posizione attuale del dispositivo');
 
+      await page.locator('#search-radius').fill('100');
+      await expect(page.locator('#radius-label')).toHaveText('entro 100 km');
       await page.locator('#search-radius').fill('2');
       await expect(page.locator('#radius-label')).toHaveText('entro 2 km');
       await expect(page.locator('path.search-radius-circle')).toHaveCount(1);
@@ -122,7 +124,12 @@ test.describe('pagine da ospite', () => {
     test('senza permesso: messaggio chiaro e raggio disattivato', async ({ page }) => {
       await page.goto('/explore.html');
       await page.click('#use-position');
-      await expect(page.locator('#position-status')).toContainText('Permesso negato');
+      // Il motivo compare in un avviso centrato in alto nella pagina
+      const toast = page.locator('.toast');
+      await expect(toast).toContainText('Permesso negato');
+      const box = await toast.boundingBox();
+      const { width } = page.viewportSize();
+      expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThan(2);
       await expect(page.locator('#search-radius')).toBeDisabled();
     });
   });

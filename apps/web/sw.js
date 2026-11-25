@@ -25,7 +25,7 @@
 // Da cambiare a ogni rilascio del sito: il service worker nuovo cancella le
 // cache precedenti e le pagine ricaricano CSS e JS aggiornati
 // (cancella anche le cache dell'API delle versioni che le salvavano)
-const CACHE_VERSION = 'lookup-v23';
+const CACHE_VERSION = 'lookup-v24';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 
@@ -126,8 +126,13 @@ self.addEventListener('fetch', (event) => {
   // mai in cache (dati personali)
   if (url.pathname.startsWith('/api/')) return;
 
-  // Route by resource type
-  if (isStaticAsset(url.pathname)) {
+  // Route by resource type: il codice dell'app (CSS e JavaScript) sempre dalla
+  // rete, come le pagine, altrimenti dopo un aggiornamento una pagina nuova
+  // girerebbe con script vecchi presi dalla cache; immagini, caratteri e
+  // librerie di vendor/ (versionate nel percorso) prima dalla cache
+  if (isAppCode(url.pathname)) {
+    event.respondWith(networkFirstStrategy(request));
+  } else if (isStaticAsset(url.pathname)) {
     event.respondWith(cacheFirstStrategy(request));
   } else if (url.pathname.endsWith('.html') || url.pathname === '/') {
     event.respondWith(networkFirstStrategy(request));
@@ -193,6 +198,10 @@ async function networkFirstStrategy(request) {
 // -----------------------------------------------------------------------------
 // HELPERS
 // -----------------------------------------------------------------------------
+
+function isAppCode(pathname) {
+  return /\.(css|m?js)$/.test(pathname) && !pathname.startsWith('/vendor/');
+}
 
 function isStaticAsset(pathname) {
   return /\.(css|js|mjs|png|jpg|jpeg|svg|webp|woff2?|ttf|otf|ico)$/.test(pathname);
