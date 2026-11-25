@@ -932,7 +932,13 @@
         const btn = e.target.closest('[data-revoke-session]');
         if (!btn) return;
         const token = btn.dataset.revokeSession;
-        if (!confirm('Terminare questa sessione? L\'accesso verrà revocato immediatamente.')) return;
+        const ok = await UI.confirm({
+          title: 'Terminare la sessione?',
+          message: "L'accesso da quel dispositivo verrà revocato immediatamente.",
+          okLabel: 'Termina',
+          danger: true,
+        });
+        if (!ok) return;
         try {
           await window.LB_API.authClient.revokeSession({ token });
           UI.toast('Sessione terminata.', 'info');
@@ -944,7 +950,13 @@
 
       // Click su "Termina tutte le altre sessioni"
       document.getElementById('revoke-all-btn').addEventListener('click', async () => {
-        if (!confirm('Terminare tutte le altre sessioni? Rimarrai loggato solo su questo dispositivo.')) return;
+        const ok = await UI.confirm({
+          title: 'Terminare le altre sessioni?',
+          message: 'Resterai collegato solo da questo dispositivo.',
+          okLabel: 'Termina tutte',
+          danger: true,
+        });
+        if (!ok) return;
         try {
           await window.LB_API.authClient.revokeSessions();
           UI.toast('Tutte le altre sessioni sono state terminate.', 'info');

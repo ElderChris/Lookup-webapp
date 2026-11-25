@@ -215,7 +215,13 @@ export const UI = {
     container.onclick = async (e) => {
       const btn = e.target.closest('[data-review-delete]');
       if (!btn) return;
-      if (!confirm('Cancellare definitivamente questa recensione?')) return;
+      const ok = await UI.confirm({
+        title: 'Cancellare la recensione?',
+        message: 'La recensione verrà cancellata definitivamente.',
+        okLabel: 'Cancella',
+        danger: true,
+      });
+      if (!ok) return;
       try {
         await window.LB_API.users.deleteMyReview(btn.dataset.reviewDelete);
         UI.toast('Recensione cancellata.', 'info');
@@ -379,7 +385,13 @@ export const UI = {
     const delBtn = form.querySelector('#review-delete-btn');
     if (delBtn) {
       delBtn.addEventListener('click', async () => {
-        if (!confirm('Eliminare definitivamente la tua recensione?')) return;
+        const ok = await UI.confirm({
+          title: 'Eliminare la recensione?',
+          message: 'La tua recensione verrà eliminata definitivamente.',
+          okLabel: 'Elimina',
+          danger: true,
+        });
+        if (!ok) return;
         try {
           await window.LB_API.users.deleteMyReview(targetUserId);
           UI.toast('Recensione eliminata.', 'info');
@@ -421,6 +433,58 @@ export const UI = {
     if (w < 5) return w === 1 ? 'una settimana fa' : `${w} settimane fa`;
     if (mo < 12) return mo === 1 ? 'un mese fa' : `${mo} mesi fa`;
     return y === 1 ? 'un anno fa' : `${y} anni fa`;
+  },
+
+  /** Finestra di conferma dell'app, al posto di window.confirm(): stile del
+      sito, testi in italiano, pulsante rosso per le azioni distruttive.
+      Usa <dialog> (focus trattenuto, Esc per annullare). Il messaggio puo'
+      avere piu' paragrafi separati da una riga vuota. Restituisce una
+      Promise<boolean>: true solo se si sceglie il pulsante di conferma. */
+  confirm({
+    title = 'Conferma',
+    message = '',
+    okLabel = 'Conferma',
+    cancelLabel = 'Annulla',
+    danger = false,
+  } = {}) {
+    const esc = (v) => this._escapeHtml(v);
+    return new Promise((resolve) => {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'app-confirm';
+      dialog.setAttribute('aria-labelledby', 'app-confirm-title');
+      dialog.setAttribute('aria-describedby', 'app-confirm-body');
+      const paragraphs = String(message)
+        .split(/\n\s*\n/)
+        .filter(Boolean)
+        .map((p) => `<p>${esc(p.trim())}</p>`)
+        .join('');
+      dialog.innerHTML = `
+        <form method="dialog" class="app-confirm__card">
+          <h2 id="app-confirm-title" class="app-confirm__title">${esc(title)}</h2>
+          <div id="app-confirm-body" class="app-confirm__body">${paragraphs}</div>
+          <div class="app-confirm__actions">
+            <button type="submit" value="cancel" class="btn btn--ghost">${esc(cancelLabel)}</button>
+            <button type="submit" value="ok" class="btn btn--primary ${danger ? 'btn--danger' : ''}"
+                    id="app-confirm-ok">${esc(okLabel)}</button>
+          </div>
+        </form>`;
+      document.body.appendChild(dialog);
+      dialog.addEventListener(
+        'close',
+        () => {
+          resolve(dialog.returnValue === 'ok');
+          dialog.remove();
+        },
+        { once: true }
+      );
+      // Clic fuori dalla scheda (sullo sfondo) = annulla
+      dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) dialog.close('cancel');
+      });
+      dialog.showModal();
+      // Per le azioni distruttive il fuoco parte da "Annulla"
+      dialog.querySelector(danger ? 'button[value="cancel"]' : '#app-confirm-ok').focus();
+    });
   },
 
   /** Renderizza la timeline orizzontale a 5 stati di un prestito
@@ -1029,12 +1093,18 @@ export const UI = {
         return;
       }
       const menu = buildMenu();
-      menu.addEventListener('click', (ev) => {
+      menu.addEventListener('click', async (ev) => {
         const action = ev.target.closest('[data-action]')?.dataset.action;
         if (!action) return;
         closeMenu();
         if (action === 'remove') {
-          if (!confirm('Vuoi davvero rimuovere la foto profilo?')) return;
+          const ok = await UI.confirm({
+            title: 'Rimuovere la foto profilo?',
+            message: "Al suo posto tornerà l'iniziale o il simbolo scelto.",
+            okLabel: 'Rimuovi',
+            danger: true,
+          });
+          if (!ok) return;
           saveAvatar(null, 'Foto profilo rimossa.');
         } else if (action === 'upload') {
           // Crea input file nascosto
@@ -1313,7 +1383,13 @@ export const UI = {
           UI._openReportModal(reportBtn.dataset.postReport, options.onChange);
         }
         if (deleteBtn) {
-          if (!confirm('Eliminare definitivamente questo post?')) return;
+          const ok = await UI.confirm({
+            title: 'Eliminare il post?',
+            message: 'Il post e le sue reazioni verranno eliminati definitivamente.',
+            okLabel: 'Elimina',
+            danger: true,
+          });
+          if (!ok) return;
           await window.LB_API.posts.remove(deleteBtn.dataset.postDelete);
           UI.toast('Post eliminato.', 'info');
           if (options.onChange) options.onChange();
