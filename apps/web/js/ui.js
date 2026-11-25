@@ -1653,11 +1653,10 @@ export const UI = {
   /** Notifiche toast */
   toast(message, type = 'info') {
     const t = document.createElement('div');
-    t.className = `alert alert--${type}`;
-    t.setAttribute('role', 'status');
+    // Avviso breve centrato in alto nella pagina (stile in .toast)
+    t.className = `alert alert--${type} toast`;
+    t.setAttribute('role', type === 'error' ? 'alert' : 'status');
     t.textContent = message;
-    t.style.cssText =
-      'position:fixed;top:5rem;right:1.5rem;z-index:1000;max-width:360px;box-shadow:0 8px 24px rgba(0,0,0,.15);';
     document.body.appendChild(t);
     setTimeout(() => (t.style.opacity = '0'), 3000);
     setTimeout(() => t.remove(), 3500);

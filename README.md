@@ -235,4 +235,6 @@ come indirizzo fisso.
 
 ## Licenza
 
-GPL-3.0
+GNU General Public License versione 3 (GPL-3.0): testo completo nel file
+[LICENSE](LICENSE). Caratteri e librerie in `apps/web/vendor` mantengono le
+rispettive licenze, incluse nelle loro cartelle.

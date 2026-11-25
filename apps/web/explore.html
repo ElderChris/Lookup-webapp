@@ -59,6 +59,12 @@
           <input type="search" id="search-query" name="q" class="form__input"
                  placeholder="Cerca: titolo, autore, città, CAP, indirizzo…" autocomplete="off"
                  aria-describedby="search-hint" />
+          <div class="search-bar__position">
+            <button type="button" class="btn btn--ghost btn--small" id="use-position">
+              <span aria-hidden="true">📍</span> Usa la mia posizione
+            </button>
+            <small id="position-status" class="search-bar__position-status" aria-live="polite"></small>
+          </div>
         </div>
         <div class="tag-input-wrap">
           <label class="sr-only" for="search-tags">Generi (tag BISAC)</label>
@@ -71,7 +77,7 @@
               <span>Raggio</span>
               <strong id="radius-label">Qualsiasi distanza</strong>
             </div>
-            <input type="range" id="search-radius" name="r" min="0" max="20" step="1" value="0"
+            <input type="range" id="search-radius" name="r" min="0" max="100" step="1" value="0"
                    aria-describedby="radius-label radius-ref" />
             <small id="radius-ref" class="range-control__ref"></small>
           </div>
@@ -158,6 +164,7 @@
        ============================================================= */
 
     let map, markersLayer;
+    let radiusLayer;              // cerchio del raggio di ricerca e punto di partenza
     let scrollOnSearch = false;   // true solo dopo una ricerca esplicita dell'utente
     let searchStarted = false;    // dopo la prima ricerca la mappa mostra i risultati
     let lastResults = [];         // risultati dell'ultima ricerca (per la mappa)
@@ -184,6 +191,7 @@
       const radiusEl = document.getElementById('search-radius');
       const radiusLabel = document.getElementById('radius-label');
       const radiusRef = document.getElementById('radius-ref');
+      const positionStatus = document.getElementById('position-status');
       function paintRadius() {
         const ref = window.LB_UI.referencePosition();
         radiusEl.disabled = !ref;
@@ -192,24 +200,51 @@
         radiusLabel.textContent = v === 0 ? 'Qualsiasi distanza' : `entro ${v} km`;
         const pct = (v / +radiusEl.max) * 100;
         radiusEl.style.backgroundSize = `${pct}% 100%`;
-        if (ref) {
-          radiusRef.textContent = ref.source === 'profile'
+        radiusRef.textContent = !ref
+          ? 'Per cercare per distanza usa «Usa la mia posizione».'
+          : ref.source === 'profile'
             ? 'Distanza dalla posizione indicata nelle impostazioni.'
             : 'Distanza dalla posizione attuale del dispositivo.';
+        // Stato sotto il pulsante: da quale posizione si misura, con il
+        // ritorno a quella del profilo se si sta usando quella del dispositivo
+        if (ref && ref.source === 'browser') {
+          positionStatus.innerHTML = window.LB_UI.hasProfilePosition()
+            ? 'In uso la posizione attuale del dispositivo. <button type="button" class="link-button" id="use-profile-position">Usa quella del profilo</button>'
+            : 'In uso la posizione attuale del dispositivo.';
         } else {
-          radiusRef.innerHTML = `Per cercare per distanza
-            <button type="button" class="btn btn--ghost btn--small" id="radius-use-position">📍 usa la mia posizione</button>`;
-          document.getElementById('radius-use-position').addEventListener('click', async () => {
-            try {
-              const pos = await window.LB_UI.requestBrowserPosition();
-              if (map) map.setView([pos.lat, pos.lng], 13);
-              paintRadius();
-            } catch (err) {
-              UI.toast(err.message, 'error');
-            }
-          });
+          positionStatus.textContent = '';
         }
+        paintRadiusCircle();
       }
+
+      /* "Usa la mia posizione": chiede il permesso al browser (solo su
+         richiesta), centra la mappa e misura le distanze da li' */
+      const usePositionBtn = document.getElementById('use-position');
+      usePositionBtn.addEventListener('click', async () => {
+        usePositionBtn.disabled = true;
+        positionStatus.textContent = 'Richiesta della posizione al browser…';
+        try {
+          const pos = await window.LB_UI.requestBrowserPosition();
+          if (map) map.setView([pos.lat, pos.lng], 13);
+          paintRadius();
+          scheduleSearch();
+        } catch (err) {
+          // Il motivo compare al centro della pagina; sotto il pulsante resta lo stato
+          paintRadius();
+          UI.toast(err.message, 'error');
+        } finally {
+          usePositionBtn.disabled = false;
+        }
+      });
+      positionStatus.addEventListener('click', (e) => {
+        if (!e.target.closest('#use-profile-position')) return;
+        window.LB_UI.clearBrowserPosition();
+        const ref = window.LB_UI.referencePosition();
+        if (map && ref) map.setView([ref.lat, ref.lng], 13);
+        paintRadius();
+        scheduleSearch();
+      });
+
       paintRadius();
       radiusEl.addEventListener('input', () => { paintRadius(); scheduleSearch(); });
 
@@ -272,6 +307,7 @@
         initMap();
         const ref = window.LB_UI.referencePosition();
         if (ref) map.setView([ref.lat, ref.lng], 13);
+        paintRadiusCircle();
         // All'avvio la mappa mostra tutte le librerie con posizione pubblica
         const [booksRes, libsRes] = await Promise.all([
           window.LB_API.books.listAll({}, {
@@ -291,6 +327,38 @@
       }
 
     });
+
+    /** Cerchio semitrasparente del raggio di ricerca attorno alla posizione
+        di riferimento, aggiornato quando cambia il raggio o la posizione */
+    function paintRadiusCircle() {
+      if (!map || typeof L === 'undefined') return;
+      if (radiusLayer) {
+        radiusLayer.remove();
+        radiusLayer = null;
+      }
+      const ref = window.LB_UI.referencePosition();
+      const km = +document.getElementById('search-radius').value;
+      if (!ref || km <= 0) return;
+      const circle = L.circle([ref.lat, ref.lng], {
+        radius: km * 1000,
+        color: '#7a1e2b',
+        weight: 1.5,
+        fillColor: '#7a1e2b',
+        fillOpacity: 0.12,
+        interactive: false,
+        className: 'search-radius-circle',
+      });
+      const center = L.circleMarker([ref.lat, ref.lng], {
+        radius: 5,
+        color: '#f4efe6',
+        weight: 2,
+        fillColor: '#7a1e2b',
+        fillOpacity: 1,
+        interactive: false,
+      });
+      radiusLayer = L.layerGroup([circle, center]).addTo(map);
+      map.fitBounds(circle.getBounds(), { padding: [24, 24] });
+    }
 
     /** Inizializzazione mappa Leaflet */
     function initMap() {
