@@ -304,12 +304,12 @@
                    sempre la libreria come l'ha pensata il proprietario. -->
             </div>
 
-            <!-- Filtro volumi: stesso set di filtri di Esplora —
-                 testo (titolo/autore/luogo), tag BISAC multipli con
-                 autocomplete, e selettore "solo disponibili". -->
+            <!-- Filtro volumi: testo (titolo, autore, ISBN, descrizione:
+                 i volumi di una libreria sono tutti nello stesso luogo),
+                 tag BISAC multipli con autocomplete e "solo disponibili". -->
             <div class="library-filter">
               <input type="search" id="lib-query" class="form__input"
-                     placeholder="Cerca per titolo, autore o luogo" aria-label="Cerca nei volumi" />
+                     placeholder="Cerca per titolo, autore, ISBN o descrizione" aria-label="Cerca nei volumi" />
               <div id="lib-tags" class="library-filter__tags" aria-label="Filtra per genere BISAC"></div>
               <label class="library-filter__avail">
                 <input type="checkbox" id="lib-only-avail" />
@@ -498,16 +498,20 @@
         onlyAvail.addEventListener('change', apply);
 
         function apply() {
-          const query = q.value.trim().toLowerCase();
+          // Senza distinguere maiuscole e accenti; l'ISBN anche con trattini
+          const fold = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+          const query = fold(q.value.trim());
+          const isbnQuery = q.value.replace(/[\s-]/g, '');
           // Generi scelti (slug) piu' i sottogeneri delle macro-aree
           const tags  = tagsEl.getExpandedTags ? tagsEl.getExpandedTags() : [];
           const onlyA = onlyAvail.checked;
           let filtered = allBooks.slice();
           if (query) {
             filtered = filtered.filter(b =>
-              b.title.toLowerCase().includes(query) ||
-              b.author.toLowerCase().includes(query) ||
-              (b.description && b.description.toLowerCase().includes(query)));
+              fold(b.title).includes(query) ||
+              fold(b.author).includes(query) ||
+              fold(b.description).includes(query) ||
+              (isbnQuery.length >= 4 && (b.isbn || '').includes(isbnQuery)));
           }
           if (tags.length) {
             const set = new Set(tags);

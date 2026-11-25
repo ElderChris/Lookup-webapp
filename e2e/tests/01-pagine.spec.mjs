@@ -114,6 +114,21 @@ test.describe('pagine da ospite', () => {
     await expect(page.locator('.result-item__distance')).toHaveCount(0);
   });
 
+  test('esplora: ISBN con i trattini e testo insieme a un comune', async ({ page }) => {
+    await page.goto(`/explore.html?q=${encodeURIComponent('978-88-07-90003-7')}`);
+    await expect(page.locator('.result-item__title')).toHaveText(['Il Gattopardo']);
+    await page.fill('#search-query', 'Camilleri a Napoli');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#search-place')).toContainText('Volumi per «Camilleri» vicino a');
+    await expect(page.locator('.result-item__author')).toHaveText([
+      /Andrea Camilleri/,
+      /Andrea Camilleri/,
+    ]);
+    await expect(page.locator('.result-item__distance').first()).toContainText(
+      'dal centro di Napoli'
+    );
+  });
+
   test("privacy: l'indice porta alla sezione e la evidenzia", async ({ page }) => {
     await page.goto('/privacy.html');
     const link = page.locator('.legal-toc a[href="#diritti"]');
