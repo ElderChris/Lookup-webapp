@@ -92,6 +92,39 @@ test.describe('pagine da ospite', () => {
     await expect(page.locator('.result-item__title')).toContainText(['Il Gattopardo']);
   });
 
+  test('esplora: il nome di un comune mostra le librerie per distanza dal suo centro', async ({
+    page,
+  }) => {
+    await page.goto('/explore.html?q=Pozzuoli');
+    const banner = page.locator('#search-place');
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText('Pozzuoli (NA, Campania)');
+    // Le librerie di Pozzuoli per prime, con la distanza dal centro del comune
+    await expect(page.locator('.result-item__place-text strong').first()).toHaveText('Pozzuoli');
+    await expect(page.locator('.result-item__distance').first()).toContainText(
+      'dal centro di Pozzuoli'
+    );
+    expect(await page.locator('.result-item').count()).toBeGreaterThan(2);
+    // Il raggio si misura dal comune anche senza la posizione dell'utente
+    await expect(page.locator('#search-radius')).toBeEnabled();
+    await expect(page.locator('#radius-ref')).toContainText('centro di Pozzuoli');
+    // "Solo come testo": torna la ricerca testuale
+    await page.click('#place-off');
+    await expect(banner).toBeHidden();
+    await expect(page.locator('.result-item__distance')).toHaveCount(0);
+  });
+
+  test("privacy: l'indice porta alla sezione e la evidenzia", async ({ page }) => {
+    await page.goto('/privacy.html');
+    const link = page.locator('.legal-toc a[href="#diritti"]');
+    await expect(page.locator('.legal-toc__box')).toHaveAttribute('open', '');
+    await link.click();
+    await expect(page).toHaveURL(/#diritti$/);
+    await expect(page.locator('#diritti-titolo')).toBeInViewport();
+    await expect(link).toHaveAttribute('aria-current', 'location');
+    await expect(page.locator('.legal-toc a[aria-current]')).toHaveCount(1);
+  });
+
   test.describe('esplora: "Usa la mia posizione"', () => {
     // Posizione simulata del dispositivo: Napoli, piazza Dante
     test.use({ geolocation: { latitude: 40.8489, longitude: 14.2502 } });
@@ -189,6 +222,24 @@ test.describe('vista mobile (375 px)', () => {
   for (const path of PUBLIC_PAGES) {
     test(path, async ({ page }) => checkMobile(page, path));
   }
+});
+
+test.describe('vista mobile (375 px): indice delle pagine legali', () => {
+  test.use({ viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true });
+  test('termini: indice chiuso in cima, si apre e porta alla sezione', async ({ page }) => {
+    await page.goto('/terms.html');
+    const box = page.locator('.legal-toc__box');
+    await expect(box).not.toHaveAttribute('open', '');
+    await page.locator('.legal-toc__summary').tap();
+    await expect(box).toHaveAttribute('open', '');
+    await page.locator('.legal-toc a[href="#prestiti"]').tap();
+    await expect(box).not.toHaveAttribute('open', '');
+    await expect(page.locator('#prestiti-titolo')).toBeInViewport();
+    await expect(page.locator('.legal-toc a[href="#prestiti"]')).toHaveAttribute(
+      'aria-current',
+      'location'
+    );
+  });
 });
 
 test.describe('vista mobile (375 px) da amministratore', () => {

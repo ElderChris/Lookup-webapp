@@ -238,3 +238,13 @@ come indirizzo fisso.
 GNU General Public License versione 3 (GPL-3.0): testo completo nel file
 [LICENSE](LICENSE). Caratteri e librerie in `apps/web/vendor` mantengono le
 rispettive licenze, incluse nelle loro cartelle.
+
+### Dati di terze parti
+
+- **Comuni italiani** (ricerca per luogo in Esplora): confini amministrativi
+  © ISTAT, licenza [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/),
+  nella versione GeoJSON di Openpolis
+  ([geojson-italy](https://github.com/guglielmo/geojson-italy)). Sono caricati nel
+  database dalla migrazione `20261125150000_places`, generata con
+  `apps/api/scripts/build-places-migration.mjs` (istruzioni nel file).
+- **Mappe**: © contributori di OpenStreetMap, licenza ODbL.

@@ -557,3 +557,41 @@ model AdminAuditLog {
   @@index([createdAt])
   @@map("admin_audit_log")
 }
+
+// =============================================================================
+// LUOGHI — comuni italiani per la ricerca per luogo
+// =============================================================================
+// Dati caricati dalla migrazione 20261125150000_places (generata con
+// scripts/build-places-migration.mjs). Fonte: confini comunali ISTAT, via
+// Openpolis. Confini amministrativi © ISTAT, CC BY 4.0.
+// lat/lng: centro geometrico del territorio comunale.
+// =============================================================================
+
+model Place {
+  code         String      @id @db.VarChar(6)                  // codice ISTAT del comune
+  name         String
+  provinceCode String      @map("province_code") @db.VarChar(2) // sigla (NA, RM, ...)
+  provinceName String      @map("province_name")
+  regionName   String      @map("region_name")
+  lat          Float
+  lng          Float
+  areaKm2      Float       @map("area_km2")                     // per scegliere fra comuni omonimi
+
+  names        PlaceName[]
+
+  @@map("places")
+}
+
+// Nomi con cui un comune si puo' cercare, normalizzati (lib/placeName.js):
+// ufficiale, versioni bilingui e nomi d'uso comune
+model PlaceName {
+  placeCode String @map("place_code") @db.VarChar(6)
+  nameNorm  String @map("name_norm")
+
+  place     Place  @relation(fields: [placeCode], references: [code], onDelete: Cascade)
+
+  @@id([placeCode, nameNorm])
+  @@index([nameNorm])
+  @@index([nameNorm(ops: raw("gin_trgm_ops"))], type: Gin, map: "place_names_name_norm_trgm")
+  @@map("place_names")
+}

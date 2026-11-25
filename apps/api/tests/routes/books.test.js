@@ -56,9 +56,10 @@ describe('GET /api/books', () => {
     }
   });
 
-  it('filtra per ricerca testuale q=napoli', async () => {
+  it('filtra per ricerca testuale q=napoli (place=false: solo testo)', async () => {
     const app = await buildTestApp();
-    const res = await app.inject({ method: 'GET', url: '/api/books?q=napoli' });
+    // Senza place=false "napoli" e' anche un comune: vedi places.test.js
+    const res = await app.inject({ method: 'GET', url: '/api/books?q=napoli&place=false' });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.data.length).toBeGreaterThan(0);
