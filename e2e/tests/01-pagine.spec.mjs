@@ -92,6 +92,41 @@ test.describe('pagine da ospite', () => {
     await expect(page.locator('.result-item__title')).toContainText(['Il Gattopardo']);
   });
 
+  test.describe('esplora: "Usa la mia posizione"', () => {
+    // Posizione simulata del dispositivo: Napoli, piazza Dante
+    test.use({ geolocation: { latitude: 40.8489, longitude: 14.2502 } });
+
+    test('con il permesso: raggio attivo, cerchio sulla mappa, risultati vicini', async ({
+      page,
+      context,
+    }) => {
+      await context.grantPermissions(['geolocation']);
+      await page.goto('/explore.html');
+      await expect(page.locator('#search-radius')).toBeDisabled();
+      await page.click('#use-position');
+      await expect(page.locator('#position-status')).toContainText('posizione attuale');
+      await expect(page.locator('#search-radius')).toBeEnabled();
+      await expect(page.locator('#radius-ref')).toContainText('posizione attuale del dispositivo');
+
+      await page.locator('#search-radius').fill('2');
+      await expect(page.locator('#radius-label')).toHaveText('entro 2 km');
+      await expect(page.locator('path.search-radius-circle')).toHaveCount(1);
+      await page.fill('#search-query', 'Napoli');
+      await page.keyboard.press('Enter');
+      const within = await page.locator('.result-item').count();
+      await page.locator('#search-radius').fill('0');
+      await expect(page.locator('path.search-radius-circle')).toHaveCount(0);
+      await expect.poll(() => page.locator('.result-item').count()).toBeGreaterThan(within);
+    });
+
+    test('senza permesso: messaggio chiaro e raggio disattivato', async ({ page }) => {
+      await page.goto('/explore.html');
+      await page.click('#use-position');
+      await expect(page.locator('#position-status')).toContainText('Permesso negato');
+      await expect(page.locator('#search-radius')).toBeDisabled();
+    });
+  });
+
   test("le pagine riservate rimandano all'accesso con ritorno", async ({ page }) => {
     await page.goto('/loans.html');
     await expect(page).toHaveURL(/\/login\.html\?next=%2Floans\.html$/);

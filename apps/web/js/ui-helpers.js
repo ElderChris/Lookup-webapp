@@ -276,9 +276,11 @@ export async function refreshCurrentUser() {
 // -----------------------------------------------------------------------------
 // Punto di riferimento per le distanze (home "Librerie vicino a te", Esplora)
 // -----------------------------------------------------------------------------
-// Scelta di Chris (22 nov 2026): la propria posizione se impostata; altrimenti
-// quella del browser, ma solo quando l'utente la chiede (mai in automatico).
-// Quella del browser resta per la sessione della scheda (sessionStorage).
+// Scelte di Chris: la posizione del browser solo quando l'utente la chiede
+// (mai in automatico, 22 nov 2026); se l'ha chiesta vale quella, altrimenti la
+// posizione del profilo (25 nov 2026: "Usa la mia posizione" anche con una
+// posizione nel profilo). Quella del browser resta per la sessione della
+// scheda (sessionStorage) e non viene salvata nel profilo.
 
 const REF_KEY = 'lb_ref_position';
 
@@ -286,10 +288,6 @@ const REF_KEY = 'lb_ref_position';
  * @returns {{lat: number, lng: number, source: 'profile'|'browser'}|null}
  */
 export function referencePosition() {
-  const me = currentUser();
-  if (me && me.lat != null && me.lng != null) {
-    return { lat: me.lat, lng: me.lng, source: 'profile' };
-  }
   try {
     const saved = JSON.parse(sessionStorage.getItem(REF_KEY) || 'null');
     if (saved && Number.isFinite(saved.lat) && Number.isFinite(saved.lng)) {
@@ -298,7 +296,26 @@ export function referencePosition() {
   } catch (_) {
     /* archiviazione non disponibile */
   }
+  const me = currentUser();
+  if (me && me.lat != null && me.lng != null) {
+    return { lat: me.lat, lng: me.lng, source: 'profile' };
+  }
   return null;
+}
+
+/** Torna alla posizione del profilo (dimentica quella del browser). */
+export function clearBrowserPosition() {
+  try {
+    sessionStorage.removeItem(REF_KEY);
+  } catch (_) {
+    /* niente da togliere */
+  }
+}
+
+/** True se l'utente ha una posizione salvata nel profilo. */
+export function hasProfilePosition() {
+  const me = currentUser();
+  return !!me && me.lat != null && me.lng != null;
 }
 
 /**
@@ -325,7 +342,16 @@ export function requestBrowserPosition() {
         }
         resolve({ ...ref, source: 'browser' });
       },
-      () => reject(new Error('Posizione non disponibile o permesso negato.')),
+      (err) =>
+        reject(
+          new Error(
+            {
+              1: 'Permesso negato: consenti la posizione a questo sito dal lucchetto nella barra degli indirizzi.',
+              2: 'Posizione non disponibile: controlla che la localizzazione del dispositivo sia attiva.',
+              3: 'Il browser non ha fornito la posizione in tempo: riprova.',
+            }[err?.code] || 'Posizione non disponibile o permesso negato.'
+          )
+        ),
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
     );
   });
