@@ -108,6 +108,20 @@ test('il lettore pubblica un secondo volume e lo ritrova nella sua libreria', as
   await page.check('#consent');
   await page.click('#submit-btn');
   await page.waitForURL(/\/book-detail\.html\?id=\d+$/);
+  const secondId = Number(new URL(page.url()).searchParams.get('id'));
+
+  // Modifica dal dettaglio: stesso modulo, precompilato
+  await page.click('#edit-book-btn');
+  await page.waitForURL(new RegExp(`/add-book\\.html\\?id=${secondId}$`));
+  await expect(page.locator('#title')).toHaveValue(`${book.title} secondo`);
+  await expect(page.locator('#category-tags .tag-chip')).toHaveCount(1);
+  await expect(page.locator('#consent-row')).toBeHidden();
+  await page.fill('#title', `${book.title} rivisto`);
+  await page.selectOption('#condition', 'discrete');
+  await page.click('#submit-btn');
+  await page.waitForURL(new RegExp(`/book-detail\\.html\\?id=${secondId}$`));
+  await expect(page.locator('h1')).toHaveText(`${book.title} rivisto`);
+  await expect(page.locator('main')).toContainText('discrete');
 
   const me = await (await page.request.get('/api/users/me')).json();
   await page.goto(`/library.html?id=${me.id}`);
@@ -163,6 +177,18 @@ test('ciclo del prestito: accettato, consegnato, restituito', async () => {
     await page.getByRole('button', { name }).click();
   }
 
+  // Con la richiesta in attesa il volume non si elimina: pulsante
+  // disattivato e spiegazione
+  await lenderPage.goto(`/book-detail.html?id=${bookId}`);
+  await expect(lenderPage.locator('#delete-book-btn')).toBeDisabled();
+  await expect(lenderPage.locator('#delete-block-note')).toContainText('richiesta di prestito');
+
+  // Con la pagina dei prestiti gia' aperta, un link a #loan-N apre quel prestito
+  await lenderPage.goto('/loans.html');
+  await expect(lenderPage.locator(`#loan-${loanId}`)).toHaveCount(0);
+  await lenderPage.evaluate((id) => (globalThis.location.hash = `#loan-${id}`), loanId);
+  await expect(lenderPage.locator(`#loan-${loanId}`)).toBeVisible();
+
   await act(lenderPage, '✓ Accetta');
   await expect.poll(status).toBe('confirmed');
   await act(lenderPage, '↦ Volume consegnato');
@@ -172,6 +198,17 @@ test('ciclo del prestito: accettato, consegnato, restituito', async () => {
   await expect.poll(status).toBe('returning');
   await act(lenderPage, '✓ Conferma restituzione');
   await expect.poll(status).toBe('returned');
+
+  // Prestito concluso: il volume si elimina, ma resta nello storico di chi
+  // l'ha preso (ritirato)
+  await lenderPage.goto(`/book-detail.html?id=${bookId}`);
+  lenderPage.once('dialog', (d) => d.accept());
+  await lenderPage.click('#delete-book-btn');
+  await lenderPage.waitForURL(/\/profile\.html$/);
+  expect((await borrowerPage.request.get(`/api/books/${bookId}`)).status()).toBe(404);
+  // La pagina e' gia' su questo indirizzo: va ricaricata
+  await borrowerPage.reload();
+  await expect(borrowerPage.locator(`#loan-${loanId} .loan-card__retired`)).toBeVisible();
 });
 
 test("l'amministratore sospende il lettore, che non può più entrare, poi lo riattiva", async () => {
