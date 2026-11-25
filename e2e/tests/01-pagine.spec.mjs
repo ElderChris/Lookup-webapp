@@ -96,6 +96,25 @@ test.describe('pagine da amministratore', () => {
   for (const path of PRIVATE_PAGES) {
     test(path, async ({ page }) => checkPage(page, path));
   }
+
+  test("il service worker non salva le risposte dell'API (dati personali)", async ({ page }) => {
+    await page.goto('/profile.html');
+    await page.waitForFunction(() => globalThis.navigator.serviceWorker.controller !== null);
+    for (const path of ['/profile.html', '/loans.html', '/index.html']) {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+    }
+    const cached = await page.evaluate(async () => {
+      const urls = [];
+      for (const name of await globalThis.caches.keys()) {
+        const cache = await globalThis.caches.open(name);
+        urls.push(...(await cache.keys()).map((r) => new URL(r.url).pathname));
+      }
+      return urls;
+    });
+    expect(cached.length).toBeGreaterThan(0);
+    expect(cached.filter((u) => u.startsWith('/api/'))).toEqual([]);
+  });
 });
 
 // Su un telefono nessuna pagina scorre in orizzontale e il testo non tocca i
