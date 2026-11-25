@@ -16,6 +16,7 @@
 
 import { getCurrentUserId, requireUserId, requireOwner } from '../lib/authHelpers.js';
 import { findActiveLoan, bookOnLoanError } from '../lib/loanStatus.js';
+import { resolvePlace } from '../lib/places.js';
 
 // -----------------------------------------------------------------------------
 // Helper: trasforma il record Prisma "raw" nel DTO che esponiamo via API
@@ -98,6 +99,85 @@ async function similarBookIds(prisma, q) {
 // -----------------------------------------------------------------------------
 // Plugin Fastify
 // -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Distanze (PostGIS, posizione pubblica dei proprietari)
+// -----------------------------------------------------------------------------
+
+/** Id dei proprietari attivi con posizione pubblica, entro il raggio se dato */
+async function ownersNear(prisma, center, radius) {
+  const rows = center
+    ? await prisma.$queryRaw`
+        SELECT id FROM users
+        WHERE status = 'active' AND public_location IS NOT NULL
+          AND ST_DWithin(
+            public_location,
+            ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)::geography,
+            ${radius}
+          )`
+    : await prisma.$queryRaw`
+        SELECT id FROM users WHERE status = 'active' AND public_location IS NOT NULL`;
+  return rows.map((r) => r.id);
+}
+
+// Oltre questo numero di risultati l'ordinamento per distanza considera solo
+// i piu' recenti (l'app ne mostra al massimo 500)
+const DISTANCE_SORT_MAX = 2000;
+
+/**
+ * Pagina di risultati ordinata per distanza del proprietario dal centro
+ * (chi non ha posizione pubblica in fondo). Con `firstWhere`, i volumi che
+ * lo soddisfano vengono prima (es. titolo o autore uguale al testo cercato).
+ */
+async function findByDistance(prisma, { where, center, firstWhere, include, limit, offset }) {
+  const [candidates, total, first] = await Promise.all([
+    prisma.book.findMany({
+      where,
+      select: { id: true, ownerId: true },
+      orderBy: { createdAt: 'desc' },
+      take: DISTANCE_SORT_MAX,
+    }),
+    prisma.book.count({ where }),
+    firstWhere
+      ? prisma.book.findMany({ where: firstWhere, select: { id: true }, take: DISTANCE_SORT_MAX })
+      : [],
+  ]);
+
+  const ownerIds = [...new Set(candidates.map((b) => b.ownerId))];
+  const distances = new Map();
+  if (ownerIds.length) {
+    const rows = await prisma.$queryRaw`
+      SELECT id, ROUND(ST_Distance(
+        public_location,
+        ST_SetSRID(ST_MakePoint(${center.lng}, ${center.lat}), 4326)::geography
+      )::numeric, 0)::int AS distance
+      FROM users
+      WHERE id = ANY(${ownerIds}) AND public_location IS NOT NULL`;
+    rows.forEach((r) => distances.set(r.id, r.distance));
+  }
+
+  const firstIds = new Set(first.map((b) => b.id));
+  const rank = (b) => [
+    firstIds.has(b.id) ? 0 : 1,
+    distances.has(b.ownerId) ? distances.get(b.ownerId) : Infinity,
+  ];
+  // sort stabile: a parita' restano i piu' recenti
+  const ordered = candidates
+    .map((b, i) => ({ b, r: rank(b), i }))
+    .sort((x, y) => x.r[0] - y.r[0] || x.r[1] - y.r[1] || x.i - y.i)
+    .map((x) => x.b.id);
+
+  const pageIds = ordered.slice(offset, offset + limit);
+  const pageBooks = pageIds.length
+    ? await prisma.book.findMany({ where: { id: { in: pageIds } }, include })
+    : [];
+  const byId = new Map(pageBooks.map((b) => [b.id, b]));
+  return {
+    books: pageIds.map((id) => byId.get(id)).filter(Boolean),
+    total,
+    distances,
+  };
+}
 
 export default async function booksRoutes(fastify) {
   // ===========================================================================
@@ -252,12 +332,15 @@ export default async function booksRoutes(fastify) {
             lat: { type: 'number', minimum: -90, maximum: 90 },
             lng: { type: 'number', minimum: -180, maximum: 180 },
             radius: { type: 'number', minimum: 100, maximum: 100000 },
+            // false: il testo non viene interpretato come luogo
+            place: { type: 'boolean', default: true },
             limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
             offset: { type: 'integer', minimum: 0, default: 0 },
+            // Senza sort: per distanza se c'e' un punto di riferimento
+            // (luogo cercato o lat/lng), altrimenti i piu' recenti
             sort: {
               type: 'string',
-              enum: ['recent', 'title', 'author', 'year', 'requested'],
-              default: 'recent',
+              enum: ['recent', 'title', 'author', 'year', 'requested', 'distance'],
             },
           },
           additionalProperties: false,
@@ -276,6 +359,7 @@ export default async function booksRoutes(fastify) {
         lat,
         lng,
         radius,
+        place: placeSearch,
         limit,
         offset,
         sort,
@@ -290,10 +374,17 @@ export default async function booksRoutes(fastify) {
       // Testo: titolo, autore e luogo (citta' pubblica del proprietario,
       // indirizzo pubblico degli enti). Titolo e autore anche con piccoli
       // errori di battitura (pg_trgm), da 4 caratteri in su
+      let titleAuthor = null;
+      let place = null;
       if (q) {
-        where.OR = [
+        titleAuthor = [
           { title: { contains: q, mode: 'insensitive' } },
           { author: { contains: q, mode: 'insensitive' } },
+        ];
+        const similar = await similarBookIds(fastify.prisma, q);
+        if (similar.length) titleAuthor.push({ id: { in: similar } });
+        where.OR = [
+          ...titleAuthor,
           { owner: { publicCity: { contains: q, mode: 'insensitive' } } },
           {
             owner: {
@@ -301,8 +392,18 @@ export default async function booksRoutes(fastify) {
             },
           },
         ];
-        const similar = await similarBookIds(fastify.prisma, q);
-        if (similar.length) where.OR.push({ id: { in: similar } });
+
+        // Luogo: se l'intera ricerca e' un comune ("Napoli", "Pozzuoli (NA)")
+        // i risultati comprendono le librerie con posizione pubblica,
+        // ordinate per distanza dal centro del comune. Gli errori di
+        // battitura sul nome del comune valgono solo se nessun titolo o
+        // autore contiene gia' il testo cercato (es. "Bassani" resta un autore).
+        if (placeSearch !== false) {
+          const titleAuthorHits = await fastify.prisma.book.count({
+            where: { status: 'active', owner: { status: 'active' }, OR: titleAuthor.slice(0, 2) },
+          });
+          place = await resolvePlace(fastify.prisma, q, { allowFuzzy: titleAuthorHits === 0 });
+        }
       }
       const and = [];
       if (typeof available === 'boolean') where.available = available;
@@ -319,18 +420,22 @@ export default async function booksRoutes(fastify) {
         });
       }
 
+      // Punto di riferimento: il luogo cercato, altrimenti lat/lng
+      const center = place
+        ? { lat: place.lat, lng: place.lng }
+        : lat != null && lng != null
+          ? { lat, lng }
+          : null;
+
       // Raggio: PostGIS sulla posizione pubblica dei proprietari. Chi ha la
       // posizione nascosta o solo la citta' non compare.
-      if (lat != null && lng != null && radius != null) {
-        const near = await fastify.prisma.$queryRaw`
-          SELECT id FROM users
-          WHERE public_location IS NOT NULL
-            AND ST_DWithin(
-              public_location,
-              ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
-              ${radius}
-            )`;
-        and.push({ ownerId: { in: near.map((r) => r.id) } });
+      const near =
+        center && radius != null ? await ownersNear(fastify.prisma, center, radius) : null;
+      if (near) and.push({ ownerId: { in: near } });
+      // Luogo: oltre al testo, tutte le librerie con posizione pubblica
+      // (entro il raggio, se impostato)
+      if (place) {
+        where.OR.push({ ownerId: { in: near ?? (await ownersNear(fastify.prisma, null, null)) } });
       }
       if (and.length) where.AND = and;
 
@@ -339,41 +444,55 @@ export default async function booksRoutes(fastify) {
         where.owner = { ...where.owner, followedBy: { some: { followerId: meId } } };
       }
 
-      // --- Ordinamento ---
-      const orderBy = {
-        recent: { createdAt: 'desc' },
-        title: { title: 'asc' },
-        author: { author: 'asc' },
-        year: { year: 'desc' },
-        requested: [{ requestCount: 'desc' }, { viewCount: 'desc' }],
-      }[sort];
-
-      // --- Query + count in parallelo ---
-      const [books, total] = await Promise.all([
-        fastify.prisma.book.findMany({
-          where,
-          skip: offset,
-          take: limit,
-          orderBy,
-          include: {
-            owner: {
-              select: {
-                id: true,
-                displayName: true,
-                publicCity: true,
-                publicLat: true,
-                publicLng: true,
-                accountType: true,
-                avatarUrl: true,
-              },
-            },
-            categories: {
-              include: { category: { select: { id: true, name: true, slug: true } } },
-            },
+      const include = {
+        owner: {
+          select: {
+            id: true,
+            displayName: true,
+            publicCity: true,
+            publicLat: true,
+            publicLng: true,
+            accountType: true,
+            avatarUrl: true,
           },
-        }),
-        fastify.prisma.book.count({ where }),
-      ]);
+        },
+        categories: {
+          include: { category: { select: { id: true, name: true, slug: true } } },
+        },
+      };
+
+      // --- Ordinamento ---
+      const effectiveSort = sort ?? (center ? 'distance' : 'recent');
+      let books;
+      let total;
+      let distances = null;
+      if (effectiveSort === 'distance' && center) {
+        ({ books, total, distances } = await findByDistance(fastify.prisma, {
+          where,
+          center,
+          // Con un luogo cercato, i titoli e gli autori corrispondenti
+          // vengono prima, poi le altre librerie per distanza
+          firstWhere: place ? { AND: [where, { OR: titleAuthor }] } : null,
+          include,
+          limit,
+          offset,
+        }));
+      } else {
+        const orderBy = {
+          recent: { createdAt: 'desc' },
+          distance: { createdAt: 'desc' },
+          title: { title: 'asc' },
+          author: { author: 'asc' },
+          year: { year: 'desc' },
+          requested: [{ requestCount: 'desc' }, { viewCount: 'desc' }],
+        }[effectiveSort];
+
+        // --- Query + count in parallelo ---
+        [books, total] = await Promise.all([
+          fastify.prisma.book.findMany({ where, skip: offset, take: limit, orderBy, include }),
+          fastify.prisma.book.count({ where }),
+        ]);
+      }
 
       // "Mi piace" dell'utente autenticato sui libri della pagina
       const currentUserId = meId || (await getCurrentUserId(request));
@@ -389,9 +508,12 @@ export default async function booksRoutes(fastify) {
       return {
         data: books.map((b) => ({
           ...toDto(b),
+          ...(distances ? { distanceMeters: distances.get(b.ownerId) ?? null } : {}),
           ...(currentUserId ? { likedByMe: likedIds.has(b.id) } : {}),
         })),
         pagination: { total, limit, offset },
+        // Luogo riconosciuto nella ricerca (null se il testo non e' un comune)
+        ...(q ? { place } : {}),
       };
     }
   );

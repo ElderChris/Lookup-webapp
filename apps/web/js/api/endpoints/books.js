@@ -30,13 +30,15 @@ export const books = {
 
   /**
    * Tutti i libri che soddisfano la query, letti a pagine di 100 (il massimo
-   * accettato dal server). Ritorna { data, pagination: { total } }.
+   * accettato dal server). Ritorna { data, pagination: { total }, place? }:
+   * place e' il comune riconosciuto nel testo cercato (o null).
    * maxItems limita il numero di richieste in caso di cataloghi enormi.
    */
   async listAll(query = {}, { maxItems = 2000, ...options } = {}) {
     const PAGE = 100;
     const data = [];
     let total = Infinity;
+    let place;
     for (let offset = 0; offset < total && data.length < maxItems; offset += PAGE) {
       // Con la cache, una chiave per pagina
       const cache = options.cache?.key
@@ -48,10 +50,16 @@ export const books = {
         cache,
       });
       data.push(...res.data);
+      if (place === undefined) place = res.place;
       total = res.pagination?.total ?? data.length;
       if (res.data.length < PAGE) break;
     }
-    return { data, pagination: { total: Number.isFinite(total) ? total : data.length } };
+    return {
+      data,
+      pagination: { total: Number.isFinite(total) ? total : data.length },
+      // Luogo riconosciuto nel testo cercato (comune), se c'e'
+      ...(place !== undefined && { place }),
+    };
   },
 
   /**
