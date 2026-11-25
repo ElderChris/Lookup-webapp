@@ -469,18 +469,29 @@ export const UI = {
           </div>
         </form>`;
       document.body.appendChild(dialog);
-      dialog.addEventListener(
-        'close',
-        () => {
-          resolve(dialog.returnValue === 'ok');
-          dialog.remove();
-        },
-        { once: true }
-      );
-      // Clic fuori dalla scheda (sullo sfondo) = annulla
-      dialog.addEventListener('click', (e) => {
-        if (e.target === dialog) dialog.close('cancel');
+      // La scelta si legge dal pulsante premuto (submit), da Esc (cancel) o
+      // dal clic sullo sfondo: non solo dall'evento "close", che alcuni
+      // browser basati su Chromium non inviano
+      let done = false;
+      const finish = (ok) => {
+        if (done) return;
+        done = true;
+        if (dialog.open) dialog.close(ok ? 'ok' : 'cancel');
+        dialog.remove();
+        resolve(ok);
+      };
+      dialog.querySelector('form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        finish(e.submitter?.value === 'ok');
       });
+      dialog.addEventListener('cancel', (e) => {
+        e.preventDefault();
+        finish(false);
+      });
+      dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) finish(false);
+      });
+      dialog.addEventListener('close', () => finish(dialog.returnValue === 'ok'));
       dialog.showModal();
       // Per le azioni distruttive il fuoco parte da "Annulla"
       dialog.querySelector(danger ? 'button[value="cancel"]' : '#app-confirm-ok').focus();
