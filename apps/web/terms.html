@@ -44,103 +44,169 @@
   </header>
 
   <main id="main">
-    <section class="section container container--narrow">
-      <span class="eyebrow">documento</span>
-      <h1 style="font-size: 2.4rem; margin: 0.4rem 0 0.5rem;">Termini di utilizzo</h1>
-      <p style="color: var(--color-ink-soft); margin-bottom: 2.5rem; font-size: 1.05rem;">
-        Le regole per usare Lookup.
-        <br><em>Ultimo aggiornamento: novembre 2026.</em>
-      </p>
+    <section class="section container legal-page">
+      <header class="legal-page__head">
+        <span class="eyebrow">documento</span>
+        <h1>Termini di utilizzo</h1>
+        <p class="legal-page__intro">Le regole per usare Lookup.</p>
+        <p class="legal-page__updated">Ultimo aggiornamento: novembre 2026.</p>
+      </header>
 
-      <div class="legal-doc">
+      <div class="legal-layout">
+        <!-- Indice: a destra e fisso durante lo scorrimento su schermi larghi,
+             richiudibile in cima alla pagina su schermi stretti (js/legal-toc.js) -->
+        <nav class="legal-toc" aria-labelledby="legal-toc-title">
+          <details class="legal-toc__box" open>
+            <summary class="legal-toc__summary" id="legal-toc-title">In questa pagina</summary>
+            <ol class="legal-toc__list">
+              <li><a href="#servizio"><span class="legal-toc__num">1</span> Il servizio</a></li>
+              <li><a href="#account"><span class="legal-toc__num">2</span> Iscrizione e account</a></li>
+              <li><a href="#volumi"><span class="legal-toc__num">3</span> Pubblicazione dei volumi</a></li>
+              <li><a href="#prestiti"><span class="legal-toc__num">4</span> Prestiti</a></li>
+              <li><a href="#recensioni"><span class="legal-toc__num">5</span> Recensioni e post</a></li>
+              <li><a href="#comportamenti"><span class="legal-toc__num">6</span> Comportamenti non ammessi</a></li>
+              <li><a href="#sospensione"><span class="legal-toc__num">7</span> Sospensione ed eliminazione</a></li>
+              <li><a href="#contenuti"><span class="legal-toc__num">8</span> Contenuti e licenza</a></li>
+              <li><a href="#attribuzioni"><span class="legal-toc__num">9</span> Dati e attribuzioni</a></li>
+              <li><a href="#disponibilita"><span class="legal-toc__num">10</span> Disponibilità del servizio</a></li>
+              <li><a href="#privacy"><span class="legal-toc__num">11</span> Privacy</a></li>
+              <li><a href="#modifiche"><span class="legal-toc__num">12</span> Modifiche ai termini</a></li>
+              <li><a href="#legge"><span class="legal-toc__num">13</span> Legge applicabile</a></li>
+            </ol>
+          </details>
+        </nav>
 
-        <h2>1. Il servizio</h2>
-        <p>Lookup permette a persone ed enti (biblioteche di comunità, associazioni,
-        librerie indipendenti, centri culturali, scuole) di mettere a disposizione i
-        propri libri e di prenderli in prestito gratuitamente da chi abita vicino. Il
-        servizio è gestito da <strong>[denominazione del gestore]</strong> (di seguito
-        «il gestore»), contattabile all'indirizzo <strong>[email di contatto]</strong>.
-        Lookup non è un servizio commerciale: non prevede pagamenti né compravendite.</p>
+        <article class="legal-doc" aria-label="Termini di utilizzo">
+          <section class="legal-section" id="servizio" aria-labelledby="servizio-titolo">
+            <h2 id="servizio-titolo"><span class="legal-section__num">1.</span> Il servizio</h2>
+            <p>Lookup permette a persone ed enti (biblioteche di comunità, associazioni,
+            librerie indipendenti, centri culturali, scuole) di mettere a disposizione i
+            propri libri e di prenderli in prestito gratuitamente da chi abita vicino. Il
+            servizio è gestito da <strong>[denominazione del gestore]</strong> (di seguito
+            «il gestore»), contattabile all'indirizzo <strong>[email di contatto]</strong>.
+            Lookup non è un servizio commerciale: non prevede pagamenti né compravendite.</p>
+          </section>
 
-        <h2>2. Iscrizione e account</h2>
-        <p>Per iscriversi bisogna avere almeno 18 anni o rappresentare legalmente l'ente
-        che si iscrive, accettare questi termini e confermare l'indirizzo email con il
-        link ricevuto: fino alla conferma non si accede e gli eventuali volumi inseriti
-        restano nascosti. Le iscrizioni non confermate entro 30 giorni vengono cancellate.</p>
-        <p>Le informazioni inserite devono essere veritiere e aggiornate. Gli enti
-        indicano anche denominazione, categoria, referente, indirizzo e orari. Ognuno è
-        responsabile della custodia della propria password e di ciò che avviene con il
-        proprio account.</p>
+          <section class="legal-section" id="account" aria-labelledby="account-titolo">
+            <h2 id="account-titolo"><span class="legal-section__num">2.</span> Iscrizione e account</h2>
+            <p>Per iscriversi bisogna avere almeno 18 anni o rappresentare legalmente l'ente
+            che si iscrive, accettare questi termini e confermare l'indirizzo email con il
+            link ricevuto: fino alla conferma non si accede e gli eventuali volumi inseriti
+            restano nascosti. Le iscrizioni non confermate entro 30 giorni vengono cancellate.</p>
+            <p>Le informazioni inserite devono essere veritiere e aggiornate. Gli enti
+            indicano anche denominazione, categoria, referente, indirizzo e orari. Ognuno è
+            responsabile della custodia della propria password e di ciò che avviene con il
+            proprio account.</p>
+          </section>
 
-        <h2>3. Pubblicazione dei volumi</h2>
-        <p>Chi pubblica un volume dichiara di esserne il proprietario o di avere il
-        consenso del proprietario a prestarlo, e ne descrive con onestà le condizioni.
-        Si pubblicano libri a stampa; non sono ammessi materiale digitale, copie non
-        autorizzate o contenuti illegali.</p>
+          <section class="legal-section" id="volumi" aria-labelledby="volumi-titolo">
+            <h2 id="volumi-titolo"><span class="legal-section__num">3.</span> Pubblicazione dei volumi</h2>
+            <p>Chi pubblica un volume dichiara di esserne il proprietario o di avere il
+            consenso del proprietario a prestarlo, e ne descrive con onestà le condizioni.
+            Si pubblicano libri a stampa; non sono ammessi materiale digitale, copie non
+            autorizzate o contenuti illegali.</p>
+          </section>
 
-        <h2>4. Prestiti</h2>
-        <p>Il prestito è un accordo di fiducia fra le due persone coinvolte, che
-        concordano tempi e modi di consegna attraverso la chat della richiesta:</p>
-        <ul>
-          <li>chi presta consegna il volume nelle condizioni dichiarate;</li>
-          <li>chi riceve lo tratta con cura e lo restituisce nelle stesse condizioni
-          entro la durata concordata (da 5 a 28 giorni).</li>
-        </ul>
-        <p>Il gestore non partecipa allo scambio e non risponde di ritardi, smarrimenti o
-        danni, che restano da risolvere fra le parti.</p>
+          <section class="legal-section" id="prestiti" aria-labelledby="prestiti-titolo">
+            <h2 id="prestiti-titolo"><span class="legal-section__num">4.</span> Prestiti</h2>
+            <p>Il prestito è un accordo di fiducia fra le due persone coinvolte, che
+            concordano tempi e modi di consegna attraverso la chat della richiesta:</p>
+            <ul>
+              <li>chi presta consegna il volume nelle condizioni dichiarate;</li>
+              <li>chi riceve lo tratta con cura e lo restituisce nelle stesse condizioni
+              entro la durata concordata (da 5 a 28 giorni).</li>
+            </ul>
+            <p>Il gestore non partecipa allo scambio e non risponde di ritardi, smarrimenti o
+            danni, che restano da risolvere fra le parti.</p>
+          </section>
 
-        <h2>5. Recensioni e post</h2>
-        <p>Si può recensire un altro membro solo dopo aver concluso con lui almeno un
-        prestito. Recensioni e post devono essere veritieri e rispettosi. Chiunque può
-        segnalare un post che ritiene inappropriato; gli amministratori valutano le
-        segnalazioni e possono archiviarle o rimuovere il post.</p>
+          <section class="legal-section" id="recensioni" aria-labelledby="recensioni-titolo">
+            <h2 id="recensioni-titolo"><span class="legal-section__num">5.</span> Recensioni e post</h2>
+            <p>Si può recensire un altro membro solo dopo aver concluso con lui almeno un
+            prestito. Recensioni e post devono essere veritieri e rispettosi. Chiunque può
+            segnalare un post che ritiene inappropriato; gli amministratori valutano le
+            segnalazioni e possono archiviarle o rimuovere il post.</p>
+          </section>
 
-        <h2>6. Comportamenti non ammessi</h2>
-        <ul>
-          <li>Pubblicare contenuti diffamatori, offensivi, discriminatori, violenti o
-          illegali, o molestare altri utenti;</li>
-          <li>vendere o noleggiare i volumi, o pubblicizzare prodotti e servizi;</li>
-          <li>raccogliere in modo automatizzato i dati di altri utenti;</li>
-          <li>usare account altrui o tentare di accedere a parti del sistema non
-          autorizzate.</li>
-        </ul>
+          <section class="legal-section" id="comportamenti" aria-labelledby="comportamenti-titolo">
+            <h2 id="comportamenti-titolo"><span class="legal-section__num">6.</span> Comportamenti non ammessi</h2>
+            <ul>
+              <li>Pubblicare contenuti diffamatori, offensivi, discriminatori, violenti o
+              illegali, o molestare altri utenti;</li>
+              <li>vendere o noleggiare i volumi, o pubblicizzare prodotti e servizi;</li>
+              <li>raccogliere in modo automatizzato i dati di altri utenti;</li>
+              <li>usare account altrui o tentare di accedere a parti del sistema non
+              autorizzate.</li>
+            </ul>
+          </section>
 
-        <h2>7. Sospensione ed eliminazione</h2>
-        <p>In caso di violazione di questi termini gli amministratori possono nascondere
-        contenuti, <strong>sospendere</strong> l'account (l'accesso viene bloccato e
-        profilo, volumi e post spariscono finché la sospensione non viene revocata) o,
-        nei casi gravi, <strong>eliminarlo</strong> definitivamente; l'utente riceve
-        un'email di avviso. Ciascuno può eliminare in ogni momento il proprio account da
-        «Personalizza» → «Sicurezza dell'account»: l'eliminazione cancella anche i dati
-        collegati e non si può annullare.</p>
+          <section class="legal-section" id="sospensione" aria-labelledby="sospensione-titolo">
+            <h2 id="sospensione-titolo"><span class="legal-section__num">7.</span> Sospensione ed eliminazione</h2>
+            <p>In caso di violazione di questi termini gli amministratori possono nascondere
+            contenuti, <strong>sospendere</strong> l'account (l'accesso viene bloccato e
+            profilo, volumi e post spariscono finché la sospensione non viene revocata) o,
+            nei casi gravi, <strong>eliminarlo</strong> definitivamente; l'utente riceve
+            un'email di avviso. Ciascuno può eliminare in ogni momento il proprio account da
+            «Personalizza» → «Sicurezza dell'account»: l'eliminazione cancella anche i dati
+            collegati e non si può annullare.</p>
+          </section>
 
-        <h2>8. Contenuti e licenza</h2>
-        <p>I contenuti pubblicati (descrizioni, recensioni, post, messaggi) restano di
-        chi li ha scritti, che concede al gestore il diritto non esclusivo di mostrarli
-        all'interno del servizio finché restano pubblicati. Il codice sorgente di Lookup
-        è distribuito con licenza
-        <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener">GPL-3.0</a>.</p>
+          <section class="legal-section" id="contenuti" aria-labelledby="contenuti-titolo">
+            <h2 id="contenuti-titolo"><span class="legal-section__num">8.</span> Contenuti e licenza</h2>
+            <p>I contenuti pubblicati (descrizioni, recensioni, post, messaggi) restano di
+            chi li ha scritti, che concede al gestore il diritto non esclusivo di mostrarli
+            all'interno del servizio finché restano pubblicati. Il codice sorgente di Lookup
+            è distribuito con licenza
+            <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener">GPL-3.0</a>.</p>
+          </section>
 
-        <h2>9. Disponibilità del servizio</h2>
-        <p>Il gestore si impegna a mantenere il servizio funzionante e i dati al sicuro,
-        ma non può garantire che sia sempre disponibile e privo di errori. Può
-        modificarlo o interromperlo, avvisando gli utenti con un preavviso ragionevole
-        quando possibile.</p>
+          <section class="legal-section" id="attribuzioni" aria-labelledby="attribuzioni-titolo">
+            <h2 id="attribuzioni-titolo"><span class="legal-section__num">9.</span> Dati e attribuzioni</h2>
+            <p>Lookup usa alcuni dati pubblicati da terzi con licenze libere:</p>
+            <ul>
+              <li><strong>mappe</strong>: © contributori di
+              <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>,
+              licenza ODbL;</li>
+              <li><strong>elenco dei comuni</strong> usato dalla ricerca per luogo: confini
+              amministrativi © ISTAT, licenza
+              <a href="https://creativecommons.org/licenses/by/4.0/deed.it" target="_blank" rel="noopener">CC BY 4.0</a>,
+              nella versione GeoJSON curata da Openpolis; la posizione di ogni comune è il
+              centro geometrico del suo territorio;</li>
+              <li><strong>copertine</strong>: <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>,
+              a partire dal codice ISBN del volume.</li>
+            </ul>
+          </section>
 
-        <h2>10. Privacy</h2>
-        <p>Il trattamento dei dati personali è descritto
-        nell'<a href="privacy.html">informativa sulla privacy</a>.</p>
+          <section class="legal-section" id="disponibilita" aria-labelledby="disponibilita-titolo">
+            <h2 id="disponibilita-titolo"><span class="legal-section__num">10.</span> Disponibilità del servizio</h2>
+            <p>Il gestore si impegna a mantenere il servizio funzionante e i dati al sicuro,
+            ma non può garantire che sia sempre disponibile e privo di errori. Può
+            modificarlo o interromperlo, avvisando gli utenti con un preavviso ragionevole
+            quando possibile.</p>
+          </section>
 
-        <h2>11. Modifiche ai termini</h2>
-        <p>Questi termini possono cambiare quando cambia il servizio. La data in cima
-        indica l'ultima revisione; le modifiche importanti vengono comunicate agli
-        utenti iscritti.</p>
+          <section class="legal-section" id="privacy" aria-labelledby="privacy-titolo">
+            <h2 id="privacy-titolo"><span class="legal-section__num">11.</span> Privacy</h2>
+            <p>Il trattamento dei dati personali è descritto
+            nell'<a href="privacy.html">informativa sulla privacy</a>.</p>
+          </section>
 
-        <h2>12. Legge applicabile</h2>
-        <p>Questi termini sono regolati dalla legge italiana. Per le controversie con
-        chi usa il servizio come consumatore è competente il giudice del luogo di
-        residenza o domicilio del consumatore.</p>
+          <section class="legal-section" id="modifiche" aria-labelledby="modifiche-titolo">
+            <h2 id="modifiche-titolo"><span class="legal-section__num">12.</span> Modifiche ai termini</h2>
+            <p>Questi termini possono cambiare quando cambia il servizio. La data in cima
+            indica l'ultima revisione; le modifiche importanti vengono comunicate agli
+            utenti iscritti.</p>
+          </section>
 
+          <section class="legal-section" id="legge" aria-labelledby="legge-titolo">
+            <h2 id="legge-titolo"><span class="legal-section__num">13.</span> Legge applicabile</h2>
+            <p>Questi termini sono regolati dalla legge italiana. Per le controversie con
+            chi usa il servizio come consumatore è competente il giudice del luogo di
+            residenza o domicilio del consumatore.</p>
+          </section>
+
+          <p class="legal-doc__top"><a href="#main">Torna all'inizio</a></p>
+        </article>
       </div>
     </section>
   </main>
@@ -180,5 +246,6 @@
 
   <script type="module" src="js/api-bootstrap.js"></script>
   <script type="module" src="js/app.js"></script>
+  <script src="js/legal-toc.js" defer></script>
 </body>
 </html>

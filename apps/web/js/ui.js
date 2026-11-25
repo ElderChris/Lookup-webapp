@@ -1517,7 +1517,21 @@ export const UI = {
      importante per chi cerca un prestito di prossimità) e lo stato
      di disponibilità con un badge animato a colori d'accento.
      Le righe entrano con un'animazione a cascata. ------------- */
-  renderSearchResults(container, books) {
+  /** Distanza leggibile: "350 m", "1,2 km", "18 km" */
+  formatDistance(meters) {
+    if (meters == null) return '';
+    if (meters < 1000) return `${Math.max(10, Math.round(meters / 10) * 10)} m`;
+    const km = meters / 1000;
+    return km < 10
+      ? `${km.toLocaleString('it-IT', { maximumFractionDigits: 1 })} km`
+      : `${Math.round(km).toLocaleString('it-IT')} km`;
+  },
+
+  /**
+   * Risultati della ricerca. options.distanceFrom (es. "dal centro di Napoli")
+   * aggiunge la distanza della libreria quando il server la fornisce.
+   */
+  renderSearchResults(container, books, options = {}) {
     if (!books.length) {
       container.innerHTML = `<p class="alert alert--info">Nessun libro trovato con i filtri correnti. Prova ad allargare il raggio o a cambiare categoria.</p>`;
       return;
@@ -1552,6 +1566,11 @@ export const UI = {
               <span class="result-item__place-text">
                 <strong>${place}</strong>
                 <span class="result-item__owner">${isOrg ? '🏛 ' : ''}libreria di ${ownerLabel}</span>
+                ${
+                  options.distanceFrom && b.distanceMeters != null
+                    ? `<span class="result-item__distance">a ${this.formatDistance(b.distanceMeters)} ${esc(options.distanceFrom)}</span>`
+                    : ''
+                }
               </span>
             </div>
           </div>
@@ -2141,25 +2160,68 @@ export const UI = {
       if (d < 30) return `${d} g fa`;
       return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
     };
-    // Icona per tipo di notifica (tipi del server)
-    const ICONS = {
-      loan_requested: '📨',
-      loan_accepted: '✓',
-      loan_rejected: '✕',
-      loan_cancelled: '⊘',
-      loan_borrowed: '📖',
-      loan_returning: '↦',
-      loan_returned: '↦',
-      loan_message: '💬',
-      loan_overdue_borrower: '⏰',
-      loan_overdue_lender: '⏰',
-      loan_deadline_upcoming_borrower: '📅',
-      loan_deadline_upcoming_lender: '📅',
-      new_review: '★',
-      new_follower: '👤',
-      post_reaction: '👏',
+    // Icona per tipo di notifica (tipi del server): SVG a tratto, stesso
+    // stile della campanella, in un tondo colorato per tono
+    const svg = (paths) =>
+      `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+            stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+    const GLYPHS = {
+      envelope:
+        '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/>',
+      check: '<path d="M5 12.5 10 17.5 19 7"/>',
+      cross: '<path d="M6 6l12 12M18 6 6 18"/>',
+      ban: '<circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/>',
+      book: '<path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5z"/><path d="M12 6.5v13"/>',
+      undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+      checkCircle: '<circle cx="12" cy="12" r="8.5"/><path d="m8 12.5 3 3 5-6"/>',
+      chat: '<path d="M20 15a2 2 0 0 1-2 2H8l-4 3.5V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/>',
+      alert:
+        '<path d="M10.3 4.2 2.7 17.5A2 2 0 0 0 4.4 20.5h15.2a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4M12 17h.01"/>',
+      calendar:
+        '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M8 3v4M16 3v4M3.5 10h17"/>',
+      star: '<path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
+      userPlus:
+        '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M19 8v6M16 11h6"/>',
+      heart:
+        '<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/>',
+      info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/>',
     };
-    const icon = (t) => ICONS[t] || 'ℹ️';
+    // [glifo, tono]: neutral (bordeaux), success (verde), danger (rosso), warning (oro)
+    const ICONS = {
+      loan_requested: ['envelope', 'neutral'],
+      loan_accepted: ['check', 'success'],
+      loan_rejected: ['cross', 'danger'],
+      loan_cancelled: ['ban', 'danger'],
+      loan_borrowed: ['book', 'neutral'],
+      loan_returning: ['undo', 'neutral'],
+      loan_returned: ['checkCircle', 'success'],
+      loan_message: ['chat', 'neutral'],
+      loan_overdue_borrower: ['alert', 'danger'],
+      loan_overdue_lender: ['alert', 'danger'],
+      loan_deadline_upcoming_borrower: ['calendar', 'warning'],
+      loan_deadline_upcoming_lender: ['calendar', 'warning'],
+      new_review: ['star', 'warning'],
+      new_follower: ['userPlus', 'neutral'],
+      post_reaction: ['heart', 'neutral'],
+    };
+    const icon = (t) => {
+      const [glyph, tone] = ICONS[t] || ['info', 'neutral'];
+      return `<span class="notif__item-icon notif__item-icon--${tone}" aria-hidden="true">${svg(GLYPHS[glyph])}</span>`;
+    };
+
+    // Testo con il soggetto in grassetto: chi ha fatto l'azione ("Luca
+    // Esposito ha richiesto...") o, nei promemoria, il titolo del volume
+    const messageHtml = (n) => {
+      const msg = n.message || '';
+      const esc = (v) => UI._escapeHtml(v);
+      const actorName = n.actor?.displayName;
+      if (actorName && msg.startsWith(actorName)) {
+        return `<strong>${esc(actorName)}</strong>${esc(msg.slice(actorName.length))}`;
+      }
+      const quoted = msg.match(/^"[^"]+"/);
+      if (quoted) return `<strong>${esc(quoted[0])}</strong>${esc(msg.slice(quoted[0].length))}`;
+      return esc(msg);
+    };
 
     // Filtro attivo (stato di UI), persiste tra le aperture del pannello
     let activeFilter = 'all';
@@ -2213,9 +2275,9 @@ export const UI = {
       list.innerHTML = items
         .map(
           (n) => `<a class="notif__item ${n.isRead ? '' : 'is-unread'}" href="${hrefFor(n)}">
-          <span class="notif__item-icon" aria-hidden="true">${icon(n.type)}</span>
+          ${icon(n.type)}
           <span class="notif__item-body">
-            <span class="notif__item-msg">${UI._escapeHtml(n.message)}</span>
+            <span class="notif__item-msg">${messageHtml(n)}</span>
             <span class="notif__item-time">${timeAgo(n.createdAt)}</span>
           </span>
         </a>`
