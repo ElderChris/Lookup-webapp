@@ -83,6 +83,8 @@ function userPrivateDto(u, counts = {}) {
     lat: u.lat,
     lng: u.lng,
     locationPrecision: u.locationPrecision,
+    // "Accetto richieste di prestito" (impostazioni del profilo)
+    acceptsLoans: u.acceptsLoans,
     email: u.email,
     emailVerified: u.emailVerified,
     role: u.role,
@@ -281,16 +283,31 @@ export default async function usersRoutes(fastify) {
             // Lettore (borrower) o curatore della propria libreria
             libraryRole: { type: 'string', enum: ['borrower', 'curator'] },
             publicProfile: { type: 'boolean' },
+            // false: volumi fuori da ricerche, mappa ed elenchi e nessuna
+            // nuova richiesta di prestito (restano nella pagina della libreria)
+            acceptsLoans: { type: 'boolean' },
             // Campi OrganizationProfile (validi solo se accountType=='organization')
             organization: {
               type: 'object',
               properties: {
                 legalName: { type: 'string', maxLength: 200 },
-                orgCategory: { type: 'string', maxLength: 30 },
+                orgCategory: {
+                  type: 'string',
+                  enum: [
+                    'biblioteca_pubblica',
+                    'biblioteca_comunita',
+                    'libreria_indipendente',
+                    'associazione_culturale',
+                    'centro_studi',
+                    'scuola',
+                    'altro',
+                  ],
+                },
                 contactPerson: { type: 'string', maxLength: 120 },
-                website: { type: 'string', format: 'uri', maxLength: 300 },
-                publicEmail: { type: 'string', format: 'email', maxLength: 255 },
-                publicPhone: { type: 'string', maxLength: 30 },
+                // Facoltativi: null li cancella
+                website: { type: ['string', 'null'], format: 'uri', maxLength: 300 },
+                publicEmail: { type: ['string', 'null'], format: 'email', maxLength: 255 },
+                publicPhone: { type: ['string', 'null'], maxLength: 30 },
                 publicAddress: { type: 'string', maxLength: 200 },
                 openingHours: { type: 'string', maxLength: 5000 },
               },

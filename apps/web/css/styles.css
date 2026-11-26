@@ -3050,6 +3050,23 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 .site-nav .notif__item:last-child,
 .notif__item:last-child { border-bottom: none; }
+/* Riga: link alla notifica + pulsante per eliminarla (fuori dal link) */
+.notif__row { position: relative; border-bottom: 1px solid var(--color-line); }
+.notif__row:last-child { border-bottom: none; }
+.site-nav .notif__row .notif__item { border-bottom: none; padding-right: var(--sp-10); }
+.notif__remove {
+  position: absolute; top: var(--sp-2); right: var(--sp-2);
+  width: 28px; height: 28px; min-width: 0; min-height: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: transparent; color: var(--color-ink-soft);
+  font-size: 1.1rem; line-height: 1; cursor: pointer;
+  opacity: 0.55; transition: opacity 0.15s ease, background 0.15s ease;
+}
+.notif__row:hover .notif__remove,
+.notif__remove:focus-visible { opacity: 1; }
+.notif__remove:hover { background: var(--color-paper-dark); color: var(--color-burgundy); }
+.notif__remove:focus-visible { outline: 2px solid var(--color-burgundy); outline-offset: 1px; }
 .notif__item:hover { background: var(--color-paper-dark); }
 .notif__item.is-unread { background: rgba(122, 30, 43, 0.05); }
 .notif__item.is-unread .notif__item-msg::after {
@@ -5072,6 +5089,19 @@ a:hover { color: var(--color-burgundy-dk); }
 .legal-doc a {
   color: var(--color-burgundy);
 }
+
+/* ---- Profilo: impostazioni reali e prestiti in pausa ------------------ */
+.settings-block { margin-bottom: var(--sp-8); max-width: 46rem; }
+.settings-block h3 { font-family: var(--font-display); font-size: 1.2rem; margin: 0 0 var(--sp-3); }
+.settings-block__status { font-size: var(--fs-sm); color: var(--color-burgundy); margin: var(--sp-2) 0 0; }
+.settings-links { margin: 0; padding-left: 1.2rem; line-height: 1.6; }
+.settings-links li { margin-bottom: var(--sp-2); }
+.owner-box__note { margin: var(--sp-3) 0 0; }
+.library-paused { margin: 0 0 var(--sp-4); }
+.book-timeline { margin-top: var(--sp-8); }
+.book-timeline h2 { font-size: 1.3rem; margin: 0 0 var(--sp-2); }
+.book-timeline__totals { font-size: var(--fs-sm); color: var(--color-ink-soft); margin: 0 0 var(--sp-3); }
+.book-timeline__chart { position: relative; height: 240px; }
 
 /* ---- Pagine legali: sezioni e indice ------------------------------
    Privacy e Termini: testo a sinistra, indice a destra fisso durante lo

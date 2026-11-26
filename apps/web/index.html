@@ -545,7 +545,27 @@
          volumi preferiti. Le sezioni sono nascoste ai guest via CSS. */
       async function renderPersonalizedHome() {
         const me = window.LB_UI.currentUser();
-        if (!me) return;
+        if (!me) {
+          // Server non raggiungibile con un accesso fatto in precedenza: le
+          // sezioni personali restano visibili (indizio di accesso), quindi al
+          // posto dei segnaposto un messaggio come nelle altre sezioni
+          if (window.LB_AUTH_ERROR) {
+            const off = `<p style="color:var(--color-ink-soft);font-style:italic;">
+              Server non raggiungibile: riprova tra poco.</p>`;
+            const wTitle = document.getElementById('welcome-title');
+            if (wTitle) {
+              wTitle.textContent = 'Bentornato';
+              wTitle.removeAttribute('aria-busy');
+            }
+            ['follow-feed', 'liked-books'].forEach((id) => {
+              const box = document.getElementById(id);
+              if (!box) return;
+              box.removeAttribute('aria-busy');
+              box.innerHTML = off;
+            });
+          }
+          return;
+        }
         const esc = (v) => UI._escapeHtml(v);
 
         // Titolo di benvenuto con il nome evidenziato

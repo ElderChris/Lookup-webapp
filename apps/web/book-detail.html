@@ -185,6 +185,8 @@
 
       const owner = book.owner || {};
       const isOwner = !!me && me.id === owner.id;
+      // Il proprietario ha messo in pausa i prestiti (impostazioni del profilo)
+      const loansPaused = owner.acceptsLoans === false;
       const primaryCategory = window.LB_UI.bookCategory(book);
       const gradient = window.LB_UI.bookCoverGradient(book);
 
@@ -277,11 +279,18 @@
             <div class="owner-box__actions">
               ${isOwner
                 ? '<span class="badge">Il tuo volume</span>'
-                : book.available
-                  ? '<button class="btn btn--primary" id="request-loan-btn">Richiedi prestito</button>'
-                  : '<span class="badge badge--pending">Attualmente in prestito</span>'}
+                : loansPaused
+                  ? '<span class="badge badge--pending">Prestiti in pausa</span>'
+                  : book.available
+                    ? '<button class="btn btn--primary" id="request-loan-btn">Richiedi prestito</button>'
+                    : '<span class="badge badge--pending">Attualmente in prestito</span>'}
               <a href="library.html?id=${encodeURIComponent(owner.id || '')}" class="btn btn--ghost">Vai alla libreria</a>
             </div>
+            ${loansPaused
+              ? `<p class="form__help owner-box__note" role="note">${isOwner
+                  ? 'Hai messo in pausa i prestiti: il volume non compare nelle ricerche e non si può chiedere. Riattivali dalle <a href="profile.html#panel-settings">impostazioni del profilo</a>.'
+                  : 'Il proprietario non accetta richieste di prestito in questo periodo.'}</p>`
+              : ''}
           </div>
 
           <div style="margin-top: 2rem; display: flex; gap: 2rem; flex-wrap: wrap; font-size: .85rem; color: var(--color-ink-soft); font-family: var(--font-mono); letter-spacing: .1em; text-transform: uppercase;">
@@ -289,8 +298,20 @@
             <span>${book.requestCount ?? 0} richieste di prestito</span>
             ${book.createdAt ? `<span>Pubblicato il ${new Date(book.createdAt).toLocaleDateString('it-IT')}</span>` : ''}
           </div>
+
+          ${isOwner ? `
+          <section class="book-timeline" aria-labelledby="book-timeline-title">
+            <h2 id="book-timeline-title">Ultimi 30 giorni</h2>
+            <p class="book-timeline__totals" id="book-timeline-totals">Caricamento…</p>
+            <div class="book-timeline__chart">
+              <canvas id="book-timeline-chart" role="img"
+                      aria-label="Visualizzazioni, mi piace e richieste di prestito per giorno"></canvas>
+            </div>
+          </section>` : ''}
         </div>
       `;
+
+      if (isOwner) renderTimeline(book.id);
 
       // === Richiesta di prestito ===
       document.getElementById('request-loan-btn')
@@ -390,7 +411,10 @@
           UI.toast(`Richiesta inviata (per ${days} giorni). Il prestatore riceverà una notifica.`, 'success');
           setTimeout(() => (location.href = `loans.html#loan-${loan.id}`), 1200);
         } catch (err) {
-          UI.toast('Impossibile inviare la richiesta: ' + (err.message || 'riprova tra poco.'), 'error');
+          const why = err.code === 'LOANS_PAUSED'
+            ? 'il proprietario ha messo in pausa i prestiti.'
+            : err.message || 'riprova tra poco.';
+          UI.toast('Impossibile inviare la richiesta: ' + why, 'error');
           submitBtn.disabled = false;
         }
       });
@@ -430,6 +454,70 @@
         document.getElementById('other-books-count').textContent = '—';
       }
     });
+
+    /** Carica Chart.js (servito dal sito) solo quando serve */
+    function loadChartJs() {
+      if (window.Chart) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const sc = document.createElement('script');
+        sc.src = 'vendor/chartjs-4.4.0/chart.umd.min.js';
+        sc.onload = resolve;
+        sc.onerror = reject;
+        document.head.appendChild(sc);
+      });
+    }
+
+    /** Proprietario: visualizzazioni, "mi piace" e richieste degli ultimi
+        30 giorni (GET /api/books/:id/timeline) */
+    async function renderTimeline(bookId) {
+      const totalsEl = document.getElementById('book-timeline-totals');
+      let tl;
+      try {
+        tl = await window.LB_API.books.timeline(bookId, 30);
+      } catch (err) {
+        totalsEl.textContent = 'Server non raggiungibile: andamento non disponibile.';
+        return;
+      }
+      const n = (v, one, many) => `${v} ${v === 1 ? one : many}`;
+      totalsEl.textContent = [
+        n(tl.totals.views, 'visualizzazione', 'visualizzazioni'),
+        n(tl.totals.likes, 'nuovo «mi piace»', 'nuovi «mi piace»'),
+        n(tl.totals.loanRequests, 'richiesta di prestito', 'richieste di prestito'),
+      ].join(' · ');
+      try {
+        await loadChartJs();
+      } catch (_) {
+        return; // restano i totali
+      }
+      // Stessi caratteri della pagina
+      window.Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+      const labels = tl.series.map((p) =>
+        new Date(`${p.date}T12:00:00Z`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })
+      );
+      new window.Chart(document.getElementById('book-timeline-chart'), {
+        data: {
+          labels,
+          datasets: [
+            { type: 'bar', label: 'Visualizzazioni', data: tl.series.map((p) => p.views),
+              backgroundColor: 'rgba(122,30,43,0.55)', borderRadius: 2 },
+            { type: 'line', label: '«Mi piace»', data: tl.series.map((p) => p.likes),
+              borderColor: '#6e7a5a', backgroundColor: '#6e7a5a', tension: 0.3, pointRadius: 2 },
+            { type: 'line', label: 'Richieste di prestito', data: tl.series.map((p) => p.loanRequests),
+              borderColor: '#b08840', backgroundColor: '#b08840', tension: 0.3, pointRadius: 2 },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : undefined,
+          plugins: { legend: { position: 'bottom' } },
+          scales: {
+            y: { beginAtZero: true, ticks: { precision: 0 } },
+            x: { ticks: { autoSkip: true, maxRotation: 0 } },
+          },
+        },
+      });
+    }
   </script>
 </body>
 </html>

@@ -117,20 +117,67 @@
                 <span class="form__help">Tra 20 e 500 caratteri.</span>
               </div>
 
+              <div class="form__group">
+                <label class="form__label" for="city">Città / Quartiere *</label>
+                <input type="text" id="city" name="city"
+                       class="form__input" required minlength="2" maxlength="150"
+                       placeholder="Napoli, Vomero" />
+                <span class="form__help">L'email dell'account resta privata: non è mai mostrata agli altri utenti.</span>
+              </div>
+            </form>
+          </section>
+
+          <!-- =========== Dati dell'ente (solo account ente) =========== -->
+          <section class="builder-section" aria-labelledby="sec-org" id="org-section" hidden>
+            <h3 id="sec-org">Dati dell'ente</h3>
+            <p class="builder-section__lead">
+              Compaiono nella pagina pubblica dell'ente, nella scheda «Informazioni».
+            </p>
+            <form class="form" id="org-form" novalidate>
+              <div class="form__group">
+                <label class="form__label" for="org-legal-name">Denominazione ufficiale *</label>
+                <input type="text" id="org-legal-name" name="legal_name" class="form__input"
+                       required maxlength="200" autocomplete="off" />
+              </div>
               <div class="form__row">
                 <div class="form__group">
-                  <label class="form__label" for="city">Città / Quartiere *</label>
-                  <input type="text" id="city" name="city"
-                         class="form__input" required minlength="2" maxlength="150"
-                         placeholder="Napoli, Vomero" />
+                  <label class="form__label" for="org-category">Categoria di ente *</label>
+                  <select id="org-category" name="org_category" class="form__select" required></select>
                 </div>
                 <div class="form__group">
-                  <label class="form__label" for="email-pub">Email visibile?</label>
-                  <select id="email-pub" name="email_visible" class="form__select">
-                    <option value="false">No, mantieni nascosta</option>
-                    <option value="true">Sì, mostrala sul profilo</option>
-                  </select>
+                  <label class="form__label" for="org-contact">Referente *</label>
+                  <input type="text" id="org-contact" name="contact_person" class="form__input"
+                         required maxlength="120" autocomplete="off" />
                 </div>
+              </div>
+              <div class="form__row">
+                <div class="form__group">
+                  <label class="form__label" for="org-website">Sito web</label>
+                  <input type="url" id="org-website" name="website" class="form__input"
+                         maxlength="300" placeholder="https://…" autocomplete="url" />
+                </div>
+                <div class="form__group">
+                  <label class="form__label" for="org-phone">Telefono pubblico</label>
+                  <input type="tel" id="org-phone" name="public_phone" class="form__input"
+                         maxlength="30" autocomplete="off" />
+                </div>
+              </div>
+              <div class="form__group">
+                <label class="form__label" for="org-email">Email pubblica dell'ente</label>
+                <input type="email" id="org-email" name="public_email" class="form__input"
+                       maxlength="255" autocomplete="off" />
+                <span class="form__help">Facoltativa, visibile a tutti: usa un indirizzo dell'ente, non quello di accesso.</span>
+              </div>
+              <div class="form__group">
+                <label class="form__label" for="org-address">Indirizzo pubblico *</label>
+                <input type="text" id="org-address" name="public_address" class="form__input"
+                       required maxlength="200" autocomplete="off" />
+              </div>
+              <div class="form__group">
+                <label class="form__label" for="org-hours">Orari di apertura *</label>
+                <input type="text" id="org-hours" name="opening_hours" class="form__input"
+                       required maxlength="200" autocomplete="off"
+                       placeholder="Es. Lun–Ven 10:00–18:00 · Sab 10:00–13:00" />
               </div>
             </form>
           </section>
@@ -611,7 +658,26 @@
       document.getElementById('motto').value         = prefs.motto || '';
       document.getElementById('bio').value           = currentUser.bio || '';
       document.getElementById('city').value          = currentUser.city || '';
-      document.getElementById('email-pub').value     = String(prefs.showEmail);
+
+      // Dati dell'ente: solo per gli account ente, modificabili dopo l'iscrizione
+      const isOrg = currentUser.accountType === 'organization';
+      const orgForm = document.getElementById('org-form');
+      if (isOrg) {
+        document.getElementById('org-section').hidden = false;
+        const orgCat = document.getElementById('org-category');
+        Object.entries(window.LB_UI.ORG_CATEGORIES).forEach(([key, label]) => {
+          orgCat.add(new Option(label, key));
+        });
+        const org = myProfile?.organizationProfile || {};
+        document.getElementById('org-legal-name').value = org.legalName || '';
+        orgCat.value = window.LB_UI.ORG_CATEGORIES[org.orgCategory] ? org.orgCategory : 'altro';
+        document.getElementById('org-contact').value = org.contactPerson || '';
+        document.getElementById('org-website').value = org.website || '';
+        document.getElementById('org-phone').value = org.publicPhone || '';
+        document.getElementById('org-email').value = org.publicEmail || '';
+        document.getElementById('org-address').value = org.publicAddress || '';
+        document.getElementById('org-hours').value = org.openingHours || '';
+      }
 
       // Scelte a pulsanti: stile dell'avatar, tema, modalità di visualizzazione
       function setRadio(name, value) {
@@ -656,6 +722,7 @@
         r.addEventListener('change', () => { prefs.theme = r.value; paintCoverPicker(); }));
 
       /* ----- Validazione live sul form identità ----- */
+      if (isOrg) UI.attachLiveValidation(orgForm);
       UI.attachLiveValidation(document.getElementById('identity-form'), {
         bio: (v) => {
           const len = v.trim().length;
@@ -818,7 +885,13 @@
           f.classList.add('touched');
           f.dispatchEvent(new Event('blur'));
         });
-        if (!identityForm.checkValidity()) {
+        if (isOrg) {
+          orgForm.querySelectorAll('input, select').forEach((f) => {
+            f.classList.add('touched');
+            f.dispatchEvent(new Event('blur'));
+          });
+        }
+        if (!identityForm.checkValidity() || (isOrg && !orgForm.checkValidity())) {
           UI.toast('Correggi i campi evidenziati prima di salvare.', 'error');
           return;
         }
@@ -835,7 +908,6 @@
           coverDesign: selectedCover,
           motto: document.getElementById('motto').value.trim() || null,
           sortBy: document.getElementById('sort-by').value,
-          showEmail: document.getElementById('email-pub').value === 'true',
         };
 
         // Salvataggio sul server: profilo e preferenze
@@ -844,6 +916,20 @@
         try {
           // Livello di privacy sempre; coordinate solo se cambiate
           const profilePatch = { displayName, bio, city, locationPrecision: selectedPrecision() };
+          if (isOrg) {
+            // Facoltativi vuoti = cancellati (null); obbligatori controllati sopra
+            const val = (id) => document.getElementById(id).value.trim();
+            profilePatch.organization = {
+              legalName: val('org-legal-name'),
+              orgCategory: document.getElementById('org-category').value,
+              contactPerson: val('org-contact'),
+              website: val('org-website') || null,
+              publicPhone: val('org-phone') || null,
+              publicEmail: val('org-email') || null,
+              publicAddress: val('org-address'),
+              openingHours: val('org-hours'),
+            };
+          }
           if (locationChanged) {
             profilePatch.lat = myLocation ? myLocation.lat : null;
             profilePatch.lng = myLocation ? myLocation.lng : null;

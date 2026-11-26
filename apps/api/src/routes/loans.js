@@ -244,9 +244,10 @@ export default async function loansRoutes(fastify) {
           type: 'object',
           properties: {
             message: { type: 'string', maxLength: 2000 },
-            // durata prestito richiesta (default 14 giorni). Usata dal
+            // durata prestito richiesta (default 14 giorni), da 5 a 28 come
+            // nella finestra di richiesta e nei termini di utilizzo. Usata dal
             // job overdue-loans per calcolare la deadline al passaggio a 'borrowed'.
-            daysRequested: { type: 'integer', minimum: 1, maximum: 365 },
+            daysRequested: { type: 'integer', minimum: 5, maximum: 28 },
           },
           additionalProperties: false,
         },
@@ -266,7 +267,7 @@ export default async function loansRoutes(fastify) {
           status: true,
           loanPolicy: true,
           available: true,
-          owner: { select: { status: true } },
+          owner: { select: { status: true, acceptsLoans: true } },
         },
       });
       // Solo volumi pubblicati di account attivi
@@ -286,6 +287,15 @@ export default async function loansRoutes(fastify) {
       if (book.ownerId === requesterId) {
         return reply.status(400).send({
           error: { code: 'SELF_LOAN', message: 'Non puoi richiedere in prestito un tuo libro' },
+        });
+      }
+      // Il proprietario ha messo in pausa i prestiti (impostazioni del profilo)
+      if (!book.owner.acceptsLoans) {
+        return reply.status(409).send({
+          error: {
+            code: 'LOANS_PAUSED',
+            message: 'Il proprietario non accetta richieste di prestito in questo periodo',
+          },
         });
       }
 

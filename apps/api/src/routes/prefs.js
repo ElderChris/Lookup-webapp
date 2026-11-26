@@ -26,7 +26,6 @@ const DEFAULT_PREFS = {
   motto: null,
   sortBy: 'recent',
   coverDesign: null,
-  showEmail: false,
 };
 
 function toDto(row, userId) {
@@ -39,7 +38,6 @@ function toDto(row, userId) {
     motto: row?.motto ?? null,
     sortBy: row?.sortBy ?? DEFAULT_PREFS.sortBy,
     coverDesign: row?.coverDesign ?? null,
-    showEmail: row?.showEmail ?? DEFAULT_PREFS.showEmail,
     updatedAt: (row?.updatedAt ?? new Date()).toISOString(),
   };
 }
@@ -79,7 +77,6 @@ export default async function prefsRoutes(fastify) {
             motto: { type: ['string', 'null'], maxLength: 120 },
             sortBy: { type: 'string', enum: ['recent', 'title', 'author', 'year'] },
             coverDesign: { type: ['string', 'null'], maxLength: 40 },
-            showEmail: { type: 'boolean' },
           },
         },
       },
@@ -102,7 +99,7 @@ export default async function prefsRoutes(fastify) {
   // GET /api/users/:id/prefs — Preferenze pubbliche di un altro utente
   // ===========================================================================
   // Ritorna solo il subset "visibile" (theme, motto, coverDesign, avatar).
-  // Il resto (viewMode, sortBy, showEmail) resta privato.
+  // Il resto (viewMode, sortBy) resta privato.
   fastify.get(
     '/api/users/:id/prefs',
     {

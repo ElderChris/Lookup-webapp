@@ -4,8 +4,6 @@
 // GET /api/me/export → dump JSON completo dei dati personali dell'utente
 // corrente (art. 20 GDPR — data portability). Il client scarica il file
 // e puo' importarlo altrove o conservarlo.
-//
-// Rate limited (uno ogni 15 min per utente per evitare abuse).
 // =============================================================================
 
 import { requireUserId } from '../lib/authHelpers.js';
@@ -22,7 +20,7 @@ export default async function dataExportRoutes(fastify) {
     async (request, reply) => {
       const userId = await requireUserId(request);
 
-      // 10 query paralleli per raccogliere tutto
+      // Query in parallelo per raccogliere tutto
       const [
         user,
         orgProfile,
@@ -36,6 +34,8 @@ export default async function dataExportRoutes(fastify) {
         following,
         followers,
         likes,
+        postReactions,
+        notifications,
       ] = await Promise.all([
         fastify.prisma.user.findUnique({ where: { id: userId } }),
         fastify.prisma.organizationProfile.findUnique({ where: { userId } }),
@@ -86,6 +86,23 @@ export default async function dataExportRoutes(fastify) {
           },
         }),
         fastify.prisma.like.findMany({ where: { userId }, select: { bookId: true } }),
+        fastify.prisma.postReaction.findMany({
+          where: { userId },
+          select: { postId: true, emoji: true, createdAt: true },
+        }),
+        fastify.prisma.notification.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            type: true,
+            message: true,
+            bookId: true,
+            loanId: true,
+            createdAt: true,
+            readAt: true,
+          },
+        }),
       ]);
 
       if (!user)
@@ -139,6 +156,8 @@ export default async function dataExportRoutes(fastify) {
           followers: followers.map((f) => f.follower),
         },
         likes: likes.map((l) => l.bookId),
+        postReactions,
+        notifications,
       };
 
       // Filename friendly (fallback se username ha caratteri strani)

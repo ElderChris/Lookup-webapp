@@ -53,6 +53,7 @@ export default async function libraryRoutes(fastify) {
             city: true,
             avatarUrl: true,
             libraryRole: true,
+            acceptsLoans: true,
             lat: true,
             lng: true,
             locationPrecision: true,
@@ -124,6 +125,9 @@ export default async function libraryRoutes(fastify) {
         city: isOwner ? user.city : user.publicCity,
         avatarUrl: user.avatarUrl,
         libraryRole: user.libraryRole,
+        // Prestiti in pausa (impostazioni del profilo): visibile a tutti,
+        // spiega perche' i volumi non si possono chiedere
+        acceptsLoans: user.acceptsLoans,
         lat: isOwner ? user.lat : user.publicLat,
         lng: isOwner ? user.lng : user.publicLng,
         ...(isOwner ? { locationPrecision: user.locationPrecision } : {}),
@@ -158,7 +162,6 @@ export default async function libraryRoutes(fastify) {
             motto: prefs.motto,
             sortBy: prefs.sortBy,
             coverDesign: prefs.coverDesign,
-            showEmail: prefs.showEmail,
             updatedAt: prefs.updatedAt.toISOString(),
           }
         : null;

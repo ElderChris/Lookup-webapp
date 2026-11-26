@@ -91,3 +91,11 @@ export function userVisibilityHook(fastify, getViewerId) {
     });
   };
 }
+
+/** Account con email da confermare (anche gli attivi mai confermati delle
+    versioni precedenti), esclusi sospesi ed eliminati: usato da indicatori
+    e filtri dell'amministrazione */
+export const UNCONFIRMED_WHERE = {
+  emailVerified: false,
+  status: { notIn: ['suspended', 'deleted'] },
+};

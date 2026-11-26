@@ -69,7 +69,6 @@ export const UserPreferencesDto = z.object({
   motto: z.string().max(120).nullable(),
   sortBy: z.enum(['recent', 'title', 'author', 'year']).default('recent'),
   coverDesign: z.string().max(40).nullable(),
-  showEmail: z.boolean().default(false),
   updatedAt: IsoDateTime,
 });
 
@@ -82,7 +81,6 @@ export const UpdatePrefsBody = z.object({
   motto: z.string().max(120).nullable().optional(),
   sortBy: z.enum(['recent', 'title', 'author', 'year']).optional(),
   coverDesign: z.string().max(40).nullable().optional(),
-  showEmail: z.boolean().optional(),
 }).strict();
 
 // -----------------------------------------------------------------------------

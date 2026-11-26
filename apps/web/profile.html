@@ -139,77 +139,46 @@
         </div>
       </div>
 
-      <!-- Pannello: impostazioni -->
+      <!-- Pannello: impostazioni (solo impostazioni reali, salvate sul server) -->
       <div role="tabpanel" id="panel-settings" aria-labelledby="tab-settings" hidden>
-        <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem;">Impostazioni di privacy</h2>
-        <form class="form">
+        <h2 style="font-size: 1.5rem; margin-bottom: 1.5rem;">Impostazioni</h2>
 
-          <div class="form__group">
-            <label class="form__label" for="visibility">Visibilità del profilo</label>
-            <select id="visibility" class="form__select">
-              <option>Pubblico — visibile a tutti gli utenti</option>
-              <option>Semi-pubblico — solo utenti registrati</option>
-              <option>Privato — solo su invito</option>
-            </select>
-          </div>
-
-          <div class="form__group">
-            <label class="form__label" for="loc-precision">Precisione della posizione sulla mappa</label>
-            <select id="loc-precision" class="form__select">
-              <option>Indirizzo preciso</option>
-              <option selected>Zona / quartiere (±200 m)</option>
-              <option>Solo città</option>
-              <option>Non mostrare posizione</option>
-            </select>
-            <span class="form__help">Raccomandiamo di non mostrare l\'indirizzo preciso.</span>
-          </div>
-
+        <section class="settings-block" aria-labelledby="settings-loans-title">
+          <h3 id="settings-loans-title">Prestiti</h3>
           <div class="form__check">
-            <input type="checkbox" id="show-email" />
-            <label for="show-email">Rendi visibile la mia email ai richiedenti che accetto</label>
+            <input type="checkbox" id="accepts-loans" />
+            <label for="accepts-loans">Accetto richieste di prestito</label>
           </div>
-
-          <div class="form__check">
-            <input type="checkbox" id="allow-loans" checked />
-            <label for="allow-loans">Accetto richieste di prestito</label>
-          </div>
-
-          <div class="form__check">
-            <input type="checkbox" id="allow-msg" checked />
-            <label for="allow-msg">Accetto messaggi da altri utenti</label>
-          </div>
-
-          <div class="form__check">
-            <input type="checkbox" id="newsletter" />
-            <label for="newsletter">Iscrivimi alla newsletter mensile</label>
-          </div>
-
-          <h3 style="margin-top: 2rem;">I tuoi diritti (GDPR)</h3>
-          <p style="color: var(--color-ink-soft); font-size: .9rem;">
-            In qualsiasi momento puoi:
+          <p class="form__help" id="accepts-loans-help">
+            Se la disattivi, i tuoi volumi escono da ricerche, mappa ed elenchi della
+            comunità e nessuno può chiederli in prestito; restano visibili nella pagina
+            della tua libreria. I prestiti già in corso continuano normalmente.
           </p>
-          <div style="display: flex; gap: .75rem; flex-wrap: wrap;">
-            <button type="button" class="btn btn--ghost btn--small">Scarica i miei dati (JSON)</button>
-            <button type="button" class="btn btn--ghost btn--small">Rettifica dati</button>
-            <button type="button" class="btn btn--ghost btn--small" style="color: var(--color-burgundy); border-color: var(--color-burgundy);">Elimina account</button>
-          </div>
+          <p class="settings-block__status" id="accepts-loans-status" aria-live="polite"></p>
+        </section>
 
-          <!-- GDPR data export -->
-          <div class="gdpr-export">
-            <h3>Esporta i tuoi dati</h3>
-            <p>In conformità al GDPR (art. 20 — diritto di portabilità), puoi
-            scaricare in qualsiasi momento un archivio JSON con tutto quanto la
-            piattaforma sa di te: profilo, preferenze, libri pubblicati, prestiti,
-            messaggi della chat, recensioni ricevute e scritte, notifiche.</p>
-            <button type="button" id="gdpr-export-btn" class="btn btn--ghost">
-              <span aria-hidden="true">↓</span> Scarica i miei dati (JSON)
-            </button>
-          </div>
+        <section class="settings-block" aria-labelledby="settings-privacy-title">
+          <h3 id="settings-privacy-title">Posizione e account</h3>
+          <ul class="settings-links">
+            <li><a href="profile-setup.html#sec-privacy">Privacy della posizione</a>: quanto mostrare
+              agli altri il punto della tua libreria (nascosta, città, zona, esatta).</li>
+            <li><a href="profile-setup.html#sec-security">Sicurezza dell'account</a>: sessioni attive,
+              cambio della password, eliminazione dell'account.</li>
+          </ul>
+        </section>
 
-          <div style="margin-top: 2rem;">
-            <button type="submit" class="btn btn--primary">Salva impostazioni</button>
-          </div>
-        </form>
+        <!-- Esportazione dei dati (GDPR) -->
+        <div class="gdpr-export">
+          <h3>Esporta i tuoi dati</h3>
+          <p>In conformità al GDPR (art. 20 — diritto di portabilità), puoi
+          scaricare in qualsiasi momento un archivio JSON con tutto quanto la
+          piattaforma sa di te: profilo, preferenze, libri pubblicati, prestiti,
+          messaggi della chat, recensioni ricevute e scritte, post e reazioni,
+          persone seguite, «mi piace», notifiche.</p>
+          <button type="button" id="gdpr-export-btn" class="btn btn--ghost">
+            <span aria-hidden="true">↓</span> Scarica i miei dati (JSON)
+          </button>
+        </div>
       </div>
 
     </section>
@@ -417,6 +386,21 @@
             La tua libreria è configurata ma <strong>non ancora elencabile dagli altri
             membri</strong>: pubblica almeno un volume per apparire nelle ricerche
             e nelle pagine pubbliche della comunità.
+          </div>`;
+        headerActions.hidden = false;
+      } else if (user.acceptsLoans === false) {
+        // (d) Prestiti in pausa: volumi solo nella pagina della libreria
+        pill.hidden = false;
+        pill.className = 'visibility-pill visibility-pill--empty';
+        pill.innerHTML = '<span aria-hidden="true">⏸</span> prestiti in pausa';
+        banner.hidden = false;
+        banner.className = 'visibility-banner visibility-banner--soft';
+        banner.innerHTML = `
+          <span class="visibility-banner__icon" aria-hidden="true">ⓘ</span>
+          <div>
+            Hai messo in pausa i prestiti: i tuoi volumi <strong>non compaiono nelle
+            ricerche e sulla mappa</strong> e nessuno può chiederli. Riattivali dalle
+            <a href="#panel-settings" data-open-tab="settings">Impostazioni</a>.
           </div>`;
         headerActions.hidden = false;
       } else {
@@ -849,6 +833,47 @@
       // dalle stelle o dalle notifiche, #panel-posts dalle reazioni, ...)
       const hashTab = location.hash.match(/^#panel-([a-z]+)$/);
       if (hashTab) document.getElementById(`tab-${hashTab[1]}`)?.click();
+      // Link interni alle schede (es. dal riquadro "prestiti in pausa")
+      document.addEventListener('click', (e) => {
+        const link = e.target.closest('[data-open-tab]');
+        if (!link) return;
+        e.preventDefault();
+        const tab = document.getElementById(`tab-${link.dataset.openTab}`);
+        tab?.click();
+        tab?.scrollIntoView({ behavior: window.LB_UI.scrollBehavior(), block: 'start' });
+      });
+
+      // "Accetto richieste di prestito": salvata subito sul server
+      const acceptsLoans = document.getElementById('accepts-loans');
+      const acceptsStatus = document.getElementById('accepts-loans-status');
+      const paintAccepts = (on) => {
+        acceptsLoans.checked = on;
+        acceptsStatus.textContent = on
+          ? ''
+          : 'Prestiti in pausa: i tuoi volumi non compaiono nelle ricerche e non si possono chiedere.';
+      };
+      paintAccepts(user.acceptsLoans !== false);
+      acceptsLoans.addEventListener('change', async () => {
+        const on = acceptsLoans.checked;
+        acceptsLoans.disabled = true;
+        try {
+          await window.LB_API.users.updateMe({ acceptsLoans: on });
+          user.acceptsLoans = on;
+          paintAccepts(on);
+          // Riquadro sopra la libreria: aggiornato al prossimo caricamento,
+          // intanto lo si toglie se i prestiti tornano attivi
+          if (on && pill.innerHTML.includes('prestiti in pausa')) {
+            pill.hidden = true;
+            banner.hidden = true;
+          }
+          UI.toast(on ? 'Richieste di prestito riattivate.' : 'Prestiti in pausa.', 'success');
+        } catch (err) {
+          paintAccepts(!on);
+          UI.toast('Server non raggiungibile: impostazione non salvata. Riprova tra poco.', 'error');
+        } finally {
+          acceptsLoans.disabled = false;
+        }
+      });
 
       // Esportazione dei dati (GDPR): GET /api/me/export, scaricato come JSON
       const exportBtn = document.getElementById('gdpr-export-btn');
