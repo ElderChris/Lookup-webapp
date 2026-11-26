@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <!-- Beta 9: PWA meta tags -->
+  <!-- PWA meta tags -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#7a1e2b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -12,9 +12,10 @@
   <link rel="apple-touch-icon" href="/img/icon-180.png" />
 
   <title>Accedi — Lookup</title>
-  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="js/auth-hint.js"></script>
   <script type="module" src="js/api-bootstrap.js"></script>
-  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+  <script type="module" src="js/app.js"></script>
 </head>
 <body>
 
@@ -41,7 +42,7 @@
     <section class="section container container--narrow">
       <span class="eyebrow">area riservata</span>
       <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">
-        Bentornato
+        Accedi
       </h1>
       <p style="color: var(--color-ink-soft); margin-bottom: 2rem;">
         Accedi per gestire la tua biblioteca, rispondere alle richieste di prestito
@@ -49,8 +50,13 @@
       </p>
 
       <form class="form" id="login-form" novalidate>
-        <!-- v2.2: errore in cima alla form -->
+        <!-- errore in cima alla form -->
         <div id="login-error" class="form__error-banner" hidden></div>
+        <div id="resend-box" class="alert alert--info" role="status" hidden>
+          <p style="margin: 0 0 .5rem;">Non trovi l'email di conferma?</p>
+          <button type="button" class="btn btn--ghost btn--small" id="resend-btn">Inviala di nuovo</button>
+          <p id="resend-msg" aria-live="polite" style="margin: .5rem 0 0; font-size: .9rem;"></p>
+        </div>
 
         <div class="form__group">
           <label class="form__label" for="email">Email</label>
@@ -65,7 +71,7 @@
         </div>
 
         <div class="form__check">
-          <input type="checkbox" id="remember" />
+          <input type="checkbox" id="remember" checked />
           <label for="remember">Ricordami su questo dispositivo</label>
         </div>
 
@@ -83,99 +89,118 @@
       </form>
 
       <script>
-        // Fase 3.2: login via Better Auth (cookie session firmato)
-        // - Il legacy API.authenticate accettava username OR email; Better
-        //   Auth accetta solo email → se l'input non contiene "@", lo
-        //   trattiamo come username e facciamo lookup /api/users/by-username
-        //   (o meglio, chiediamo direttamente l'email nel form — semplice).
-        // - Il cookie httpOnly `better-auth.session_token` viene settato dal
-        //   backend automaticamente. Il frontend NON lo vede (piu' sicuro).
-        // - Fallback legacy: se il backend e' offline, prova API.authenticate.
-        document.getElementById('login-form').addEventListener('submit', async e => {
-          e.preventDefault();
-          const usernameOrEmail = document.getElementById('email').value.trim();
-          const password = document.getElementById('password').value;
+        // Accesso con email e password. La sessione e' un cookie httpOnly
+        // impostato dal server. Un account non ancora confermato non entra:
+        // si puo' chiedere un nuovo invio dell'email di conferma.
+        document.addEventListener('DOMContentLoaded', () => {
+          const form = document.getElementById('login-form');
           const errBox = document.getElementById('login-error');
-          const submitBtn = e.target.querySelector('button[type="submit"]');
-          errBox.hidden = true;
+          const resendBox = document.getElementById('resend-box');
+          const resendBtn = document.getElementById('resend-btn');
+          const resendMsg = document.getElementById('resend-msg');
+          const submitBtn = form.querySelector('button[type="submit"]');
+          const next = window.LB_UI.safeNextPath(new URLSearchParams(location.search).get('next'));
 
-          if (!usernameOrEmail || !password) {
-            errBox.textContent = 'Inserisci email e password.';
+          const MESSAGES = {
+            INVALID_EMAIL_OR_PASSWORD: 'Email o password non corretti.',
+            INVALID_CREDENTIALS: 'Email o password non corretti.',
+            INVALID_EMAIL: 'Email non valida.',
+            RATE_LIMITED: 'Troppi tentativi. Riprova tra qualche minuto.',
+            NETWORK_ERROR: 'Server non raggiungibile. Riprova tra poco.',
+          };
+
+          function showError(text) {
+            errBox.textContent = text;
             errBox.hidden = false;
-            return;
           }
 
-          submitBtn.disabled = true;
-          submitBtn.textContent = 'Accesso in corso...';
+          form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('remember').checked;
+            errBox.hidden = true;
+            resendBox.hidden = true;
 
-          // Tenta Better Auth se backend UP
-          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-            try {
-              const email = usernameOrEmail.includes('@') ? usernameOrEmail : null;
-              if (!email) {
-                errBox.textContent = 'Accedi con il tuo indirizzo email: l\'accesso con il nome utente non è disponibile.';
-                errBox.hidden = false;
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Accedi';
-                return;
-              }
-              const result = await window.LB_API.authClient.signIn({ email, password });
-              // Login OK: sincronizza legacy Storage per pagine ancora non migrate
-              const user = result.user;
-              try {
-                // Beta 2: current_user_id non piu' sincronizzato (bootstrap legge da session cookie)
-                localStorage.setItem('auth_state', JSON.stringify('user'));
-              } catch (_) {}
-              // Redirect: admin → admin.html, altri → profile.html
-              location.href = user.role === 'admin' ? 'admin.html' : 'profile.html';
-              return;
-            } catch (err) {
-              // Errori Better Auth normalizzati
-              const msgMap = {
-                'INVALID_CREDENTIALS': 'Email o password non corretti.',
-                'USER_NOT_FOUND': 'Nessun account corrisponde a questa email.',
-                'INVALID_EMAIL': 'Email non valida.',
-                'INVALID_PASSWORD': 'Password non corretta.',
-                'RATE_LIMITED': 'Troppi tentativi. Riprova tra qualche minuto.',
-                'EMAIL_NOT_VERIFIED': 'Devi verificare la tua email prima di accedere. Controlla la posta.',
-              };
-              errBox.textContent = msgMap[err.code] || err.message || 'Errore di accesso.';
-              errBox.hidden = false;
-              submitBtn.disabled = false;
-              submitBtn.textContent = 'Accedi';
+            if (!email || !password) {
+              showError('Inserisci email e password.');
               return;
             }
-          }
 
-          // Fallback legacy (backend offline)
-          const result = API.authenticate(usernameOrEmail, password);
-          if (!result.ok) {
-            const msgMap = {
-              'missing-credentials': 'Inserisci email e password.',
-              'user-not-found': 'Nessun account corrisponde a queste credenziali.',
-              'wrong-password': 'Password non corretta.',
-              'password-too-short': 'La password deve essere lunga almeno 8 caratteri.'
-            };
-            errBox.textContent = msgMap[result.reason] || 'Errore di accesso.';
-            errBox.hidden = false;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Accesso in corso...';
+            try {
+              const { user } = await window.LB_API.authClient.signIn({ email, password, rememberMe });
+              window.LB_UI.setAuthState('user');
+              location.href = next || (user.role === 'admin' ? 'admin.html' : 'profile.html');
+              return;
+            } catch (err) {
+              if (err.code === 'EMAIL_NOT_VERIFIED') {
+                showError("Prima di accedere conferma l'indirizzo email: apri il link che ti abbiamo inviato.");
+                resendMsg.textContent = '';
+                resendBtn.disabled = false;
+                resendBox.hidden = false;
+              } else {
+                showError(MESSAGES[err.code] || err.message || 'Accesso non riuscito.');
+              }
+            }
             submitBtn.disabled = false;
             submitBtn.textContent = 'Accedi';
-            return;
-          }
-          location.href = result.user.is_admin ? 'admin.html' : 'profile.html';
+          });
+
+          resendBtn.addEventListener('click', async () => {
+            const email = document.getElementById('email').value.trim();
+            resendBtn.disabled = true;
+            try {
+              await window.LB_API.authClient.sendVerificationEmail({
+                email,
+                callbackURL: window.LB_API.authClient.verifyPageUrl(next),
+              });
+              resendMsg.textContent = `Email inviata a ${email}. Controlla anche la cartella spam.`;
+            } catch (err) {
+              resendMsg.textContent =
+                err.code === 'RATE_LIMITED'
+                  ? 'Hai già chiesto diversi invii: riprova fra qualche minuto.'
+                  : 'Invio non riuscito. Riprova tra poco.';
+              resendBtn.disabled = false;
+            }
+          });
         });
       </script>
     </section>
 
   </main>
 
-  <footer class="site-footer">
+  <footer class="site-footer" role="contentinfo">
     <div class="container">
-      <div><h4>Lookup</h4></div>
-      <div></div>
-      <div></div>
-      <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Lookup</span><span>v3.0.0-alpha.0</span></div>
+      <div>
+        <h4>Lookup</h4>
+        <p style="color: rgba(244,239,230,.7); font-size: .9rem;">
+          Condivisione dei libri privati e delle biblioteche di comunità, fra vicini.
+        </p>
+      </div>
+      <div>
+        <h4>Esplora</h4>
+        <a href="explore.html">Mappa dei libri</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="loans.html" class="auth-only">I miei prestiti</a>
+      </div>
+      <div>
+        <h4>Partecipa</h4>
+        <a href="add-book.html" class="auth-only">Pubblica un libro</a>
+        <a href="profile.html" class="auth-only">Il tuo profilo</a>
+        <a href="register.html" class="guest-only">Iscriviti</a>
+        <a href="login.html" class="guest-only">Accedi</a>
+      </div>
+      <div>
+        <h4>Informazioni</h4>
+        <a href="privacy.html">Informativa sulla privacy</a>
+        <a href="terms.html">Termini di utilizzo</a>
+      </div>
+      <div class="site-footer__colophon">
+        <span>© 2026 Lookup</span>
+        <span>Codice con licenza GPL-3.0<span data-app-version></span></span>
+      </div>
     </div>
   </footer>
 </body>

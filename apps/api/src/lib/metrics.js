@@ -1,5 +1,5 @@
 // =============================================================================
-// src/lib/metrics.js — Registry Prometheus + metriche di Lookup (Beta 10)
+// src/lib/metrics.js — Registry Prometheus + metriche di Lookup
 // =============================================================================
 // Definisce le metriche esposte su /metrics per lo scraping Prometheus.
 //

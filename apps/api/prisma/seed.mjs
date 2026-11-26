@@ -3,23 +3,18 @@
 // =============================================================================
 // Esegue: npm run db:seed (da apps/api/) oppure cd apps/api && npx prisma db seed
 //
-// Popola il database con dati di test che riproducono i SAMPLE_* del frontend
-// (apps/web/js/data.js). In Fase 1b si seedano:
+// Popola il database con dati di prova derivati da quelli del prototipo
+// (archive/prototipo/js/data.js):
 //   - 11 utenti (6 persone + 5 organizzazioni/librerie)
-//   - Tassonomia BISAC essenziale (~15 categorie)
+//   - Tassonomia BISAC completa (prisma/taxonomy.mjs, 81 generi)
 //   - 20 libri di esempio (subset di SAMPLE_BOOKS)
 //   - Preferenze utente (UserPreference) per chi le ha settate
 //   - Profili organizzazione (OrganizationProfile) per i 5 enti
 //
-// In Fase 1b.2 (next session) espanderemo a:
-//   - Tutti i 50+ libri di SAMPLE_BOOKS
-//   - LoanRequest, LoanMessage, Review
-//   - Follow, Like, Notification
-//   - Post, PostReaction, PostReport
-//
 // Idempotenza: lo script usa upsert dove possibile, e disconnette pulito alla fine.
 // =============================================================================
 
+import { CATEGORIES } from './taxonomy.mjs';
 import { createPrismaClient } from '../src/lib/prismaClient.js';
 import { hashPassword } from 'better-auth/crypto';
 
@@ -195,58 +190,8 @@ const USERS = [
 ];
 
 // =============================================================================
-// 2. CATEGORIE BISAC (essenziali)
+// 2. CATEGORIE BISAC: tassonomia completa in prisma/taxonomy.mjs
 // =============================================================================
-// Subset rappresentativo: 4 macro-aree + alcune sotto-categorie.
-// La gerarchia completa sarà popolata da uno script BISAC dedicato in 1b.2.
-const CATEGORIES = [
-  // Macro-aree (parent NULL)
-  { id: 1, name: 'Narrativa', slug: 'narrativa', bisacCode: 'FIC000000', parentId: null },
-  { id: 2, name: 'Saggistica', slug: 'saggistica', bisacCode: 'NON000000', parentId: null },
-  { id: 3, name: 'Poesia', slug: 'poesia', bisacCode: 'POE000000', parentId: null },
-  { id: 4, name: 'Ragazzi', slug: 'ragazzi', bisacCode: 'JUV000000', parentId: null },
-
-  // Sotto-categorie di Narrativa
-  { id: 5, name: 'Gialli e noir', slug: 'gialli-noir', bisacCode: 'FIC022000', parentId: 1 },
-  { id: 6, name: 'Fantascienza', slug: 'fantascienza', bisacCode: 'FIC028000', parentId: 1 },
-  {
-    id: 7,
-    name: 'Letteratura italiana',
-    slug: 'letteratura-italiana',
-    bisacCode: 'FIC019000',
-    parentId: 1,
-  },
-  {
-    id: 8,
-    name: 'Letteratura straniera',
-    slug: 'letteratura-straniera',
-    bisacCode: 'FIC019100',
-    parentId: 1,
-  },
-  { id: 9, name: 'Classici', slug: 'classici', bisacCode: 'FIC004000', parentId: 1 },
-
-  // Sotto-categorie di Saggistica
-  { id: 10, name: 'Storia', slug: 'storia', bisacCode: 'HIS000000', parentId: 2 },
-  { id: 11, name: 'Filosofia', slug: 'filosofia', bisacCode: 'PHI000000', parentId: 2 },
-  { id: 12, name: 'Storia locale', slug: 'storia-locale', bisacCode: 'HIS037000', parentId: 2 },
-  {
-    id: 13,
-    name: 'Politica e società',
-    slug: 'politica-societa',
-    bisacCode: 'POL000000',
-    parentId: 2,
-  },
-
-  // Sotto-categorie di Poesia
-  { id: 14, name: 'Poesia italiana', slug: 'poesia-italiana', bisacCode: 'POE005000', parentId: 3 },
-  {
-    id: 15,
-    name: 'Poesia straniera',
-    slug: 'poesia-straniera',
-    bisacCode: 'POE008000',
-    parentId: 3,
-  },
-];
 
 // =============================================================================
 // 3. PROFILI ORGANIZZAZIONE (5)
@@ -580,12 +525,12 @@ const BOOKS = [
 // =============================================================================
 
 async function main() {
-  console.log('🌱 Seed Lookup — Fase 1b');
+  console.log('🌱 Seed Lookup');
   console.log('═══════════════════════════════════════════════');
 
   // 1. Pulizia (in ordine inverso di FK)
   console.log('🗑  Pulizia tabelle...');
-  // Fase 3.3: tabelle Better Auth (session/account/verification) prima delle
+  // tabelle Better Auth (session/account/verification) prima delle
   // altre perche' hanno FK verso users.
   await prisma.session.deleteMany();
   await prisma.account.deleteMany();
@@ -598,7 +543,7 @@ async function main() {
   await prisma.category.deleteMany();
 
   // 2. Reset sequences (per riavere ID che partono da 1)
-  //    Fase 3.0: users NON ha piu' sequence (id String CUID).
+  //    users NON ha piu' sequence (id String CUID).
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE books_id_seq RESTART WITH 1`);
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE categories_id_seq RESTART WITH 1`);
 
@@ -611,12 +556,12 @@ async function main() {
   // 4. Utenti
   console.log(`👤 Inserimento ${USERS.length} utenti...`);
   for (const u of USERS) {
-    // Fase 3.3: setto emailVerified: true di default per i seed users
+    // setto emailVerified: true di default per i seed users
     // (in produzione arriva via link email dopo signup)
     await prisma.user.create({ data: { ...u, emailVerified: true } });
   }
 
-  // 4b. Fase 3.3: Account credential per Better Auth (login vero possibile)
+  // 4b. Account credential per Better Auth (accesso con password)
   // -----------------------------------------------------------------------
   // Per ogni seed user, creo un record Account con providerId='credential'
   // e password hash pre-computato. Cosi' 'usr_chiara', 'usr_marco', ecc.
@@ -684,7 +629,7 @@ async function main() {
   // Postgres NON aggiorna automaticamente le sequences in questo caso.
   // setval() le allinea a MAX(id) così la prossima nextval() ritorna MAX+1.
   //
-  // Fase 3.0: users NON ha piu' sequence (users.id e' String CUID ora),
+  // users NON ha piu' sequence (users.id e' String CUID ora),
   // quindi nessun setval necessario per quella tabella.
   console.log('🔢 Allineamento sequences Postgres a max(id)...');
   await prisma.$executeRawUnsafe(
@@ -720,15 +665,18 @@ async function main() {
   console.log('    \\dt                       lista tabelle');
   console.log('    SELECT COUNT(*) FROM users;       → 11');
   console.log('    SELECT COUNT(*) FROM books;       → 20');
-  console.log('    SELECT COUNT(*) FROM categories;  → 15');
+  console.log('    SELECT COUNT(*) FROM categories;  → 81');
   console.log('');
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ Seed fallito:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Await di primo livello: chi importa il modulo (setup dei test Vitest)
+// riprende solo a seed concluso. Senza, i test partivano a seed in corso e
+// trovavano il database parzialmente popolato.
+try {
+  await main();
+} catch (e) {
+  console.error('❌ Seed fallito:', e);
+  process.exit(1);
+} finally {
+  await prisma.$disconnect();
+}

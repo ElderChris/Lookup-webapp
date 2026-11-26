@@ -1,5 +1,5 @@
 // =============================================================================
-// src/routes/prefs.js — User preferences (Beta 2)
+// src/routes/prefs.js — User preferences
 // =============================================================================
 // Endpoint per gestire il record UserPreference (theme, motto, cover design,
 // avatar style, view mode, sort default, ecc.). Sostituisce il legacy
@@ -71,8 +71,9 @@ export default async function prefsRoutes(fastify) {
           type: 'object',
           additionalProperties: false,
           properties: {
-            viewMode: { type: 'string', enum: ['grid', 'list'] },
-            theme: { type: 'string', enum: ['classic', 'bordeaux', 'verde', 'notturno'] },
+            viewMode: { type: 'string', enum: ['grid', 'list', 'shelf', 'timeline'] },
+            // Stessi valori dell'interfaccia (classi CSS cover--<tema>)
+            theme: { type: 'string', enum: ['classic', 'bordeaux', 'sage', 'midnight'] },
             avatarStyle: { type: 'string', enum: ['initials', 'symbol', 'photo'] },
             avatarSymbol: { type: ['string', 'null'], maxLength: 8 },
             motto: { type: ['string', 'null'], maxLength: 120 },

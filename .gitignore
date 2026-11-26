@@ -44,3 +44,8 @@ docs/
 
 # Prisma Client generato (Prisma 7): rigenerato da `prisma generate`
 apps/api/src/generated/
+
+# Test end-to-end (Playwright): sessioni salvate, risultati e report
+e2e/.auth/
+e2e/test-results/
+e2e/report/

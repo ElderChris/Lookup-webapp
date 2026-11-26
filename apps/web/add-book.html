@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <!-- Beta 9: PWA meta tags -->
+  <!-- PWA meta tags -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#7a1e2b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -12,7 +12,8 @@
   <link rel="apple-touch-icon" href="/img/icon-180.png" />
 
   <title>Pubblica un libro — Lookup</title>
-  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="js/auth-hint.js"></script>
 </head>
 <body>
 
@@ -39,9 +40,9 @@
 
     <section class="section container">
       <span class="eyebrow">contribuisci al catalogo</span>
-      <h1 style="font-size: 2.75rem; margin-bottom: 1rem;">Pubblica un <em style="color: var(--color-burgundy);">nuovo volume</em></h1>
+      <h1 id="page-title" style="font-size: 2.75rem; margin-bottom: 1rem;">Pubblica un <em style="color: var(--color-burgundy);">nuovo volume</em></h1>
       <p style="max-width: 60ch; color: var(--color-ink-soft); margin-bottom: 2rem;">
-        Compila il modulo per aggiungere un libro alla tua collezione pubblica.
+        <span id="page-intro">Compila il modulo per aggiungere un libro alla tua collezione pubblica.</span>
         Tutti i campi contrassegnati con asterisco (<span aria-hidden="true">*</span>) sono obbligatori.
         Ogni campo viene <strong>verificato in tempo reale</strong>: il bordo
         diventa <span style="color: var(--color-sage); font-weight: 500;">verde</span>
@@ -105,7 +106,7 @@
             <label class="form__label" for="isbn">ISBN</label>
             <input type="text" id="isbn" name="isbn" class="form__input"
                    pattern="^\d{10}(\d{3})?$" aria-describedby="isbn-help" autocomplete="off" />
-            <span class="form__help" id="isbn-help">10 o 13 cifre, senza trattini né spazi.</span>
+            <span class="form__help" id="isbn-help">10 o 13 cifre, senza trattini né spazi. Con l'ISBN la copertina viene presa da Open Library, se disponibile.</span>
           </div>
           <div class="form__group">
             <label class="form__label" for="pages">Pagine</label>
@@ -133,27 +134,8 @@
           <span class="form__help" id="desc-help">Minimo 20 caratteri, massimo 1000.</span>
         </div>
 
-        <!-- Upload copertina con anteprima -->
-        <div class="form__group">
-          <label class="form__label" for="cover">Copertina (facoltativa)</label>
-          <label class="form__file" for="cover">
-            <input type="file" id="cover" name="cover" accept="image/jpeg,image/png,image/webp" />
-            <span class="form__file-label">
-              <strong>Trascina qui</strong> o clicca per selezionare un'immagine
-              <br /><small>JPG, PNG o WebP — massimo 5 MB</small>
-            </span>
-            <div class="form__file-preview" id="cover-preview">
-              <img src="" alt="Anteprima copertina caricata" />
-            </div>
-          </label>
-          <span class="form__help">
-            L'immagine verrà automaticamente ridimensionata a più formati
-            (thumbnail 160×240, medium 400×600) per ottimizzare la visualizzazione.
-          </span>
-        </div>
-
-        <!-- Consenso pubblicazione -->
-        <div class="form__check">
+        <!-- Consenso pubblicazione (solo per un volume nuovo) -->
+        <div class="form__check" id="consent-row">
           <input type="checkbox" id="consent" required aria-required="true" />
           <label for="consent">
             Dichiaro di essere il proprietario di questo volume e acconsento alla sua pubblicazione nel catalogo di Lookup. *
@@ -165,37 +147,60 @@
 
         <div style="display: flex; gap: 1rem; align-items: center; margin-top: 1rem;">
           <button type="submit" class="btn btn--primary" id="submit-btn">Pubblica il volume</button>
-          <a href="profile.html" class="btn btn--ghost">Annulla</a>
+          <a href="profile.html" class="btn btn--ghost" id="cancel-link">Annulla</a>
         </div>
       </form>
     </section>
 
   </main>
 
-  <footer class="site-footer">
+  <footer class="site-footer" role="contentinfo">
     <div class="container">
-      <div><h4>Lookup</h4><p style="color: rgba(244,239,230,.7); font-size: .9rem;">Un progetto di condivisione del patrimonio librario privato.</p></div>
-      <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
-      <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
-      <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Lookup</span><span>v3.0.0-alpha.0</span></div>
+      <div>
+        <h4>Lookup</h4>
+        <p style="color: rgba(244,239,230,.7); font-size: .9rem;">
+          Condivisione dei libri privati e delle biblioteche di comunità, fra vicini.
+        </p>
+      </div>
+      <div>
+        <h4>Esplora</h4>
+        <a href="explore.html">Mappa dei libri</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="loans.html" class="auth-only">I miei prestiti</a>
+      </div>
+      <div>
+        <h4>Partecipa</h4>
+        <a href="add-book.html" class="auth-only">Pubblica un libro</a>
+        <a href="profile.html" class="auth-only">Il tuo profilo</a>
+        <a href="register.html" class="guest-only">Iscriviti</a>
+        <a href="login.html" class="guest-only">Accedi</a>
+      </div>
+      <div>
+        <h4>Informazioni</h4>
+        <a href="privacy.html">Informativa sulla privacy</a>
+        <a href="terms.html">Termini di utilizzo</a>
+      </div>
+      <div class="site-footer__colophon">
+        <span>© 2026 Lookup</span>
+        <span>Codice con licenza GPL-3.0<span data-app-version></span></span>
+      </div>
     </div>
   </footer>
 
   <script type="module" src="js/api-bootstrap.js"></script>
-  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+  <script type="module" src="js/app.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
 
       /* PROTEZIONE PROPRIETÀ — si pubblicano volumi SOLO nella propria
          libreria. Un visitatore anonimo viene mandato al login. */
-      const me = API.requireAuth('login.html');
+      const me = await window.LB_UI.requireUser('login.html');
       if (!me) return;
 
-      // v1.9: i Lettori (library_role='borrower') non possono pubblicare
+      // i Lettori (libraryRole 'borrower') non possono pubblicare
       // volumi finché non hanno aperto ufficialmente la propria libreria
       // tramite il wizard dedicato sul profilo. Redirect cordiale.
-      if (me.library_role === 'borrower') {
+      if (window.LB_UI.isBorrower(me)) {
         UI.toast('Apri prima la tua libreria dal profilo per pubblicare volumi.', 'info');
         setTimeout(() => location.href = 'profile.html#panel-books', 1500);
         return;
@@ -203,11 +208,56 @@
 
       const form = document.getElementById('book-form');
 
-      /* ----- Tag-input dei generi (BISAC, multi-tag) ----- */
+      /* ----- Modifica di un volume esistente (?id=N) -----
+         Stesso modulo, precompilato con i dati del server; solo il
+         proprietario, e non per un volume ritirato. */
+      const editId = Number(new URLSearchParams(location.search).get('id')) || null;
+      let editing = null;
+      if (editId) {
+        try {
+          editing = await window.LB_API.books.getById(editId);
+        } catch (err) {
+          UI.toast(err.status === 404 ? 'Volume non trovato.' : 'Server non raggiungibile: riprova tra poco.', 'error');
+          return;
+        }
+        if (editing.owner?.id !== me.id || editing.status === 'removed') {
+          location.replace(`book-detail.html?id=${editId}`);
+          return;
+        }
+        document.title = 'Modifica il volume — Lookup';
+        document.getElementById('page-title').innerHTML =
+          'Modifica <em style="color: var(--color-burgundy);">il volume</em>';
+        document.getElementById('page-intro').textContent =
+          'Aggiorna i dati del volume: le modifiche sono subito visibili nel catalogo.';
+        document.getElementById('submit-btn').textContent = 'Salva le modifiche';
+        document.getElementById('cancel-link').href = `book-detail.html?id=${editId}`;
+        document.getElementById('consent-row').hidden = true;
+        document.getElementById('consent').required = false;
+
+        form.title.value = editing.title || '';
+        form.author.value = editing.author || '';
+        form.year.value = editing.year ?? '';
+        form.isbn.value = editing.isbn || '';
+        form.pages.value = editing.pages ?? '';
+        form.description.value = editing.description || '';
+        for (const [name, value] of [['language', editing.language], ['condition', editing.condition]]) {
+          if (!value) continue;
+          const select = form[name];
+          // Valori gia' salvati ma non piu' fra le opzioni restano selezionabili
+          if (![...select.options].some((o) => o.value === value)) select.add(new Option(value, value));
+          select.value = value;
+        }
+      }
+
+      /* ----- Generi del volume (dal server, fino a 5) -----
+         Il primo e' il genere principale. */
       const catBox = document.getElementById('category-tags');
       UI.initTagInput(catBox, {
         placeholder: 'Aggiungi un genere (es. Poesia, Storia, Gialli…)',
-        maxTags: 5
+        maxTags: 5,
+        initial: editing
+          ? [...editing.categories].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary)).map((c) => c.slug)
+          : [],
       });
 
       /* ----- Validazione live --------------------------------
@@ -244,42 +294,6 @@
         }
       });
 
-      /* ----- Anteprima copertina ----- */
-      const coverInput = document.getElementById('cover');
-      const preview = document.getElementById('cover-preview');
-
-      coverInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        if (file.size > 5 * 1024 * 1024) {
-          UI.toast('Il file supera il limite di 5 MB', 'error');
-          coverInput.value = '';
-          return;
-        }
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          preview.style.display = 'block';
-          preview.querySelector('img').src = ev.target.result;
-          generateThumbnail(ev.target.result, 160, 240);
-        };
-        reader.readAsDataURL(file);
-      });
-
-      /** Genera una thumbnail ridimensionata via Canvas */
-      function generateThumbnail(dataUrl, w, h) {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          const ratio = Math.max(w/img.width, h/img.height);
-          const newW = img.width * ratio, newH = img.height * ratio;
-          const dx = (w - newW)/2, dy = (h - newH)/2;
-          ctx.drawImage(img, dx, dy, newW, newH);
-        };
-        img.src = dataUrl;
-      }
-
       /* ----- Submit con riepilogo errori -----
          Marca tutti i campi come "touched" per forzare la validazione
          visibile, raccoglie eventuali errori e li mostra in un riepilogo
@@ -297,7 +311,7 @@
         const invalidGroups = form.querySelectorAll('.form__group--validated.is-invalid');
         const consent = document.getElementById('consent');
 
-        // Validazione dei tag BISAC: serve almeno un genere.
+        // Serve almeno un genere
         const tagsMissing = catBox.getTags().length === 0;
         if (tagsMissing) {
           catBox.classList.remove('input-error');
@@ -307,130 +321,66 @@
           catBox.classList.remove('input-error');
         }
 
-        if (invalidGroups.length > 0 || !form.checkValidity() || !consent.checked || tagsMissing) {
+        const consentMissing = !editing && !consent.checked;
+        if (invalidGroups.length > 0 || !form.checkValidity() || consentMissing || tagsMissing) {
           const errors = [];
           invalidGroups.forEach(g => {
             const label = g.querySelector('.form__label')?.textContent.replace(/\s*\*$/, '');
             const msg = g.querySelector('.form__feedback')?.textContent;
             if (label) errors.push(`${label}: ${msg || 'errore'}`);
           });
-          if (tagsMissing) errors.push('Generi: aggiungi almeno un tag BISAC.');
-          if (!consent.checked) errors.push('Devi confermare di essere il proprietario del volume.');
+          if (tagsMissing) errors.push('Generi: aggiungi almeno un genere.');
+          if (consentMissing) errors.push('Devi confermare di essere il proprietario del volume.');
           summary.hidden = false;
-          summary.innerHTML = `<strong>Correggi ${errors.length} ${errors.length === 1 ? 'errore' : 'errori'} prima di pubblicare:</strong>
+          summary.innerHTML = `<strong>Correggi ${errors.length} ${errors.length === 1 ? 'errore' : 'errori'} prima di ${editing ? 'salvare' : 'pubblicare'}:</strong>
             <ul style="margin: .5rem 0 0; padding-left: 1.4rem;">${errors.map(e => `<li>${e}</li>`).join('')}</ul>`;
-          summary.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          summary.scrollIntoView({ behavior: window.LB_UI.scrollBehavior(), block: 'center' });
           return;
         }
 
         summary.hidden = true;
 
-        // ============================================================
-        // Fase 2c.3: WRITE — backend PRIMARY, legacy solo se offline
-        // ============================================================
-        // Cambiamento semantico rispetto al shadow di Fase 2b.3:
-        //   PRIMA:  create legacy → shadow backend fire-and-forget
-        //   ORA:    tenta backend PRIMA. Se OK, redirect all'id vero.
-        //           Se backend giu' o errore infrastrutturale, cade sul legacy
-        //           come fallback offline (id incrementale locale).
-        //           Errori di business (4xx: validation, auth) → toast + STOP.
-        //
-        // Loading UX: bottone submit disabilitato + testo "Pubblicazione..."
-        // ============================================================
+        // Pubblicazione sul server; in caso di errore il modulo resta compilato
         const submitBtn = form.querySelector('button[type="submit"]');
         const originalBtnText = submitBtn ? submitBtn.textContent : null;
         if (submitBtn) {
           submitBtn.disabled = true;
-          submitBtn.textContent = 'Pubblicazione…';
+          submitBtn.textContent = editing ? 'Salvataggio…' : 'Pubblicazione…';
         }
 
         try {
-          let created; // shape legacy: {id, title, ...}
-          let source;
-
-          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-            // ----- Path backend primary ---------------------------
-            const cats = window.LB_API.cache.get('categories:list') || [];
-            const selectedSlugs = catBox.getTags();
-            const categoryIds = window.LB_API.categories.slugsToIds(cats, selectedSlugs);
-
-            const body = window.LB_API.bookToApi({
-              title: form.title.value.trim(),
-              author: form.author.value.trim(),
-              year: +form.year.value || undefined,
-              language: form.language.value || undefined,
-              isbn: form.isbn.value.trim() || undefined,
-              pages: +form.pages.value || undefined,
-              description: form.description.value.trim() || undefined,
-              condition: form.condition.value || undefined,
-            }, categoryIds);
-
-            try {
-              const apiBook = await window.LB_API.books.create(body);
-              // Backend riuscito: converti a shape legacy per il redirect + Storage
-              created = window.LB_API.bookToLegacy(apiBook);
-              source = 'backend';
-
-              // Salva anche in legacy Storage con l'id BACKEND (non incrementale
-              // locale). Serve per: (a) fallback offline futuro, (b) altre pagine
-              // che leggono ancora da Storage (loans, ecc.) trovano il libro.
-              const books = Storage.get('books', []);
-              // Rimuovi eventuale duplicato con stesso id (raro edge case)
-              const filtered = books.filter(b => b.id !== created.id);
-              filtered.push({
-                ...created,
-                // Campi che il legacy attende ma il backend non ha
-                loan_requests: 0,
-                added: created.added || new Date().toISOString().slice(0, 10),
-                owner_id: me.id, // guarantee consistency
-              });
-              Storage.set('books', filtered);
-
-              // Invalida cache liste
-              window.LB_API.cache.invalidate('books:');
-              console.debug(`[add-book] created on backend, id=${created.id}, ` +
-                `categoryIds=[${categoryIds.join(',')}]`);
-            } catch (err) {
-              // Errori 4xx = business, fermati e mostra all'utente
-              if (err.status >= 400 && err.status < 500) {
-                UI.toast(`Errore pubblicazione: ${err.message || err.code}`, 'error');
-                if (submitBtn) {
-                  submitBtn.disabled = false;
-                  submitBtn.textContent = originalBtnText;
-                }
-                return;
-              }
-              // 5xx / NETWORK / TIMEOUT → fallback silenzioso al legacy
-              console.debug(`[add-book] backend fail, fallback legacy: ${err.code}`);
-              created = null;
-            }
+          // Corpo di POST /api/books: i campi facoltativi vuoti restano
+          // fuori (undefined non viene serializzato)
+          const body = {
+            title: form.title.value.trim(),
+            author: form.author.value.trim(),
+            categoryIds: catBox.getIds(),
+            year: +form.year.value || undefined,
+            language: form.language.value || undefined,
+            isbn: form.isbn.value.trim() || undefined,
+            pages: +form.pages.value || undefined,
+            description: form.description.value.trim() || undefined,
+            condition: form.condition.value || undefined,
+          };
+          let saved;
+          if (editing) {
+            // In modifica i campi facoltativi svuotati vanno cancellati (null)
+            for (const key of ['isbn', 'pages', 'description']) if (body[key] === undefined) body[key] = null;
+            saved = await window.LB_API.books.update(editing.id, body);
+          } else {
+            saved = await window.LB_API.books.create(body);
           }
-
-          // ----- Fallback path legacy (offline o backend 5xx) -------
-          if (!created) {
-            created = API.addBook({
-              title: form.title.value.trim(),
-              author: form.author.value.trim(),
-              year: +form.year.value,
-              category: (catBox.getTags()[0] || ''),
-              categories: catBox.getTags(),
-              language: form.language.value,
-              isbn: form.isbn.value.trim() || '—',
-              pages: +form.pages.value || null,
-              condition: form.condition.value,
-              description: form.description.value.trim(),
-              owner_id: me.id,
-            });
-            source = 'legacy';
-          }
-
-          console.debug(`[add-book] source: ${source}, redirect to id=${created.id}`);
-          UI.toast('Volume pubblicato con successo!', 'info');
-          setTimeout(() => location.href = `book-detail.html?id=${created.id}`, 1500);
+          window.LB_API.cache.invalidate('books:');
+          UI.toast(editing ? 'Modifiche salvate.' : 'Volume pubblicato con successo!', 'success');
+          setTimeout(() => location.href = `book-detail.html?id=${saved.id}`, 1200);
         } catch (err) {
-          // Ultimo salvagente: errore inatteso (non ApiError, non validation)
-          console.error('[add-book] errore inatteso:', err);
-          UI.toast('Errore imprevisto durante la pubblicazione.', 'error');
+          const what = editing ? 'Salvataggio' : 'Pubblicazione';
+          UI.toast(
+            err.status >= 400 && err.status < 500
+              ? `${what} non riuscit${editing ? 'o' : 'a'}: ${err.message || err.code}`
+              : `Server non raggiungibile: ${editing ? 'le modifiche non sono state salvate' : 'il volume non è stato pubblicato'}. Riprova tra poco.`,
+            'error'
+          );
           if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.textContent = originalBtnText;

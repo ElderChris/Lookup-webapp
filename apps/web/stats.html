@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <!-- Beta 9: PWA meta tags -->
+  <!-- PWA meta tags -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#7a1e2b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -12,10 +12,11 @@
   <link rel="apple-touch-icon" href="/img/icon-180.png" />
 
   <title>Statistiche — Lookup</title>
-  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="js/auth-hint.js"></script>
+  <script src="vendor/chartjs-4.4.0/chart.umd.min.js" defer></script>
   <script type="module" src="js/api-bootstrap.js"></script>
-  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+  <script type="module" src="js/app.js"></script>
 </head>
 <body>
 
@@ -133,7 +134,7 @@
       </div>
       <div class="top-users-list" id="top-users-list"></div>
 
-      <!-- v2.6: grafico timeline creativo (ridgeline) dei top 10 utenti -->
+      <!-- grafico timeline creativo (ridgeline) dei top 10 utenti -->
       <div class="ridgeline-section">
         <h3 class="ridgeline-section__title">
           Cronache dei più attivi <span class="ridgeline-section__sub">— ultimi 12 mesi</span>
@@ -151,15 +152,35 @@
 
   </main>
 
-  <footer class="site-footer">
+  <footer class="site-footer" role="contentinfo">
     <div class="container">
-      <div><h4>Lookup</h4><p>Una rete di librerie diffuse nel quartiere.</p></div>
-      <div><h4>Esplora</h4><a href="explore.html">Mappa</a><a href="library.html">Librerie</a></div>
-      <div><h4>Account</h4><a href="register.html">Registrati</a><a href="login.html">Accedi</a></div>
-      <div><h4>Info</h4><a href="privacy.html">Privacy</a><a href="terms.html">Termini</a></div>
+      <div>
+        <h4>Lookup</h4>
+        <p style="color: rgba(244,239,230,.7); font-size: .9rem;">
+          Condivisione dei libri privati e delle biblioteche di comunità, fra vicini.
+        </p>
+      </div>
+      <div>
+        <h4>Esplora</h4>
+        <a href="explore.html">Mappa dei libri</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="loans.html" class="auth-only">I miei prestiti</a>
+      </div>
+      <div>
+        <h4>Partecipa</h4>
+        <a href="add-book.html" class="auth-only">Pubblica un libro</a>
+        <a href="profile.html" class="auth-only">Il tuo profilo</a>
+        <a href="register.html" class="guest-only">Iscriviti</a>
+        <a href="login.html" class="guest-only">Accedi</a>
+      </div>
+      <div>
+        <h4>Informazioni</h4>
+        <a href="privacy.html">Informativa sulla privacy</a>
+        <a href="terms.html">Termini di utilizzo</a>
+      </div>
       <div class="site-footer__colophon">
         <span>© 2026 Lookup</span>
-        <span>Prototipo accademico v3.0.0-alpha.0</span>
+        <span>Codice con licenza GPL-3.0<span data-app-version></span></span>
       </div>
     </div>
   </footer>
@@ -167,47 +188,63 @@
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
 
-      // ============= 1. KPI REALI =============
-      const real = API.getRealStats();
+      const esc = (v) => UI._escapeHtml(v);
+
+      // Tutti i dati della pagina in un'unica risposta del server
+      let overview;
+      try {
+        overview = await window.LB_API.stats.overview({ limit: 8 });
+      } catch (err) {
+        document.getElementById('real-kpi-grid').innerHTML = `
+          <div class="alert alert--error" style="grid-column: 1 / -1;">
+            <p><strong>Server non raggiungibile.</strong> Le statistiche non sono disponibili.</p>
+            <button type="button" class="btn btn--ghost btn--small" onclick="location.reload()"
+                    style="margin-top: .75rem;">Riprova</button>
+          </div>`;
+        return;
+      }
+
+      // ============= 1. INDICATORI =============
+      const real = overview.kpi;
       document.getElementById('real-kpi-grid').innerHTML = `
         <div class="kpi-card kpi-card--real">
-          <div class="kpi-card__num">${real.total_books}</div>
+          <div class="kpi-card__num">${real.totalBooks}</div>
           <div class="kpi-card__lbl">volumi pubblicati</div>
         </div>
         <div class="kpi-card kpi-card--real">
-          <div class="kpi-card__num">${real.total_users}</div>
+          <div class="kpi-card__num">${real.totalUsers}</div>
           <div class="kpi-card__lbl">utenti registrati</div>
-          <div class="kpi-card__sub">${real.curators_count} curatori · ${real.borrowers_count} lettori</div>
+          <div class="kpi-card__sub">${real.curatorsCount} curatori · ${real.borrowersCount} lettori</div>
         </div>
         <div class="kpi-card kpi-card--real">
-          <div class="kpi-card__num">${real.total_loans}</div>
+          <div class="kpi-card__num">${real.totalLoans}</div>
           <div class="kpi-card__lbl">prestiti totali</div>
-          <div class="kpi-card__sub">${real.completed_loans} conclusi · ${real.active_loans} in corso</div>
+          <div class="kpi-card__sub">${real.completedLoans} conclusi · ${real.activeLoans} in corso</div>
         </div>
         <div class="kpi-card kpi-card--real">
-          <div class="kpi-card__num">${real.total_reviews}</div>
+          <div class="kpi-card__num">${real.totalReviews}</div>
           <div class="kpi-card__lbl">recensioni scritte</div>
-          ${real.avg_rating ? `<div class="kpi-card__sub">media ★ ${real.avg_rating}</div>` : ''}
+          ${real.avgRating ? `<div class="kpi-card__sub">media ★ ${real.avgRating}</div>` : ''}
         </div>
         <div class="kpi-card kpi-card--real">
-          <div class="kpi-card__num">${real.total_messages}</div>
+          <div class="kpi-card__num">${real.totalMessages}</div>
           <div class="kpi-card__lbl">messaggi in chat</div>
         </div>
         <div class="kpi-card kpi-card--real">
-          <div class="kpi-card__num">${real.total_notifications}</div>
+          <div class="kpi-card__num">${real.totalNotifications}</div>
           <div class="kpi-card__lbl">notifiche emesse</div>
         </div>
         <div class="kpi-card kpi-card--real">
-          <div class="kpi-card__num">${real.total_views.toLocaleString('it-IT')}</div>
+          <div class="kpi-card__num">${real.totalViews.toLocaleString('it-IT')}</div>
           <div class="kpi-card__lbl">visualizzazioni libri</div>
-          <div class="kpi-card__sub">media ${real.avg_views_per_book} per libro</div>
+          <div class="kpi-card__sub">media ${real.avgViewsPerBook} per libro</div>
         </div>
       `;
 
-      // v2.3: sezione "dati simulati" rimossa — tutti i KPI sono reali ora
+      // sezione "dati simulati" rimossa — tutti i KPI sono reali ora
 
       // ============= 3. TIMELINE ATTIVITÀ =============
-      const timeline = API.getActivityTimeline();
+      const timeline = overview.activity.map((w) => ({ ...w, weekStart: new Date(w.weekStart).getTime() }));
       const fmtWeek = (ms) => {
         const d = new Date(ms);
         return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' });
@@ -244,7 +281,7 @@
       }
 
       // ============= 4. SUNBURST + MATRICE =============
-      const bisac = API.getBisacHierarchy();
+      const bisac = overview.hierarchy;
       const ctx2 = document.getElementById('chart-sunburst');
       if (ctx2 && window.Chart) {
         // Sunburst implementato come doppio doughnut nidificato (Chart.js
@@ -307,7 +344,7 @@
       }
 
       // Matrice co-occorrenza
-      const coocc = API.getCategoryCooccurrence();
+      const coocc = overview.cooccurrence;
       const macros = coocc.macros;
       let maxVal = 0;
       macros.forEach(m1 => macros.forEach(m2 => {
@@ -346,12 +383,36 @@
       document.getElementById('cooccurrence-matrix').appendChild(tbl);
 
       // ============= 5. TOP LIBRI ESPANDIBILI =============
-      const topBooks = API.getTopBooksWithTimeline(8);
-      const monthLabels = [];
-      const today = new Date(); today.setDate(1);
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(today); d.setMonth(d.getMonth() - i);
-        monthLabels.push(d.toLocaleDateString('it-IT', { month: 'short' }));
+      // Interazioni mensili (prestiti + mi piace) degli ultimi 12 mesi
+      const topBooks = overview.topBooks.map((b) => ({
+        ...b,
+        timeline: b.monthly.loans.map((n, i) => n + (b.monthly.likes[i] || 0)),
+      }));
+      const monthLabels = overview.months.map((iso) =>
+        new Date(iso).toLocaleDateString('it-IT', { month: 'short' }));
+      // Andamento cumulato di un libro (dettaglio espandibile)
+      function bookTimeline(bookId) {
+        const b = topBooks.find((x) => x.id === bookId);
+        if (!b) return null;
+        const cumulate = (arr) => { let t = 0; return arr.map((v) => (t += v)); };
+        return {
+          monthLabels: overview.months.map((iso) =>
+            new Date(iso).toLocaleDateString('it-IT', { month: 'short', year: '2-digit' })),
+          monthBuckets: {
+            views: cumulate(b.monthly.views),
+            loans: cumulate(b.monthly.loans),
+            likes: cumulate(b.monthly.likes),
+          },
+          summary: {
+            createdAt: b.createdAt,
+            ageDays: Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 86400000),
+            views: b.views,
+            totalLoans: b.totalLoans,
+            totalLikes: b.totalLikes,
+            completedLoans: b.completedLoans,
+            activeLoans: b.activeLoans,
+          },
+        };
       }
       const topBooksList = document.getElementById('top-books-list');
       topBooksList.innerHTML = topBooks.length === 0
@@ -367,15 +428,15 @@
                 <div class="top-book-item__head">
                   <span class="top-book-item__rank">${idx + 1}</span>
                   <span class="top-book-item__cover" aria-hidden="true">
-                    <span class="top-book-item__cover-text">${(book.title || '').split(' ').slice(0,2).join(' ')}</span>
+                    <span class="top-book-item__cover-text">${esc((book.title || '').split(' ').slice(0,2).join(' '))}</span>
                   </span>
                   <div class="top-book-item__info">
-                    <div class="top-book-item__title">${book.title}</div>
-                    <div class="top-book-item__meta">${book.author || ''} · ${book.year || ''}</div>
+                    <div class="top-book-item__title"><a href="book-detail.html?id=${book.id}">${esc(book.title)}</a></div>
+                    <div class="top-book-item__meta">${esc(book.author || '')}${book.year ? ` · ${book.year}` : ''}</div>
                   </div>
                   <div class="sparkline" aria-label="Timeline mensile interazioni">${spark}</div>
                   <div class="top-book-item__count">
-                    <strong>${book.total_interactions}</strong>
+                    <strong>${book.totalInteractions}</strong>
                     <span>interazioni</span>
                   </div>
                   <button type="button" class="top-book-item__toggle"
@@ -405,7 +466,7 @@
         }
         // Carica i dettagli se non già caricati
         if (!detail.dataset.loaded) {
-          const tl = API.getBookTimeline(bookId);
+          const tl = bookTimeline(bookId);
           if (!tl) {
             detail.innerHTML = '<p style="padding: var(--sp-4); color: var(--color-ink-soft);">Dati non disponibili.</p>';
           } else {
@@ -413,14 +474,14 @@
             detail.innerHTML = `
               <div class="book-detail-stats">
                 <div class="book-detail-stats__kpis">
-                  <div class="mini-kpi"><div class="mini-kpi__num">${s.total_views}</div><div class="mini-kpi__lbl">visualizzazioni</div></div>
-                  <div class="mini-kpi"><div class="mini-kpi__num">${s.total_loans}</div><div class="mini-kpi__lbl">richieste prestito</div></div>
-                  <div class="mini-kpi"><div class="mini-kpi__num">${s.completed_loans}</div><div class="mini-kpi__lbl">prestiti conclusi</div></div>
-                  <div class="mini-kpi"><div class="mini-kpi__num">${s.active_loans}</div><div class="mini-kpi__lbl">prestiti attivi</div></div>
-                  <div class="mini-kpi"><div class="mini-kpi__num">${s.total_likes}</div><div class="mini-kpi__lbl">like ricevuti</div></div>
-                  <div class="mini-kpi"><div class="mini-kpi__num">${s.age_days}</div><div class="mini-kpi__lbl">giorni in piattaforma</div></div>
+                  <div class="mini-kpi"><div class="mini-kpi__num">${s.views}</div><div class="mini-kpi__lbl">visualizzazioni</div></div>
+                  <div class="mini-kpi"><div class="mini-kpi__num">${s.totalLoans}</div><div class="mini-kpi__lbl">richieste prestito</div></div>
+                  <div class="mini-kpi"><div class="mini-kpi__num">${s.completedLoans}</div><div class="mini-kpi__lbl">prestiti conclusi</div></div>
+                  <div class="mini-kpi"><div class="mini-kpi__num">${s.activeLoans}</div><div class="mini-kpi__lbl">prestiti attivi</div></div>
+                  <div class="mini-kpi"><div class="mini-kpi__num">${s.totalLikes}</div><div class="mini-kpi__lbl">like ricevuti</div></div>
+                  <div class="mini-kpi"><div class="mini-kpi__num">${s.ageDays}</div><div class="mini-kpi__lbl">giorni in piattaforma</div></div>
                 </div>
-                <p class="book-detail-stats__since">In piattaforma dal <strong>${new Date(s.added_at).toLocaleDateString('it-IT', { day:'numeric', month:'long', year:'numeric' })}</strong></p>
+                <p class="book-detail-stats__since">In piattaforma dal <strong>${new Date(s.createdAt).toLocaleDateString('it-IT', { day:'numeric', month:'long', year:'numeric' })}</strong></p>
                 <div class="book-detail-stats__chart-wrap">
                   <canvas id="book-chart-${bookId}"></canvas>
                 </div>
@@ -465,30 +526,31 @@
       });
 
       // ============= 6. TOP UTENTI =============
-      const top = API.getTopUsers(8);
+      const top = overview.topUsers;
       const labels = {
         score: 'punteggio composito', loans: 'prestiti completati',
         reviews: 'recensioni scritte', books: 'volumi pubblicati',
         followers: 'follower'
       };
       const fields = {
-        score: u => u.score + ' pt', loans: u => u.completed_loans + ' prestiti',
-        reviews: u => u.reviews_written + ' recensioni',
-        books: u => u.books_count + ' volumi', followers: u => u.followers + ' follower'
+        score: u => u.score + ' pt', loans: u => u.completedLoans + ' prestiti',
+        reviews: u => u.reviewsWritten + ' recensioni',
+        books: u => u.booksCount + ' volumi', followers: u => u.followers + ' follower'
       };
       const renderUserList = (tab) => {
-        const list = top['by_' + tab] || [];
+        // byScore, byLoans, byReviews, byBooks, byFollowers
+        const list = top['by' + tab[0].toUpperCase() + tab.slice(1)] || [];
         document.getElementById('top-users-list').innerHTML = list.length === 0
           ? '<p style="color: var(--color-ink-soft); padding: var(--sp-4);">Nessun utente con attività rilevante.</p>'
           : list.map((u, idx) => `
-              <button type="button" class="top-user-item" data-user-id="${u.id}" data-user-name="${u.name}">
+              <button type="button" class="top-user-item" data-user-id="${esc(u.id)}" data-user-name="${esc(u.name)}">
                 <span class="top-user-item__rank">${idx + 1}</span>
                 <span class="top-user-item__avatar" aria-hidden="true">
-                  ${(u.name || '?').split(' ').map(s => s[0]).join('').slice(0,2).toUpperCase()}
+                  ${esc((u.name || '?').split(' ').map(s => s[0]).join('').slice(0,2).toUpperCase())}
                 </span>
                 <div class="top-user-item__info">
-                  <div class="top-user-item__name">${u.name}</div>
-                  <div class="top-user-item__meta">@${u.username || ''}${u.city ? ' · ' + u.city : ''}</div>
+                  <div class="top-user-item__name">${esc(u.name)}</div>
+                  <div class="top-user-item__meta">@${esc(u.username || '')}${u.city ? ' · ' + esc(u.city) : ''}</div>
                 </div>
                 <div class="top-user-item__metric">
                   <strong>${fields[tab](u)}</strong>
@@ -504,7 +566,7 @@
         });
       });
 
-      /* v2.6: click su top-user-item → menu di conferma "Vai al profilo?"
+      /* click su top-user-item → menu di conferma "Vai al profilo?"
          Apre un popover ancorato vicino all'elemento cliccato, così non
          si interrompe bruscamente il flow di esplorazione delle statistiche. */
       document.getElementById('top-users-list').addEventListener('click', (e) => {
@@ -520,7 +582,7 @@
         popover.setAttribute('aria-label', `Conferma navigazione al profilo di ${userName}`);
         popover.innerHTML = `
           <div class="user-confirm-popover__body">
-            <p>Vuoi visitare la libreria di <strong>${userName}</strong>?</p>
+            <p>Vuoi visitare la libreria di <strong>${esc(userName)}</strong>?</p>
             <div class="user-confirm-popover__actions">
               <button type="button" class="btn btn--ghost btn--small" data-confirm-cancel>Annulla</button>
               <a href="library.html?id=${userId}" class="btn btn--primary btn--small">Vai al profilo</a>
@@ -553,39 +615,28 @@
       }
 
       async function renderTopUsersRidgelineAsync(wrap) {
-        // Fase 2c.4: fetch dal backend (/api/stats/ridgeline) con fallback legacy.
-        // Adapter di shape: backend usa userId/displayName/weeks:[{week,count}],
-        // legacy usa id/name/weeks:[n]. Conversione inline sotto.
+        // Attivita' settimanale per utente (/api/stats/ridgeline)
         let data;
-        let source = 'legacy';
-        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-          try {
-            const res = await window.LB_API.stats.ridgeline({ users: 10, weeks: 26 }, {
-              cache: {
-                ttlMs: window.LB_API.CACHE_TTL.STATS,
-                key: 'stats:ridgeline:10:26',
-              },
-            });
-            data = {
-              users: res.data.map(u => ({
-                id: u.userId,
-                name: u.displayName || u.username,
-                username: u.username,
-                city: null, // backend non espone city qui
-                weeks: u.weeks.map(w => w.count),
-                total: u.total,
-              })),
-              labels: res.weekLabels || res.data[0]?.weeks.map(w => w.week) || [],
-            };
-            source = `backend (${data.users.length} users × ${data.labels.length} weeks)`;
-          } catch (err) {
-            console.debug(`[stats] ridgeline fallback legacy: ${err.code || err.message}`);
-          }
-        }
-        if (!data) data = API.getUserActivityRidgeline(10, 26);
-        console.debug(`[stats] ridgeline source: ${source}`);
-        if (source.startsWith('backend') && window.LB_markLive) {
-          window.LB_markLive('stats', 'GET /api/stats/ridgeline (cache 5min)');
+        try {
+          const res = await window.LB_API.stats.ridgeline({ users: 10, weeks: 26 }, {
+            cache: { ttlMs: window.LB_API.CACHE_TTL.STATS, key: 'stats:ridgeline:10:26' },
+          });
+          const users = res.data.map((u) => ({
+            id: u.userId,
+            name: u.displayName || u.username,
+            username: u.username,
+            city: null,
+            weeks: u.weeks.map((w) => w.count),
+            total: u.total,
+          }));
+          data = {
+            users,
+            labels: res.weekLabels || res.data[0]?.weeks.map((w) => w.week) || [],
+            maxValue: Math.max(1, ...users.flatMap((u) => u.weeks)),
+          };
+        } catch (err) {
+          wrap.innerHTML = '<p style="color: var(--color-ink-soft); padding: var(--sp-4);">Server non raggiungibile: grafico non disponibile.</p>';
+          return;
         }
 
         if (data.users.length === 0) {
@@ -664,7 +715,7 @@
               <!-- nome utente a sinistra -->
               <text x="${LEFT_PAD - 12}" y="${baseline - 4}" class="ridgeline-name"
                     text-anchor="end" fill="currentColor">
-                ${u.name}
+                ${esc(u.name)}
               </text>
               <!-- totale a destra -->
               <text x="${LEFT_PAD + plotW + 12}" y="${baseline - 4}" class="ridgeline-total"

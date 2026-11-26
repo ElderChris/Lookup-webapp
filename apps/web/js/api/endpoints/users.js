@@ -24,7 +24,7 @@ export const users = {
    * Include counts (books, followers, following, reviewsReceived, avgRating).
    * Se chiamato con auth, include anche isFollowing.
    */
-  getById(id, options = {}) {
+  getById(id) {
     return apiClient.get(`/api/users/${encodeURIComponent(id)}`);
   },
 
@@ -67,6 +67,14 @@ export const users = {
    */
   createReview(targetUserId, body) {
     return apiClient.post(`/api/users/${encodeURIComponent(targetUserId)}/reviews`, { body });
+  },
+
+  /**
+   * GET /api/users/:id/reviews/me — propria recensione (o null) e se si
+   * puo' recensire: { review, canReview, reason: 'self'|'no-completed-loan'|null }.
+   */
+  getMyReview(targetUserId) {
+    return apiClient.get(`/api/users/${encodeURIComponent(targetUserId)}/reviews/me`);
   },
 
   /**

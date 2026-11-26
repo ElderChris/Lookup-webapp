@@ -38,7 +38,7 @@ export const loans = {
    * POST /api/books/:id/loan-requests — chiede in prestito un libro.
    * @param {number} bookId
    * @param {{message?: string, daysRequested?: number}} body
-   *   daysRequested: Beta 7.1 — durata prestito richiesta (giorni). Default backend: 14.
+   *   daysRequested: durata prestito richiesta (giorni). Default backend: 14.
    */
   request(bookId, body = {}) {
     return apiClient.post(`/api/books/${encodeURIComponent(bookId)}/loan-requests`, { body });
@@ -148,5 +148,13 @@ export const loans = {
     return apiClient.post(`/api/loans/${encodeURIComponent(loanId)}/messages`, {
       body: { body },
     });
+  },
+
+  /**
+   * POST /api/loans/:id/read — segna come letti i messaggi della chat per
+   * l'utente corrente (azzera `unreadCount`).
+   */
+  markRead(loanId) {
+    return apiClient.post(`/api/loans/${encodeURIComponent(loanId)}/read`);
   },
 };

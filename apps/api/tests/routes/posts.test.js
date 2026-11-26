@@ -118,7 +118,7 @@ describe('POST /api/posts/:id/reactions', () => {
       method: 'POST',
       url: `/api/posts/${postId}/reactions`,
       headers: await authHeaders(SEED.USER_MARCO),
-      payload: { emoji: 'like' },
+      payload: { emoji: '👍' },
     });
     expect(res.statusCode).toBe(200);
     expect(res.json().reactionsCount).toBe(1);
@@ -130,32 +130,77 @@ describe('POST /api/posts/:id/reactions', () => {
       method: 'POST',
       url: `/api/posts/${postId}/reactions`,
       headers: await authHeaders(SEED.USER_MARCO),
-      payload: { emoji: 'like' },
+      payload: { emoji: '👍' },
     });
     const r2 = await app.inject({
       method: 'POST',
       url: `/api/posts/${postId}/reactions`,
       headers: await authHeaders(SEED.USER_MARCO),
-      payload: { emoji: 'like' },
+      payload: { emoji: '👍' },
     });
     expect(r2.json().reactionsCount).toBe(1);
   });
 
-  it('emoji diverse stesso utente: 2 reactions', async () => {
+  it('una reazione per utente: la nuova sostituisce la precedente', async () => {
     const app = await buildTestApp();
     await app.inject({
       method: 'POST',
       url: `/api/posts/${postId}/reactions`,
       headers: await authHeaders(SEED.USER_MARCO),
-      payload: { emoji: 'like' },
+      payload: { emoji: '👍' },
     });
     const r2 = await app.inject({
       method: 'POST',
       url: `/api/posts/${postId}/reactions`,
       headers: await authHeaders(SEED.USER_MARCO),
-      payload: { emoji: 'heart' },
+      payload: { emoji: '❤️' },
     });
-    expect(r2.json().reactionsCount).toBe(2);
+    expect(r2.json().reactionsCount).toBe(1);
+    const post = await app.inject({
+      method: 'GET',
+      url: `/api/posts/${postId}`,
+      headers: await authHeaders(SEED.USER_MARCO),
+    });
+    expect(post.json().myReactions).toEqual(['❤️']);
+    expect(post.json().reactionsByEmoji).toEqual({ '❤️': 1 });
+  });
+
+  it('rifiuta emoji fuori dalla lista (400)', async () => {
+    const app = await buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/posts/${postId}/reactions`,
+      headers: await authHeaders(SEED.USER_MARCO),
+      payload: { emoji: 'like' },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+});
+
+describe('POST /api/posts: regole', () => {
+  it('rifiuta un post di soli spazi (400)', async () => {
+    const app = await buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/posts',
+      headers: await authHeaders(SEED.USER_CHIARA),
+      payload: { content: '   \n  ' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('EMPTY_CONTENT');
+  });
+
+  it('rifiuta chi non ha volumi (403)', async () => {
+    const app = await buildTestApp();
+    // L'amministratore nel seed non ha libri
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/posts',
+      headers: await authHeaders(SEED.USER_ADMIN),
+      payload: { content: 'Ciao a tutti' },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe('NO_BOOKS');
   });
 });
 
@@ -176,6 +221,40 @@ describe('POST /api/posts/:id/report', () => {
     });
     expect(res.statusCode).toBe(201);
     expect(res.json().reason).toBe('off-topic');
+
+    // Una sola volta per utente; il post risulta segnalato da lui
+    const again = await app.inject({
+      method: 'POST',
+      url: `/api/posts/${created.json().id}/report`,
+      headers: await authHeaders(SEED.USER_MARCO),
+      payload: { reason: 'spam' },
+    });
+    expect(again.statusCode).toBe(409);
+    expect(again.json().error.code).toBe('ALREADY_REPORTED');
+    const post = await app.inject({
+      method: 'GET',
+      url: `/api/posts/${created.json().id}`,
+      headers: await authHeaders(SEED.USER_MARCO),
+    });
+    expect(post.json().reportedByMe).toBe(true);
+  });
+
+  it('rifiuta la segnalazione di un proprio post (400)', async () => {
+    const app = await buildTestApp();
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/posts',
+      headers: await authHeaders(SEED.USER_CHIARA),
+      payload: { content: 'Mio post' },
+    });
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/posts/${created.json().id}/report`,
+      headers: await authHeaders(SEED.USER_CHIARA),
+      payload: { reason: 'other' },
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('SELF_REPORT');
   });
 
   it('rifiuta reason non in enum (400)', async () => {

@@ -9,6 +9,7 @@
 //   GET    /api/loans/:id                 Dettaglio (participant only)
 //   PATCH  /api/loans/:id                 Transizione di stato (action)
 //   POST   /api/loans/:id/messages        Aggiungi messaggio
+//   POST   /api/loans/:id/read            Segna come letti i messaggi
 //   GET    /api/loans/:id/messages        Storico messaggi (paginated)
 //
 // State machine (vedi commento in schema.prisma LoanRequest):
@@ -24,6 +25,7 @@ import {
   notifyNewLoanMessage,
 } from '../services/notifications.js';
 import { loansCreated, loansTransitions } from '../lib/metrics.js';
+import { ACTIVE_LOAN_STATUSES } from '../lib/loanStatus.js';
 
 // -----------------------------------------------------------------------------
 // State machine: definizione transizioni ammesse
@@ -80,13 +82,13 @@ function userSummaryDto(u) {
     id: u.id,
     username: u.username,
     displayName: u.displayName,
-    city: u.city,
+    city: u.publicCity ?? null,
     accountType: u.accountType,
     avatarUrl: u.avatarUrl,
   };
 }
 
-function loanDto(loan, currentUserId) {
+function loanDto(loan, currentUserId, unreadCount = 0) {
   const role = currentUserId === loan.requesterId ? 'requester' : 'lender';
   return {
     id: loan.id,
@@ -99,13 +101,15 @@ function loanDto(loan, currentUserId) {
           author: loan.book.author,
           coverUrl: loan.book.coverUrl,
           available: loan.book.available,
+          // 'removed': ritirato dal proprietario dopo la fine del prestito
+          status: loan.book.status,
         }
       : null,
     requester: userSummaryDto(loan.requester),
     lender: userSummaryDto(loan.lender),
     message: loan.message,
     rejectReason: loan.rejectReason ?? null,
-    // Beta 7: durata prestito + deadline + flag reminder (per UI countdown)
+    // durata prestito + deadline + flag reminder (per UI countdown)
     daysRequested: loan.daysRequested ?? null,
     deadline: loan.deadline ?? null,
     reminderSentAt: loan.reminderSentAt ?? null,
@@ -119,7 +123,35 @@ function loanDto(loan, currentUserId) {
       cancelled: loan.cancelledAt,
     },
     messagesCount: loan._count?.messages ?? 0,
+    // Messaggi dell'altro partecipante non ancora letti da chi chiede
+    unreadCount,
   };
+}
+
+/**
+ * Messaggi non letti per l'utente, per ciascun prestito indicato: messaggi
+ * dell'altro partecipante successivi all'ultima lettura dell'utente
+ * (requester_last_read_at o lender_last_read_at a seconda del ruolo).
+ * Una sola query per tutta la lista.
+ *
+ * @returns {Promise<Map<number, number>>} loanId → non letti
+ */
+async function unreadCounts(prisma, userId, loanIds) {
+  const counts = new Map();
+  if (loanIds.length === 0) return counts;
+  const rows = await prisma.$queryRaw`
+    SELECT m.loan_id AS "loanId", COUNT(*)::int AS "unread"
+    FROM loan_messages m
+    JOIN loan_requests l ON l.id = m.loan_id
+    WHERE m.loan_id = ANY(${loanIds}::int[])
+      AND m.sender_id <> ${userId}
+      AND m.created_at > COALESCE(
+        CASE WHEN l.requester_id = ${userId} THEN l.requester_last_read_at
+             ELSE l.lender_last_read_at END,
+        'epoch'::timestamptz)
+    GROUP BY m.loan_id`;
+  for (const r of rows) counts.set(Number(r.loanId), Number(r.unread));
+  return counts;
 }
 
 function loanMessageDto(msg) {
@@ -137,14 +169,22 @@ function loanMessageDto(msg) {
 
 const LOAN_INCLUDE = {
   book: {
-    select: { id: true, title: true, author: true, coverUrl: true, available: true, ownerId: true },
+    select: {
+      id: true,
+      title: true,
+      author: true,
+      coverUrl: true,
+      available: true,
+      ownerId: true,
+      status: true,
+    },
   },
   requester: {
     select: {
       id: true,
       username: true,
       displayName: true,
-      city: true,
+      publicCity: true,
       accountType: true,
       avatarUrl: true,
     },
@@ -154,7 +194,7 @@ const LOAN_INCLUDE = {
       id: true,
       username: true,
       displayName: true,
-      city: true,
+      publicCity: true,
       accountType: true,
       avatarUrl: true,
     },
@@ -204,7 +244,7 @@ export default async function loansRoutes(fastify) {
           type: 'object',
           properties: {
             message: { type: 'string', maxLength: 2000 },
-            // Beta 7: durata prestito richiesta (default 14 giorni). Usata dal
+            // durata prestito richiesta (default 14 giorni). Usata dal
             // job overdue-loans per calcolare la deadline al passaggio a 'borrowed'.
             daysRequested: { type: 'integer', minimum: 1, maximum: 365 },
           },
@@ -220,9 +260,17 @@ export default async function loansRoutes(fastify) {
       // Carica book per validazione
       const book = await fastify.prisma.book.findUnique({
         where: { id: bookId },
-        select: { id: true, ownerId: true, status: true, loanPolicy: true, available: true },
+        select: {
+          id: true,
+          ownerId: true,
+          status: true,
+          loanPolicy: true,
+          available: true,
+          owner: { select: { status: true } },
+        },
       });
-      if (!book || book.status === 'removed') {
+      // Solo volumi pubblicati di account attivi
+      if (!book || book.status !== 'active' || book.owner.status !== 'active') {
         return reply.status(404).send({
           error: { code: 'NOT_FOUND', message: `Libro con id ${bookId} non trovato` },
         });
@@ -242,12 +290,11 @@ export default async function loansRoutes(fastify) {
       }
 
       // Verifica niente prestiti attivi già esistenti per (book, requester)
-      const activeStates = ['requested', 'confirmed', 'borrowed', 'returning'];
       const existing = await fastify.prisma.loanRequest.findFirst({
         where: {
           bookId,
           requesterId,
-          status: { in: activeStates },
+          status: { in: ACTIVE_LOAN_STATUSES },
         },
         select: { id: true, status: true },
       });
@@ -269,7 +316,7 @@ export default async function loansRoutes(fastify) {
             lenderId: book.ownerId,
             message: message || null,
             status: 'requested',
-            // Beta 7: durata richiesta, usata per calcolare deadline al mark_borrowed
+            // durata richiesta, usata per calcolare deadline al mark_borrowed
             daysRequested: daysRequested || null,
           },
           include: LOAN_INCLUDE,
@@ -287,12 +334,13 @@ export default async function loansRoutes(fastify) {
           requesterId,
           lenderId: book.ownerId,
           bookId,
+          loanId: loan.id,
           bookTitle: loan.book.title,
           requesterDisplayName: loan.requester.displayName,
         }
       );
 
-      // Beta 10: metrics — nuovo prestito creato
+      // metrics — nuovo prestito creato
       loansCreated.inc();
 
       return reply.status(201).send(loanDto(loan, requesterId));
@@ -341,9 +389,14 @@ export default async function loansRoutes(fastify) {
         }),
         fastify.prisma.loanRequest.count({ where }),
       ]);
+      const unread = await unreadCounts(
+        fastify.prisma,
+        userId,
+        loans.map((l) => l.id)
+      );
 
       return {
-        data: loans.map((l) => loanDto(l, userId)),
+        data: loans.map((l) => loanDto(l, userId, unread.get(l.id) ?? 0)),
         pagination: { total, limit, offset },
       };
     }
@@ -391,9 +444,14 @@ export default async function loansRoutes(fastify) {
         }),
         fastify.prisma.loanRequest.count({ where }),
       ]);
+      const unread = await unreadCounts(
+        fastify.prisma,
+        userId,
+        loans.map((l) => l.id)
+      );
 
       return {
-        data: loans.map((l) => loanDto(l, userId)),
+        data: loans.map((l) => loanDto(l, userId, unread.get(l.id) ?? 0)),
         pagination: { total, limit, offset },
       };
     }
@@ -428,7 +486,8 @@ export default async function loansRoutes(fastify) {
       }
 
       requireParticipant(loan, userId);
-      return loanDto(loan, userId);
+      const unread = await unreadCounts(fastify.prisma, userId, [loan.id]);
+      return loanDto(loan, userId, unread.get(loan.id) ?? 0);
     }
   );
 
@@ -459,7 +518,7 @@ export default async function loansRoutes(fastify) {
                 'mark_returned',
               ],
             },
-            // Fase 1g.2: motivazione opzionale, valutata solo per action='reject'.
+            // motivazione opzionale, valutata solo per action='reject'.
             // Validation lato UI (min 10 char) ma il backend e' permissivo:
             // accetta qualsiasi stringa <= 1000 char per non bloccare casi
             // edge (es. shadow integration vecchia che non passa reason).
@@ -476,7 +535,14 @@ export default async function loansRoutes(fastify) {
 
       const loan = await fastify.prisma.loanRequest.findUnique({
         where: { id },
-        select: { id: true, status: true, requesterId: true, lenderId: true, bookId: true },
+        select: {
+          id: true,
+          status: true,
+          requesterId: true,
+          lenderId: true,
+          bookId: true,
+          daysRequested: true,
+        },
       });
       if (!loan) {
         return reply.status(404).send({
@@ -509,7 +575,7 @@ export default async function loansRoutes(fastify) {
       }
 
       // 3. Applica transizione + side effect su book.available in transazione
-      // Fase 1g.2: salva rejectReason quando action='reject' e reason fornita.
+      // salva rejectReason quando action='reject' e reason fornita.
       const updateData = {
         status: transition.to,
         [transition.timestampField]: new Date(),
@@ -517,9 +583,9 @@ export default async function loansRoutes(fastify) {
       if (action === 'reject' && typeof reason === 'string' && reason.trim().length > 0) {
         updateData.rejectReason = reason.trim();
       }
-      // Beta 7: quando il libro passa a 'borrowed', calcola la deadline
+      // quando il libro passa a 'borrowed', calcola la deadline
       // (borrowedAt + daysRequested giorni) per abilitare il job overdue-loans.
-      // Se daysRequested non e' valorizzato (loan legacy pre-Beta 7), usa 14 giorni default.
+      // Se daysRequested non e' valorizzato (prestiti creati prima della durata), usa 14 giorni default.
       if (action === 'mark_borrowed') {
         const days = loan.daysRequested || 14;
         const deadline = new Date();
@@ -547,7 +613,7 @@ export default async function loansRoutes(fastify) {
 
       const [updated] = await fastify.prisma.$transaction(ops);
 
-      // Beta 10: metrics — transizione di stato
+      // metrics — transizione di stato
       loansTransitions.labels(action).inc();
 
       // Notifica all'altro partecipante (non-blocking)
@@ -559,13 +625,15 @@ export default async function loansRoutes(fastify) {
           actorId: userId,
           recipientId,
           bookId: loan.bookId,
+          loanId: updated.id,
           bookTitle: updated.book.title,
           actorDisplayName:
             role === 'requester' ? updated.requester.displayName : updated.lender.displayName,
         }
       );
 
-      return loanDto(updated, userId);
+      const unread = await unreadCounts(fastify.prisma, userId, [updated.id]);
+      return loanDto(updated, userId, unread.get(updated.id) ?? 0);
     }
   );
 
@@ -620,7 +688,7 @@ export default async function loansRoutes(fastify) {
               id: true,
               username: true,
               displayName: true,
-              city: true,
+              publicCity: true,
               accountType: true,
               avatarUrl: true,
             },
@@ -635,6 +703,7 @@ export default async function loansRoutes(fastify) {
         {
           senderId: userId,
           recipientId,
+          loanId: id,
           bookTitle: loan.book.title,
           senderDisplayName: msg.sender.displayName,
           preview: body,
@@ -695,7 +764,7 @@ export default async function loansRoutes(fastify) {
                 id: true,
                 username: true,
                 displayName: true,
-                city: true,
+                publicCity: true,
                 accountType: true,
                 avatarUrl: true,
               },
@@ -709,6 +778,44 @@ export default async function loansRoutes(fastify) {
         data: messages.map(loanMessageDto),
         pagination: { total, limit, offset },
       };
+    }
+  );
+
+  // ===========================================================================
+  // POST /api/loans/:id/read — Segna come letti i messaggi della chat
+  // ===========================================================================
+  fastify.post(
+    '/api/loans/:id/read',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          properties: { id: { type: 'integer', minimum: 1 } },
+          required: ['id'],
+        },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      const userId = await requireUserId(request);
+      const loan = await fastify.prisma.loanRequest.findUnique({
+        where: { id },
+        select: { id: true, requesterId: true, lenderId: true },
+      });
+      if (!loan) {
+        return reply.status(404).send({
+          error: { code: 'NOT_FOUND', message: `Prestito con id ${id} non trovato` },
+        });
+      }
+      const role = requireParticipant(loan, userId);
+      await fastify.prisma.loanRequest.update({
+        where: { id },
+        data:
+          role === 'requester'
+            ? { requesterLastReadAt: new Date() }
+            : { lenderLastReadAt: new Date() },
+      });
+      return { loanId: id, unreadCount: 0 };
     }
   );
 }

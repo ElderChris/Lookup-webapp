@@ -37,7 +37,7 @@ help:
 	@echo "    make db-reset      Ferma + cancella volumi + ricrea DB pulito"
 	@echo "    make db-logs       Segui i log di postgres"
 	@echo ""
-	@echo "  Backend API (Fase 1c+):"
+	@echo "  Backend API:"
 	@echo "    make api-dev       Avvia il backend in dev (hot-reload) su :3000"
 	@echo "    make api-build     Builda l'immagine Docker del backend"
 	@echo "    make api-up        Avvia il backend nel container (profilo backend)"
@@ -108,7 +108,7 @@ db-logs:
 	docker compose logs -f postgres
 
 # =============================================================================
-# Backend API (Fase 1c+)
+# Backend API
 # =============================================================================
 
 api-dev:

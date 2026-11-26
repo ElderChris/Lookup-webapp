@@ -1,5 +1,5 @@
 // =============================================================================
-// src/jobs/queue.js — BullMQ queue setup (Beta 7)
+// src/jobs/queue.js — BullMQ queue setup
 // =============================================================================
 // Infrastruttura per background jobs. Ogni tipo di job vive in una queue
 // dedicata (permette rate limit / priority / retry policy separate).
@@ -20,7 +20,7 @@
 //     (un solo worker esegue ogni job — lock a livello Redis)
 //   - Retry con exponential backoff su failure
 //   - Delayed jobs (utile per reminder pre-scadenza in futuro)
-//   - Dashboard Bull Board (Beta 8+) per monitoring
+//   - Dashboard Bull Board per monitoring
 // =============================================================================
 
 import { Queue, QueueEvents } from 'bullmq';
@@ -52,7 +52,7 @@ export const overdueLoansQueue = new Queue('overdue-loans', { connection });
 /** Retention policy — purge audit log oltre soglia */
 export const retentionQueue = new Queue('retention', { connection });
 
-/** Beta 7.1: Upcoming deadline — reminder T-N giorni pre-scadenza */
+/** Upcoming deadline — reminder T-N giorni pre-scadenza */
 export const upcomingDeadlineQueue = new Queue('upcoming-deadline', { connection });
 
 // -----------------------------------------------------------------------------
@@ -108,7 +108,7 @@ const SCHEDULES = [
   {
     queue: upcomingDeadlineQueue,
     id: 'notify-upcoming-deadlines',
-    // Beta 7.1: promemoria cortese, una volta al giorno alle 9:00 UTC
+    // promemoria cortese, una volta al giorno alle 9:00 UTC
     pattern: process.env.PRE_DEADLINE_JOB_SCHEDULE || '0 9 * * *',
     opts: { removeOnComplete: 30, removeOnFail: 100 },
   },
@@ -136,7 +136,7 @@ export async function closeQueues() {
 }
 
 // -----------------------------------------------------------------------------
-// Beta 10: refresh periodico gauge bull_queue_size per Prometheus
+// refresh periodico gauge bull_queue_size per Prometheus
 // -----------------------------------------------------------------------------
 // I gauge devono essere aggiornati periodicamente perche' Prometheus scrapa
 // il valore attuale al momento dello scrape. Un timer ogni 30s legge lo stato

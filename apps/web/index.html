@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <!-- Beta 9: PWA meta tags -->
+  <!-- PWA meta tags -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#7a1e2b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -16,7 +16,8 @@
   <!-- Il parametro ?v= serve come "cache-busting": cambiando versione,
        il browser è costretto a riscaricare il file invece di servire
        una copia obsoleta dalla cache. -->
-  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="js/auth-hint.js"></script>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -45,7 +46,7 @@
 
   <main id="main">
 
-    <!-- v2.4: Aggiornamenti recenti — visibili solo agli utenti loggati,
+    <!-- Aggiornamenti recenti — visibili solo agli utenti loggati,
          mostrano i post degli utenti seguiti in ordine cronologico. -->
     <section class="container recent-updates auth-only" id="recent-updates-section" hidden>
       <div class="recent-updates__head">
@@ -91,7 +92,7 @@
              Per sostituirla basta cambiare il file in assets/ o l'src
              qui sotto (anche con un .json Lottie + <lottie-player>). -->
         <div class="hero__illustration" id="hero-illustration">
-          <img src="assets/library-animate.svg?v=3.0.0-alpha.0"
+          <img src="assets/library-animate.svg"
                alt="Illustrazione: due lettori che condividono un libro in una biblioteca" />
         </div>
 
@@ -118,9 +119,9 @@
           Esplora la mappa
         </a>
 
-        <div class="hero__stats-inline" id="hero-stats" aria-label="Numeri della piattaforma in tempo reale">
+        <div class="hero__stats-inline" id="hero-stats" aria-label="Numeri della piattaforma, aggiornati ogni minuto">
           <span class="hero__stats-inline__pip" aria-hidden="true"></span>
-          <span class="hero__stats-inline__live">in tempo reale</span>
+          <span class="hero__stats-inline__live">aggiornati ogni minuto</span>
           <span class="hero__stats-inline__group">
             <strong id="stat-books" data-stat="books">0</strong> volumi
           </span>
@@ -144,7 +145,7 @@
       <div class="home-welcome">
         <div>
           <span class="eyebrow">la tua home</span>
-          <h1 id="welcome-title" class="home-welcome__title" data-name=""></h1>
+          <h1 id="welcome-title" class="home-welcome__title" data-name="" aria-busy="true"></h1>
           <p class="home-welcome__sub">Ecco cosa è successo nelle librerie che segui e fra i tuoi volumi preferiti.</p>
         </div>
         <a href="add-book.html" class="btn btn--primary btn--lg btn--pulse">
@@ -159,7 +160,7 @@
         <h2 id="feed-title">Novità da chi segui</h2>
         <span class="section-meta">N° 01 — aggiornamenti recenti</span>
       </div>
-      <div id="follow-feed" class="books-grid" aria-live="polite"></div>
+      <div id="follow-feed" class="books-grid" aria-live="polite" aria-busy="true"></div>
     </section>
 
     <!-- Volumi preferiti -->
@@ -168,7 +169,7 @@
         <h2 id="likes-title">I tuoi preferiti</h2>
         <span class="section-meta">N° 02 — volumi con «mi piace»</span>
       </div>
-      <div id="liked-books" class="books-grid" aria-live="polite"></div>
+      <div id="liked-books" class="books-grid" aria-live="polite" aria-busy="true"></div>
     </section>
 
     <!-- ============ LIBRERIE VICINO A TE ============ -->
@@ -281,7 +282,7 @@
       <div class="books-grid" id="featured-books" aria-live="polite"></div>
     </section>
 
-    <!-- Beta 9: sezione installazione app (PWA) -->
+    <!-- sezione installazione app (PWA) -->
     <section class="install-app-section" id="install-section-index" aria-labelledby="install-title-index">
       <h2 class="install-app-section__title" id="install-title-index">Anche su Android o iOS</h2>
       <p class="install-app-section__desc">
@@ -316,76 +317,61 @@
       <div>
         <h4>Lookup</h4>
         <p style="color: rgba(244,239,230,.7); font-size: .9rem;">
-          Un progetto di condivisione del patrimonio librario privato, radicato nel territorio.
+          Condivisione dei libri privati e delle biblioteche di comunità, fra vicini.
         </p>
       </div>
       <div>
         <h4>Esplora</h4>
         <a href="explore.html">Mappa dei libri</a>
-        <a href="explore.html?sort=recent">Ultime pubblicazioni</a>
         <a href="stats.html">Statistiche</a>
-        <a href="loans.html" class="auth-only">Prestiti</a>
+        <a href="loans.html" class="auth-only">I miei prestiti</a>
       </div>
       <div>
         <h4>Partecipa</h4>
-        <a href="add-book.html">Pubblica un libro</a>
-        <a href="profile.html">Profilo personale</a>
+        <a href="add-book.html" class="auth-only">Pubblica un libro</a>
+        <a href="profile.html" class="auth-only">Il tuo profilo</a>
+        <a href="register.html" class="guest-only">Iscriviti</a>
+        <a href="login.html" class="guest-only">Accedi</a>
       </div>
       <div>
         <h4>Informazioni</h4>
-        <a href="privacy.html">Privacy policy</a>
-        <a href="terms.html">Termini</a>
-        <a href="#">Contatti</a>
+        <a href="privacy.html">Informativa sulla privacy</a>
+        <a href="terms.html">Termini di utilizzo</a>
       </div>
-
       <div class="site-footer__colophon">
-        <span>© 2026 Lookup — Prototipo didattico</span>
-        <span>v3.0.0-alpha.0 — GPL-3.0</span>
+        <span>© 2026 Lookup</span>
+        <span>Codice con licenza GPL-3.0<span data-app-version></span></span>
       </div>
     </div>
   </footer>
 
   <script type="module" src="js/api-bootstrap.js"></script>
-  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+  <script type="module" src="js/app.js"></script>
   <script>
     /* Popolamento dei contenuti dinamici della homepage */
 
     document.addEventListener('DOMContentLoaded', async () => {
 
-      /* v2.4: Aggiornamenti recenti dai profili seguiti
-         ========================================================= */
-      (function renderRecentUpdates() {
+      // Le parti personali dipendono dalla sessione verificata dal server
+      await window.LB_UI.whenAuthReady();
+
+      /* Aggiornamenti recenti: post di chi segui e propri (dal server) */
+      function renderRecentUpdates() {
         const me = window.LB_UI.currentUser();
-        const isAuth = API.getAuthState() === 'user';
         const section = document.getElementById('recent-updates-section');
-        if (!section || !isAuth || !me) return;
+        if (!section || !me) return;
         const feed = document.getElementById('recent-updates-feed');
         async function paint() {
-          // Fase 2c.4: feed dal backend (posts.feed richiede auth)
-          // Nota: /api/posts/feed ritorna post degli utenti seguiti +
-          // post propri. Se backend giu' o errore → fallback legacy.
           let posts;
-          let source = 'legacy';
-          if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-            try {
-              const res = await window.LB_API.posts.feed({ limit: 10 }, {
-                cache: {
-                  ttlMs: window.LB_API.CACHE_TTL.BOOKS_LIST, // 30s: freschi
-                  key: `posts:feed:${me.id}`,
-                },
-              });
-              // I post backend hanno shape diversa: trasformali
-              posts = res.data.map(window.LB_API.postToLegacy);
-              source = `backend (${posts.length})`;
-            } catch (err) {
-              console.debug(`[index] feed fallback legacy: ${err.code || err.message}`);
-            }
+          try {
+            const res = await window.LB_API.posts.feed({ limit: 10 });
+            posts = res.data;
+          } catch (err) {
+            feed.innerHTML = `<p class="recent-updates__empty">
+              Server non raggiungibile: aggiornamenti non disponibili.</p>`;
+            section.hidden = false;
+            return;
           }
-          if (!posts) {
-            posts = API.getPostsFromFollowed(me.id, 10);
-          }
-          console.debug(`[index] feed source: ${source}`);
-
           if (posts.length === 0) {
             feed.innerHTML = `
               <p class="recent-updates__empty">
@@ -399,138 +385,148 @@
           section.hidden = false;
         }
         paint();
-      })();
+      }
+      renderRecentUpdates();
 
       /* =========================================================
-         CONTATORI "LIVE"
-         I valori partono dai dati reali e vengono incrementati a
-         intervalli regolari con piccoli scatti casuali, per dare
-         la sensazione di una piattaforma viva e in crescita.
-         È un pattern di gamification: riprova sociale + senso di
-         slancio. In produzione gli incrementi arriverebbero da un
-         canale realtime (WebSocket / SSE) alimentato dal backend.
+         CONTATORI DELLA PIATTAFORMA (scelta di Chris, 22 nov 2026)
+         Valori reali dal server (/api/stats/global → publicCounters).
+         All'apertura il numero sale da 0 con un'animazione; ogni 60 s
+         la pagina rilegge i dati e, se sono cambiati, il numero sale
+         dal valore precedente con lo stesso scatto. L'effetto
+         "piattaforma viva" resta, ma solo con dati veri.
          ========================================================= */
-      const baseStats = API.getGlobalStats();
+      const counters = { books: 0, users: 0, categories: 0, views: 0 };
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-      // Stato corrente dei contatori (number)
-      const counters = {
-        books:      baseStats.total_books,
-        users:      baseStats.total_users,
-        categories: baseStats.categories_count,
-        views:      baseStats.total_views
-      };
-
-      // Quanto può crescere ogni metrica ad ogni "tick"
-      const increments = {
-        books:      () => (Math.random() < 0.5 ? 1 : 0),
-        users:      () => (Math.random() < 0.3 ? 1 : 0),
-        categories: () => 0,                       // le categorie sono stabili
-        views:      () => Math.floor(Math.random() * 9) + 1
-      };
-
-      function paintCounter(key) {
+      function animateCounter(key, to) {
         const el = document.querySelector(`[data-stat="${key}"]`);
         if (!el) return;
-        el.textContent = counters[key].toLocaleString('it-IT');
+        const from = counters[key];
+        counters[key] = to;
+        if (from === to) return;
+        const paint = (v) => { el.textContent = Math.round(v).toLocaleString('it-IT'); };
+        if (reduceMotion) { paint(to); return; }
+        const start = performance.now();
+        const duration = from === 0 ? 1200 : 700;
+        const step = (now) => {
+          const t = Math.min(1, (now - start) / duration);
+          paint(from + (to - from) * (1 - Math.pow(1 - t, 3)));
+          if (t < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+        if (from > 0) {
+          // Micro-animazione di scatto sugli aggiornamenti successivi
+          el.classList.remove('is-ticking');
+          void el.offsetWidth;
+          el.classList.add('is-ticking');
+        }
       }
 
-      // Render iniziale
-      Object.keys(counters).forEach(paintCounter);
-
-      // Tick periodico ogni 4 secondi
+      async function refreshCounters() {
+        try {
+          const res = await window.LB_API.stats.global();
+          const c = res.publicCounters || {};
+          animateCounter('books', c.books || 0);
+          animateCounter('users', c.readers || 0);
+          animateCounter('categories', c.categories || 0);
+          animateCounter('views', c.views || 0);
+        } catch (_err) {
+          /* restano gli ultimi valori mostrati */
+        }
+      }
+      refreshCounters();
       setInterval(() => {
-        Object.keys(counters).forEach(key => {
-          const delta = increments[key]();
-          if (delta > 0) {
-            counters[key] += delta;
-            const el = document.querySelector(`[data-stat="${key}"]`);
-            paintCounter(key);
-            // Micro-animazione di scatto
-            el.classList.remove('is-ticking');
-            void el.offsetWidth;            // forza il reflow per riavviare l'animazione
-            el.classList.add('is-ticking');
-          }
-        });
-      }, 4000);
+        if (!document.hidden) refreshCounters();
+      }, 60000);
 
       /* =========================================================
-         LIBRERIE VICINO A TE
-         Ordinate per prossimità + attività. La posizione di
-         riferimento è quella dell'utente autenticato oppure, per i
-         visitatori anonimi, una posizione simulata sul centro di
-         Napoli.
+         LIBRERIE VICINO A TE (scelta di Chris, 22 nov 2026)
+         Distanze dalla propria posizione, se impostata, oppure da
+         quella del browser su richiesta; altrimenti ordine per
+         attivita'. Le distanze usano solo le posizioni pubbliche.
          ========================================================= */
-      function renderNearby() {
+      async function renderNearby() {
         const container = document.getElementById('nearby-libraries');
         const refNote = document.getElementById('nearby-ref-note');
-        const ref = API.getReferenceLocation();
+        const ref = window.LB_UI.referencePosition();
 
-        refNote.textContent = ref.simulated
-          ? 'Le distanze sono calcolate da una posizione simulata sul centro di Napoli. Accedi per usare la tua posizione reale.'
-          : 'Le distanze sono calcolate dalla tua posizione registrata.';
+        if (ref && ref.source === 'profile') {
+          refNote.textContent = 'Le distanze sono calcolate dalla posizione che hai indicato nelle impostazioni.';
+        } else if (ref) {
+          refNote.textContent = 'Le distanze sono calcolate dalla posizione attuale del tuo dispositivo.';
+        } else {
+          refNote.innerHTML = `Senza una posizione le librerie sono ordinate per attività.
+            <button type="button" class="btn btn--ghost btn--small" id="nearby-use-position"
+                    style="margin-left: .5rem;">📍 Usa la mia posizione</button>`;
+          document.getElementById('nearby-use-position').addEventListener('click', async () => {
+            try {
+              await window.LB_UI.requestBrowserPosition();
+              renderNearby();
+            } catch (err) {
+              UI.toast(err.message, 'error');
+            }
+          });
+        }
 
-        const allLibs = API.getNearbyLibraries();
+        let allLibs;
+        try {
+          const res = await window.LB_API.library.nearby(
+            ref ? { lat: ref.lat, lng: ref.lng, limit: 24 } : { limit: 24 }
+          );
+          allLibs = res.data;
+        } catch (err) {
+          container.innerHTML = `<p style="color:var(--color-ink-soft);font-style:italic;">
+            Server non raggiungibile: librerie non disponibili.</p>`;
+          return;
+        }
+        if (!allLibs.length) {
+          container.innerHTML = `<p style="color:var(--color-ink-soft);font-style:italic;">
+            Nessuna libreria ha ancora pubblicato volumi.</p>`;
+          return;
+        }
 
-        /* Selezione di 6 librerie con varietà di profilo: ordinate per
-           rank_score (vicinanza + attività), ma forziamo almeno 2 enti
-           e 3 librerie personali fra le 6 prescelte, così la vetrina
-           non si appiattisce su un solo tipo di profilo. */
-        const orgs = allLibs.filter(l => window.LB_UI.isOrganization(l));
-        const persons = allLibs.filter(l => !window.LB_UI.isOrganization(l));
+        /* Selezione di 6 librerie con varietà di profilo: nell'ordine del
+           server (vicinanza + attività), ma con almeno 2 enti e 3 librerie
+           personali, così la vetrina non si appiattisce su un solo tipo. */
+        const isOrg = (l) => l.accountType === 'organization';
+        const orgs = allLibs.filter(isOrg);
+        const persons = allLibs.filter((l) => !isOrg(l));
         const picked = [];
         const TARGET = 6, MIN_ORGS = 2, MIN_PERSONS = 3;
-        // garantisce i minimi
-        orgs.slice(0, MIN_ORGS).forEach(l => picked.push(l));
-        persons.slice(0, MIN_PERSONS).forEach(l => picked.push(l));
-        // riempi i posti rimanenti col rank globale, evitando duplicati
-        const seen = new Set(picked.map(l => l.id));
-        allLibs.filter(l => !seen.has(l.id)).slice(0, TARGET - picked.length)
-               .forEach(l => picked.push(l));
-        const libs = picked.slice(0, TARGET).sort((a, b) => a.rank_score - b.rank_score);
-        container.innerHTML = libs.map(l => UI.renderNearbyLibraryCard(l)).join('');
+        orgs.slice(0, MIN_ORGS).forEach((l) => picked.push(l));
+        persons.slice(0, MIN_PERSONS).forEach((l) => picked.push(l));
+        const seen = new Set(picked.map((l) => l.id));
+        allLibs.filter((l) => !seen.has(l.id)).slice(0, TARGET - picked.length)
+               .forEach((l) => picked.push(l));
+        const order = new Map(allLibs.map((l, i) => [l.id, i]));
+        const libs = picked.slice(0, TARGET).sort((a, b) => order.get(a.id) - order.get(b.id));
+        container.innerHTML = libs.map((l) => UI.renderNearbyLibraryCard(l)).join('');
       }
       renderNearby();
 
-      /* v2.6: Libri in evidenza "selezione della settimana"
+      /* Libri in evidenza "selezione della settimana"
          ========================================================
-         Algoritmo realistico (vedi API.getFeaturedBooks):
+         Algoritmo:
          engagement recente (views 7d ×1 + prestiti 7d ×3 + like ×2)
          × quality multiplier (rating del proprietario)
          ÷ decay sqrt(giorni dall'aggiunta), con diversity penalty
          per evitare la dominanza di un singolo genere.
 
-         Fase 2c.4: sostituito con GET /api/stats/featured. Il backend
-         calcola engagement recente + diversity penalty con la stessa
-         semantica. Fallback graceful al legacy se backend giu'. */
-      let featured;
-      let featuredSource = 'legacy';
-      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-        try {
-          const res = await window.LB_API.stats.featured({ limit: 4, days: 7 }, {
-            cache: {
-              ttlMs: window.LB_API.CACHE_TTL.STATS,
-              key: 'stats:featured:4:7',
-            },
-          });
-          featured = res.data.map(window.LB_API.bookToLegacy);
-          featuredSource = `backend (${featured.length})`;
-        } catch (err) {
-          console.debug(`[index] featured fallback legacy: ${err.code || err.message}`);
-        }
-      }
-      if (!featured) {
-        featured = API.getFeaturedBooks(4).map(c => c.book);
-      }
-      console.debug(`[index] featured source: ${featuredSource}`);
-      UI.renderBooksGrid(document.getElementById('featured-books'), featured);
-
-      // Fase 2c.4: badge LIVE se almeno featured proviene dal backend
-      if (featuredSource.startsWith('backend') && window.LB_markLive) {
-        window.LB_markLive('home', `GET /api/stats/featured + /api/posts/feed`);
+         Calcolato dal server: GET /api/stats/featured. */
+      const featuredBox = document.getElementById('featured-books');
+      try {
+        const res = await window.LB_API.stats.featured({ limit: 4, days: 7 }, {
+          cache: { ttlMs: window.LB_API.CACHE_TTL.STATS, key: 'stats:featured:4:7' },
+        });
+        UI.renderBooksGrid(featuredBox, res.data);
+      } catch (_err) {
+        featuredBox.innerHTML = `<p style="color:var(--color-ink-soft);font-style:italic;">
+          Server non raggiungibile: selezione non disponibile.</p>`;
       }
 
       /* ----- Saluto personalizzato (utente autenticato)
-         v2.6: gender neutral, rotazione fra 17 frasi diverse a ogni login */
+         Neutri rispetto al genere, rotazione fra 17 frasi diverse a ogni login */
       function updateGreeting() {
         const greeting = document.getElementById('user-greeting');
         const user = window.LB_UI.currentUser();
@@ -547,56 +543,61 @@
       /* ----- HOME PERSONALIZZATA (utenti autenticati) -----
          Popola: nome di benvenuto, novità dalle librerie seguite,
          volumi preferiti. Le sezioni sono nascoste ai guest via CSS. */
-      function renderPersonalizedHome() {
+      async function renderPersonalizedHome() {
         const me = window.LB_UI.currentUser();
         if (!me) return;
+        const esc = (v) => UI._escapeHtml(v);
 
-        // v2.6: titolo di benvenuto gender neutral con rotazione
+        // Titolo di benvenuto con il nome evidenziato
         const wTitle = document.getElementById('welcome-title');
         if (wTitle) {
           const msg = window.LB_UI.getWelcomeMessage(me);
-          // Spezza in due: prima parte normale, nome come <em>
-          const first = (me.display_name || me.username).split(' ')[0];
-          const html = msg.replace(first, `<em>${first}</em>`);
-          wTitle.innerHTML = html;
+          const first = (me.displayName || me.username).split(' ')[0];
+          wTitle.innerHTML = esc(msg).replace(esc(first), `<em>${esc(first)}</em>`);
+          wTitle.removeAttribute('aria-busy');
         }
 
-        // --- Novità da chi segui: volumi recenti delle librerie seguite ---
         const feed = document.getElementById('follow-feed');
+        const likedBox = document.getElementById('liked-books');
+        const unavailable = `<p style="color:var(--color-ink-soft);font-style:italic;">
+          Server non raggiungibile: riprova tra poco.</p>`;
+
+        // --- Novità da chi segui: volumi recenti delle librerie seguite ---
+        // --- I tuoi preferiti: volumi con il tuo "mi piace" ---
+        const [followRes, likedRes] = await Promise.allSettled([
+          window.LB_API.books.list({ following: true, limit: 4, sort: 'recent' }),
+          window.LB_API.books.list({ liked: true, limit: 8, sort: 'recent' }),
+        ]);
+
         if (feed) {
-          const followed = API.getFollows(me.id);
-          if (!followed.length) {
+          feed.removeAttribute('aria-busy');
+          if (followRes.status === 'rejected') {
+            feed.innerHTML = unavailable;
+          } else if (followRes.value.data.length) {
+            UI.renderBooksGrid(feed, followRes.value.data, {
+              highlightRecent: true,
+            });
+          } else {
             feed.innerHTML = `<div class="empty-feed">
-              <p>Non segui ancora nessuna libreria. Visita una libreria e premi
-              <strong>«Segui»</strong> per ricevere qui i suoi nuovi volumi e aggiornamenti.</p>
+              <p>Qui compaiono i nuovi volumi delle librerie che segui. Visita una libreria
+              e premi <strong>«Segui»</strong> per vederli.</p>
               <a href="explore.html" class="btn btn--ghost">Esplora le librerie</a>
             </div>`;
-          } else {
-            // libri delle librerie seguite, più recenti prima
-            const books = followed
-              .flatMap(uid => API.getBooksByOwner(uid))
-              .sort((a, b) => (b.added || '').localeCompare(a.added || ''))
-              .slice(0, 4);
-            if (books.length) {
-              UI.renderBooksGrid(feed, books, { highlightRecent: true });
-            } else {
-              feed.innerHTML = `<p style="color:var(--color-ink-soft);font-style:italic;">Le librerie che segui non hanno ancora pubblicato volumi.</p>`;
-            }
           }
         }
 
-        // --- I tuoi preferiti ---
-        const likedBox = document.getElementById('liked-books');
         if (likedBox) {
-          const liked = API.getLikedBooks(me.id);
-          if (!liked.length) {
+          likedBox.removeAttribute('aria-busy');
+          if (likedRes.status === 'rejected') {
+            likedBox.innerHTML = unavailable;
+          } else if (likedRes.value.data.length) {
+            UI.renderBooksGrid(likedBox, likedRes.value.data);
+          } else {
             likedBox.innerHTML = `<div class="empty-feed">
               <p>Non hai ancora preferiti. Premi il <strong>cuore</strong> su un volume
               per salvarlo ed essere avvisato quando un titolo in prestito torna disponibile.</p>
               <a href="explore.html" class="btn btn--ghost">Cerca volumi</a>
             </div>`;
-          } else {
-            UI.renderBooksGrid(likedBox, liked);
           }
         }
       }
@@ -609,6 +610,7 @@
       document.addEventListener('auth:change', () => {
         updateGreeting();
         renderNearby();
+        renderRecentUpdates();
         renderPersonalizedHome();
       });
 

@@ -3,7 +3,7 @@
 // =============================================================================
 // Utility condivise dai test:
 //   - buildTestApp(): istanzia l'app Fastify configurata, senza listen
-//   - authHeaders(userId): header X-Lookup-User-Id per route auth-required
+//   - authHeaders(userId): cookie di sessione di un utente del seed
 //   - createTestPrisma(): client Prisma standalone per setup dati in test
 //   - resetDynamicTables(): wipe loans/reviews/posts/notifications/etc
 //   - randomBookData(): factory per creare body POST /api/books
@@ -39,15 +39,9 @@ export async function closeTestApp() {
 }
 
 /**
- * Headers per simulare autenticazione di un utente.
- *
- * Beta 6: cambiata implementazione. Prima ritornava
- * `{ 'X-Lookup-User-Id': userId }` (dev fallback). Ora fa vero login via
- * Better Auth e ritorna `{ Cookie: 'better-auth.session_token=...' }`.
- *
- * L'API pubblica resta la stessa: chiama `authHeaders(SEED.USER_MARCO)` in
- * un test e ottieni gli header pronti per `app.inject({headers})`. La
- * differenza: ora deve essere `await`.
+ * Header di un utente autenticato: fa un vero accesso con Better Auth e
+ * ritorna `{ Cookie: 'better-auth.session_token=...' }`, da passare a
+ * `app.inject({ headers })`.
  *
  * Nota: usa la variante cached (`signInAsCached`) per performance. Se un
  * test fa signOut esplicito, importa e usa `clearAuthCache` da authTestHelpers.
@@ -117,6 +111,27 @@ export function randomPostContent(overrides = {}) {
     content: `Post di test ${nextSuffix()}`,
     ...overrides,
   };
+}
+
+/**
+ * Crea un prestito concluso (stato `returned`) fra due utenti: requisito
+ * per poter scrivere una recensione. Ritorna l'id, da cancellare a fine test.
+ */
+export async function createReturnedLoan(prisma, { requesterId, lenderId, bookId }) {
+  const now = new Date();
+  const loan = await prisma.loanRequest.create({
+    data: {
+      bookId,
+      requesterId,
+      lenderId,
+      status: 'returned',
+      confirmedAt: now,
+      borrowedAt: now,
+      returningAt: now,
+      returnedAt: now,
+    },
+  });
+  return loan.id;
 }
 
 // IDs convenzionali dei dati seed: definiti in seedIds.mjs, riesportati qui

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <!-- Beta 9: PWA meta tags -->
+  <!-- PWA meta tags -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#7a1e2b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -11,9 +11,10 @@
   <meta name="apple-mobile-web-app-title" content="Lookup" />
   <link rel="apple-touch-icon" href="/img/icon-180.png" />
 
-  <meta name="description" content="Informativa sulla privacy di Lookup — prototipo didattico." />
-  <title>Privacy policy — Lookup</title>
-  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <meta name="description" content="Informativa sulla privacy di Lookup." />
+  <title>Informativa sulla privacy — Lookup</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="js/auth-hint.js"></script>
   <link rel="icon" type="image/svg+xml"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='6' width='20' height='20' fill='none' stroke='%237a1e2b' stroke-width='2'/%3E%3Crect x='11' y='11' width='10' height='10' fill='%237a1e2b'/%3E%3C/svg%3E" />
 </head>
@@ -43,129 +44,249 @@
   </header>
 
   <main id="main">
-    <section class="section container container--narrow">
-      <span class="eyebrow">documento</span>
-      <h1 style="font-size: 2.4rem; margin: 0.4rem 0 0.5rem;">Informativa sulla privacy</h1>
-      <p style="color: var(--color-ink-soft); margin-bottom: 2.5rem; font-size: 1.05rem;">
-        Come Lookup raccoglie, conserva e utilizza i tuoi dati personali.
-        <br><em>Ultimo aggiornamento: giugno 2026.</em>
-      </p>
+    <section class="section container legal-page">
+      <header class="legal-page__head">
+        <span class="eyebrow">documento</span>
+        <h1>Informativa sulla privacy</h1>
+        <p class="legal-page__intro">Quali dati personali tratta Lookup, perché, per quanto tempo e come puoi esercitare i tuoi diritti (Regolamento UE 2016/679, «GDPR»).</p>
+        <p class="legal-page__updated">Ultimo aggiornamento: novembre 2026.</p>
+      </header>
 
-      <div class="legal-doc">
+      <div class="legal-layout">
+        <!-- Indice: a destra e fisso durante lo scorrimento su schermi larghi,
+             richiudibile in cima alla pagina su schermi stretti (js/legal-toc.js) -->
+        <nav class="legal-toc" aria-labelledby="legal-toc-title">
+          <details class="legal-toc__box" open>
+            <summary class="legal-toc__summary" id="legal-toc-title">In questa pagina</summary>
+            <ol class="legal-toc__list">
+              <li><a href="#titolare"><span class="legal-toc__num">1</span> Titolare del trattamento</a></li>
+              <li><a href="#dati"><span class="legal-toc__num">2</span> Quali dati trattiamo e perché</a></li>
+              <li><a href="#destinatari"><span class="legal-toc__num">3</span> Chi può vedere i tuoi dati</a></li>
+              <li><a href="#email"><span class="legal-toc__num">4</span> Email</a></li>
+              <li><a href="#servizi-esterni"><span class="legal-toc__num">5</span> Servizi esterni caricati dal browser</a></li>
+              <li><a href="#cookie"><span class="legal-toc__num">6</span> Cookie e memoria del browser</a></li>
+              <li><a href="#conservazione"><span class="legal-toc__num">7</span> Per quanto tempo</a></li>
+              <li><a href="#diritti"><span class="legal-toc__num">8</span> I tuoi diritti</a></li>
+              <li><a href="#sicurezza"><span class="legal-toc__num">9</span> Sicurezza</a></li>
+              <li><a href="#minori"><span class="legal-toc__num">10</span> Minori</a></li>
+              <li><a href="#modifiche"><span class="legal-toc__num">11</span> Modifiche</a></li>
+            </ol>
+          </details>
+        </nav>
 
-        <h2>1. Premessa importante</h2>
-        <p>Lookup è attualmente in <strong>fase di prototipo</strong>
-        (release <code>v3.0.0-alpha.0</code>) in transizione verso una release
-        <strong>Alpha closed</strong>. Nel prototipo attuale tutti i dati restano
-        nel <em>localStorage</em> del tuo browser e non vengono inviati a nessun
-        server. Nella release Alpha (prevista entro 3-4 mesi) sarà disponibile
-        un deploy self-hostable via Docker compose dove i dati saranno persistiti
-        in un database PostgreSQL gestito dal soggetto che ospita l'istanza.</p>
-        <p>Questa informativa descrive il comportamento previsto per la release
-        Alpha. Le sezioni applicabili al solo prototipo attuale sono marcate con
-        <em>(solo prototipo)</em>.</p>
+        <article class="legal-doc" aria-label="Informativa sulla privacy">
+          <section class="legal-section" id="titolare" aria-labelledby="titolare-titolo">
+            <h2 id="titolare-titolo"><span class="legal-section__num">1.</span> Titolare del trattamento</h2>
+            <p>Il titolare del trattamento è il soggetto che gestisce questa installazione
+            di Lookup: <strong>[denominazione del titolare]</strong>, con sede in
+            <strong>[indirizzo]</strong>, contattabile all'indirizzo
+            <strong>[email di contatto]</strong>. Se è stato nominato un responsabile della
+            protezione dei dati (DPO), i suoi contatti sono: <strong>[contatti DPO, se presente]</strong>.</p>
+          </section>
 
-        <h2>2. Titolare del trattamento</h2>
-        <p><em>(solo prototipo)</em>: nessun dato lascia il tuo browser, non c'è
-        alcun trattamento centralizzato. Il prototipo è eseguibile in locale
-        senza creare alcun account su servizi esterni.</p>
-        <p><em>(Alpha)</em>: il Titolare del trattamento sarà il soggetto che
-        ospita l'istanza self-hostata. Nel deploy di test con il cliente,
-        Titolare è il cliente stesso. In un eventuale deploy pubblico sarà
-        indicato il nome dell'organizzazione titolare con i contatti DPO.</p>
+          <section class="legal-section" id="dati" aria-labelledby="dati-titolo">
+            <h2 id="dati-titolo"><span class="legal-section__num">2.</span> Quali dati trattiamo e perché</h2>
+            <h3>Account</h3>
+            <p>Email, password, nome visualizzato, nome utente, tipo di account (persona,
+            lettore o ente) e data in cui hai accettato termini e informativa. Servono a
+            creare e gestire il tuo account e a farti accedere (base giuridica: esecuzione
+            del servizio richiesto, art. 6.1.b GDPR). La password non viene mai conservata
+            in chiaro ma solo come impronta crittografica (scrypt). L'email non è mostrata
+            agli altri utenti.</p>
 
-        <h2>3. Dati che raccogliamo</h2>
-        <p>Nel prototipo, i seguenti dati vengono salvati esclusivamente nella
-        memoria locale del tuo browser (<code>localStorage</code>):</p>
-        <ul>
-          <li><strong>Dati di profilo</strong>: nome, username, email, città, biografia,
-          eventuali dati identificativi degli enti (P.IVA, indirizzo legale).</li>
-          <li><strong>Preferenze di personalizzazione</strong>: tema scelto, avatar,
-          motto della libreria, lingue dei volumi pubblicati.</li>
-          <li><strong>Catalogo dei volumi</strong>: titoli, autori, ISBN, condizioni,
-          descrizioni, foto delle copertine generate dall'app.</li>
-          <li><strong>Prestiti</strong>: richieste inviate, ricevute, stato corrente,
-          motivazioni di rifiuto, messaggi della chat associata.</li>
-          <li><strong>Recensioni</strong>: testo, valutazione a stelle, data.</li>
-          <li><strong>Interazioni social</strong>: follower, libri preferiti.</li>
-          <li><strong>Notifiche</strong>: tutti gli eventi che ti riguardano sulla
-          piattaforma.</li>
-        </ul>
+            <h3>Profilo pubblico</h3>
+            <p>Nome visualizzato, nome utente, biografia, città, motto, tema e immagine del
+            profilo, se li inserisci. Per gli enti anche denominazione, categoria, referente,
+            sito web, telefono, indirizzo e orari. Sono visibili a chiunque visiti la tua
+            libreria, perché servono a farti trovare dalla comunità.</p>
 
-        <h2>4. Servizi esterni utilizzati</h2>
-        <p>L'interfaccia carica risorse da alcuni provider esterni, ognuno con la
-        propria policy:</p>
-        <ul>
-          <li><strong>OpenStreetMap</strong> (mappe in <em>Esplora</em>) — l'IP del tuo
-          dispositivo è visibile ai server delle mattonelle. Vedi
-          <a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank" rel="noopener">
-          osmfoundation.org/Privacy_Policy</a>.</li>
-          <li><strong>Open Library Covers API</strong> (copertine dei libri quando
-          disponibili) — richieste HTTP per il caricamento delle immagini di copertina.</li>
-          <li><strong>CDN per Leaflet, Chart.js e i font</strong> (Google Fonts) — caricamento
-          di librerie e font tipografici dai loro server.</li>
-        </ul>
-        <p>La piattaforma <strong>non utilizza cookie di tracciamento né strumenti di
-        analytics</strong> (Google Analytics, Facebook Pixel e simili).</p>
+            <h3>Posizione</h3>
+            <p>La posizione della tua libreria è il punto che scegli sulla mappa. Decidi tu
+            quanto mostrarla agli altri: <em>nascosta</em> (né mappa né città),
+            <em>città</em>, <em>zona</em> (un punto spostato di circa 200 metri) o
+            <em>esatta</em>. Di base è «zona» per le persone ed «esatta» per gli enti; si
+            cambia in ogni momento da «Personalizza». Gli altri utenti e le ricerche per
+            distanza usano solo la versione che hai scelto di mostrare.</p>
+            <p>Se usi «Usa la mia posizione», il browser comunica la tua posizione attuale
+            solo con il tuo permesso: serve a calcolare le distanze, resta nella sessione
+            del browser e viene inviata al server solo come parametro della ricerca, senza
+            essere salvata nel tuo profilo.</p>
 
-        <h2>5. Email transactional</h2>
-        <p><em>(solo prototipo)</em>: nessuna email viene inviata. Alcune azioni
-        (avvio restituzione, sollecito, reset password) generano email "simulate"
-        salvate nel tuo browser localStorage e visualizzabili in un box
-        <em>"🔧 Demo del prototipo"</em> sulla pagina corrispondente.</p>
-        <p><em>(Alpha)</em>: il sistema invia email transactional (conferma
-        registrazione, reset password, notifiche di prestito, alert moderazione)
-        tramite SMTP. Nel deploy di test locale via Docker compose le email
-        vengono catturate da <strong>Mailpit</strong> (visibile su
-        <code>:8025</code>) e non lasciano la macchina. In un deploy pubblico,
-        il Titolare configura un proprio server SMTP (qualsiasi: del cliente,
-        Postmark, AWS SES, Resend…).</p>
+            <h3>Attività sulla piattaforma</h3>
+            <p>Volumi pubblicati, richieste di prestito e relativi messaggi, recensioni,
+            post, reazioni, segnalazioni, persone che segui, «mi piace» e notifiche. Sono
+            il contenuto del servizio (art. 6.1.b GDPR). I messaggi di un prestito li
+            vedono solo le due persone coinvolte.</p>
+            <p>Le visualizzazioni dei volumi sono contate in forma <strong>anonima</strong>:
+            si registra solo quante volte al giorno è stata aperta la pagina di un volume,
+            non chi l'ha aperta.</p>
 
-        <h2>6. I tuoi diritti (GDPR)</h2>
-        <p>In conformità al Regolamento UE 2016/679 (GDPR), in produzione avresti
-        diritto a:</p>
-        <ul>
-          <li>Accedere ai tuoi dati personali</li>
-          <li>Rettificare informazioni errate</li>
-          <li>Cancellare il tuo account e tutti i dati associati</li>
-          <li>Esportare i tuoi dati in formato leggibile</li>
-          <li>Opporti a determinati trattamenti</li>
-          <li>Proporre reclamo all'Autorità Garante</li>
-        </ul>
-        <p>Il prototipo implementa il <strong>diritto di esportazione</strong> dalla
-        sezione <em>Impostazioni</em> del tuo profilo: il pulsante <em>"Scarica i miei
-        dati (JSON)"</em> produce un file JSON con tutto quanto ti riguarda. Per la
-        cancellazione, è sufficiente svuotare il <code>localStorage</code> del browser
-        (Strumenti per sviluppatori → Application → Storage → Clear).</p>
+            <h3>Dati tecnici e di sicurezza</h3>
+            <p>Per ogni sessione aperta conserviamo indirizzo IP e tipo di browser, che puoi
+            vedere e chiudere da «Sicurezza dell'account». Per gli interventi degli
+            amministratori (sospensioni, eliminazioni, moderazione) registriamo chi ha agito,
+            quando, da quale indirizzo IP e su quale contenuto. Il server tiene inoltre
+            registri tecnici degli errori. Questi dati servono a proteggere gli account e il
+            servizio da abusi (legittimo interesse, art. 6.1.f GDPR).</p>
+          </section>
 
-        <h2>7. Sicurezza</h2>
-        <p>I dati restano nel tuo browser e non vengono trasmessi a server centrali.
-        Le password sono salvate come hash (sebbene il prototipo usi un algoritmo
-        semplificato non adatto alla produzione). In produzione si applicherebbero
-        bcrypt o argon2, HTTPS obbligatorio, rate limiting e tutte le buone pratiche
-        di sicurezza standard.</p>
+          <section class="legal-section" id="destinatari" aria-labelledby="destinatari-titolo">
+            <h2 id="destinatari-titolo"><span class="legal-section__num">3.</span> Chi può vedere i tuoi dati</h2>
+            <ul>
+              <li><strong>Tutti i visitatori</strong>: profilo pubblico, volumi, post,
+              recensioni e la posizione nella forma che hai scelto.</li>
+              <li><strong>L'altra persona di un prestito</strong>: la richiesta e i messaggi
+              della chat.</li>
+              <li><strong>Gli amministratori</strong> dell'installazione: i dati
+              necessari alla moderazione e all'assistenza, compresa l'email.</li>
+              <li><strong>I fornitori tecnici</strong> del titolare (hosting, invio delle
+              email), che trattano i dati solo per suo conto.</li>
+            </ul>
+            <p>I dati non vengono venduti né usati per pubblicità o profilazione.</p>
+          </section>
 
-        <h2>8. Modifiche</h2>
-        <p>Possiamo aggiornare questa informativa per riflettere cambiamenti nel
-        funzionamento del servizio. La data in cima al documento indica l'ultima
-        revisione.</p>
+          <section class="legal-section" id="email" aria-labelledby="email-titolo">
+            <h2 id="email-titolo"><span class="legal-section__num">4.</span> Email</h2>
+            <p>Inviamo solo email legate al servizio: conferma dell'indirizzo all'iscrizione,
+            reimpostazione della password, avvisi sui prestiti (promemoria di scadenza e
+            solleciti), avviso di eliminazione dell'account e, se qualcuno prova a iscriversi
+            con la tua email, un avviso che l'account esiste già. Nessuna newsletter né
+            comunicazione promozionale.</p>
+          </section>
 
-        <h2>9. Contatti</h2>
-        <p>Per qualunque dubbio sul funzionamento del prototipo o sul trattamento dati
-        descritto qui, contatta il gestore della piattaforma — per il prototipo
-        accademico, l'autore del progetto.</p>
+          <section class="legal-section" id="servizi-esterni" aria-labelledby="servizi-esterni-titolo">
+            <h2 id="servizi-esterni-titolo"><span class="legal-section__num">5.</span> Servizi esterni caricati dal browser</h2>
+            <p>Caratteri tipografici e librerie delle pagine sono serviti direttamente da
+            Lookup. Due sole risorse arrivano da servizi di terzi, che ricevono l'indirizzo
+            IP del tuo dispositivo come per qualsiasi risorsa web:</p>
+            <ul>
+              <li><strong>OpenStreetMap</strong> (mattonelle delle mappe, nelle pagine
+              che mostrano una mappa);</li>
+              <li><strong>Open Library</strong> (copertine dei volumi, richieste tramite il
+              codice ISBN del libro).</li>
+            </ul>
+            <p>La ricerca per luogo (ad esempio «Napoli» nella pagina Esplora) usa un elenco
+            dei comuni italiani conservato da Lookup: il testo che cerchi non viene inviato
+            a servizi esterni.</p>
+          </section>
 
+          <section class="legal-section" id="cookie" aria-labelledby="cookie-titolo">
+            <h2 id="cookie-titolo"><span class="legal-section__num">6.</span> Cookie e memoria del browser</h2>
+            <p>Lookup usa solo strumenti tecnici, necessari al funzionamento, per i quali
+            non serve il consenso:</p>
+            <ul>
+              <li>il <strong>cookie di sessione</strong>, che ti tiene collegato; con
+              «Ricordami su questo dispositivo» dura 7 giorni e si rinnova usando il sito,
+              altrimenti fino alla chiusura del browser. Una sua copia firmata, valida un
+              minuto, evita di interrogare il server a ogni pagina;</li>
+              <li>un'<strong>indicazione locale</strong> (<code>lb_auth_hint</code>) che dice
+              solo se hai effettuato l'accesso, per mostrare subito la pagina giusta;</li>
+              <li>la <strong>memoria della sessione del browser</strong> per la posizione di
+              riferimento e per una richiesta di prestito lasciata a metà durante
+              l'iscrizione;</li>
+              <li>la <strong>copia locale delle pagine</strong> dell'app, che le rende più
+              veloci e disponibili anche senza rete.</li>
+            </ul>
+            <p>Non usiamo cookie di profilazione né strumenti di analisi del traffico.</p>
+          </section>
+
+          <section class="legal-section" id="conservazione" aria-labelledby="conservazione-titolo">
+            <h2 id="conservazione-titolo"><span class="legal-section__num">7.</span> Per quanto tempo</h2>
+            <ul>
+              <li>Dati dell'account e contenuti: finché l'account esiste.</li>
+              <li>Iscrizioni mai confermate: cancellate dopo 30 giorni.</li>
+              <li>Link di conferma dell'email: validi 24 ore; link per reimpostare la
+              password: validi un'ora.</li>
+              <li>Sessioni: 7 giorni dall'ultimo utilizzo, salvo uscita o chiusura prima.</li>
+              <li>Registro degli interventi degli amministratori: 12 mesi.</li>
+            </ul>
+            <p>Quando elimini l'account, o lo elimina un amministratore, vengono cancellati
+            account, profilo, volumi, prestiti e chat, recensioni, post, reazioni, «mi
+            piace», persone seguite e notifiche. Le copie di sicurezza del database, se il
+            titolare le conserva, vengono sovrascritte secondo i suoi tempi di rotazione.</p>
+          </section>
+
+          <section class="legal-section" id="diritti" aria-labelledby="diritti-titolo">
+            <h2 id="diritti-titolo"><span class="legal-section__num">8.</span> I tuoi diritti</h2>
+            <p>Puoi esercitare in ogni momento i diritti previsti dagli articoli 15-22 del GDPR:</p>
+            <ul>
+              <li><strong>accesso e portabilità</strong>: dal tuo profilo, «Scarica i miei
+              dati», ottieni un file con tutto quanto ti riguarda;</li>
+              <li><strong>rettifica</strong>: modifichi profilo, posizione e volumi da
+              «Personalizza» e dalle pagine dei volumi;</li>
+              <li><strong>cancellazione</strong>: da «Personalizza» → «Sicurezza
+              dell'account» → «Elimina l'account», confermando con la password;</li>
+              <li><strong>limitazione e opposizione</strong>: scrivendo al titolare
+              all'indirizzo indicato al <a href="#titolare">punto 1</a>.</li>
+            </ul>
+            <p>Se ritieni che il trattamento non sia conforme puoi proporre reclamo al
+            Garante per la protezione dei dati personali
+            (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">garanteprivacy.it</a>).</p>
+          </section>
+
+          <section class="legal-section" id="sicurezza" aria-labelledby="sicurezza-titolo">
+            <h2 id="sicurezza-titolo"><span class="legal-section__num">9.</span> Sicurezza</h2>
+            <p>Password conservate solo come impronta crittografica, accesso consentito solo
+            dopo la conferma dell'email, cookie di sessione non leggibili dagli script della
+            pagina, limiti ai tentativi di accesso e di iscrizione, chiusura immediata delle
+            sessioni di un account sospeso o eliminato. La cifratura delle connessioni
+            (HTTPS) è a cura di chi gestisce l'installazione.</p>
+          </section>
+
+          <section class="legal-section" id="minori" aria-labelledby="minori-titolo">
+            <h2 id="minori-titolo"><span class="legal-section__num">10.</span> Minori</h2>
+            <p>Lookup è riservato a chi ha almeno 18 anni; all'iscrizione viene chiesto di
+            dichiararlo.</p>
+          </section>
+
+          <section class="legal-section" id="modifiche" aria-labelledby="modifiche-titolo">
+            <h2 id="modifiche-titolo"><span class="legal-section__num">11.</span> Modifiche</h2>
+            <p>Questa informativa può essere aggiornata quando cambia il funzionamento del
+            servizio. La data in cima indica l'ultima revisione; le modifiche importanti
+            vengono comunicate agli utenti iscritti.</p>
+          </section>
+
+          <p class="legal-doc__top"><a href="#main">Torna all'inizio</a></p>
+        </article>
       </div>
     </section>
   </main>
 
   <footer class="site-footer" role="contentinfo">
-    <div class="site-footer__inner">
-      <p style="color: var(--color-ink-soft); font-size: .85rem;">© 2026 Lookup — Prototipo didattico</p>
-      <p style="color: var(--color-ink-soft); font-size: .85rem;">v3.0.0-alpha.0 · <a href="terms.html" style="color: var(--color-ink-soft);">Termini</a></p>
+    <div class="container">
+      <div>
+        <h4>Lookup</h4>
+        <p style="color: rgba(244,239,230,.7); font-size: .9rem;">
+          Condivisione dei libri privati e delle biblioteche di comunità, fra vicini.
+        </p>
+      </div>
+      <div>
+        <h4>Esplora</h4>
+        <a href="explore.html">Mappa dei libri</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="loans.html" class="auth-only">I miei prestiti</a>
+      </div>
+      <div>
+        <h4>Partecipa</h4>
+        <a href="add-book.html" class="auth-only">Pubblica un libro</a>
+        <a href="profile.html" class="auth-only">Il tuo profilo</a>
+        <a href="register.html" class="guest-only">Iscriviti</a>
+        <a href="login.html" class="guest-only">Accedi</a>
+      </div>
+      <div>
+        <h4>Informazioni</h4>
+        <a href="privacy.html">Informativa sulla privacy</a>
+        <a href="terms.html">Termini di utilizzo</a>
+      </div>
+      <div class="site-footer__colophon">
+        <span>© 2026 Lookup</span>
+        <span>Codice con licenza GPL-3.0<span data-app-version></span></span>
+      </div>
     </div>
   </footer>
 
-  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+  <script type="module" src="js/api-bootstrap.js"></script>
+  <script type="module" src="js/app.js"></script>
+  <script src="js/legal-toc.js" defer></script>
 </body>
 </html>

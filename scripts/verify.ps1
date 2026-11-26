@@ -4,7 +4,8 @@
 # Esegue in sequenza: prerequisiti, npm ci, pull/build delle immagini, avvio
 # dei container con attesa degli healthcheck, migrazioni Prisma, controllo
 # delle versioni dentro i container, smoke test HTTP (infrastruttura e
-# applicativo: login, prestiti, SSE) e test suite Vitest.
+# applicativo: login, prestiti, SSE), test suite Vitest e test end-to-end
+# nel browser (Playwright).
 #
 # Uso (dalla root del progetto):
 #   .\scripts\verify.ps1                      tutto
@@ -12,6 +13,9 @@
 #                                             e' piu' recente di node_modules)
 #   .\scripts\verify.ps1 -SkipPull -SkipBuild riusa immagini gia' presenti
 #   .\scripts\verify.ps1 -SkipTests           salta Vitest
+#   .\scripts\verify.ps1 -SkipE2E             salta i test nel browser
+#                                             (Chromium per Playwright, una tantum:
+#                                              npx playwright install chromium)
 #   .\scripts\verify.ps1 -Down                ferma i container alla fine
 #   .\scripts\verify.ps1 -Reseed              ricarica i dati di prova (AZZERA il DB)
 #   .\scripts\verify.ps1 -Monitoring          verifica anche Prometheus e Grafana
@@ -35,6 +39,7 @@ param(
     [switch]$SkipPull,
     [switch]$SkipBuild,
     [switch]$SkipTests,
+    [switch]$SkipE2E,
     [switch]$SkipSmoke,
     [switch]$Down,
     [switch]$Reseed,
@@ -68,6 +73,12 @@ $Results = New-Object System.Collections.ArrayList
 $Esc     = [char]27
 
 # Output dei tool senza colori ANSI, cosi' il log resta leggibile.
+# Le variabili d'ambiente toccate dallo script vengono ripristinate alla
+# fine (Write-Summary): restano altrimenti nella sessione di PowerShell.
+$SavedEnv = @{}
+foreach ($name in 'NO_COLOR', 'FORCE_COLOR', 'E2E_BASE_URL', 'E2E_MAILPIT_URL') {
+    $SavedEnv[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+}
 $env:NO_COLOR    = '1'
 $env:FORCE_COLOR = '0'
 
@@ -112,7 +123,7 @@ function Invoke-Http([string]$Url, $Session) {
         $resp = Invoke-WebRequest @p
         $body = [string]$resp.Content
         Write-Log ("<<< {0} {1}" -f [int]$resp.StatusCode, $body.Substring(0, [Math]::Min(300, $body.Length)))
-        return @{ Code = [int]$resp.StatusCode; Body = $body }
+        return @{ Code = [int]$resp.StatusCode; Body = $body; Headers = $resp.Headers }
     } catch {
         $code = 0
         if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
@@ -189,12 +200,13 @@ function Write-Summary {
     if ($overall -eq 'FAIL') { $color = 'Red' }
     Say "ESITO: $overall   (log: logs\verify-$Stamp.log)" $color
     Say ''
-    Say 'Restano da verificare a mano (UI):'
-    Say "  1. $WebUrl - login con un utente seed"
-    Say '  2. richiesta di prestito da un utente, accettazione dall altro'
-    Say '  3. notifica realtime visibile nel secondo browser senza ricaricare'
+    Say 'Resta da verificare a mano (non coperto dai test nel browser):'
+    Say "  notifica in tempo reale visibile in un secondo browser senza ricaricare ($WebUrl)"
 
     Copy-Item $LogFile (Join-Path $LogDir 'verify-latest.log') -Force
+    foreach ($name in $SavedEnv.Keys) {
+        [Environment]::SetEnvironmentVariable($name, $SavedEnv[$name], 'Process')
+    }
     if ($failed -gt 0) { exit 1 } else { exit 0 }
 }
 
@@ -265,6 +277,9 @@ Invoke-Step 'Avvio container + healthcheck' $false {
         }
         return @{ Status = 'FAIL'; Detail = "non healthy dopo $HealthTimeoutSec s: $($left -join ', ')" }
     }
+    # infra/nginx.conf e' montata dal repository: ricaricarla applica le
+    # modifiche anche se il container era gia' avviato
+    [void](Invoke-Native 'docker exec lookup-web nginx -s reload')
     return @{ Status = 'PASS'; Detail = ($targets -join ', ') + ' healthy' }
 }
 if ($Results[-1].status -eq 'FAIL') { Write-Summary }
@@ -275,7 +290,18 @@ Invoke-Step 'Database: migrazioni + dati di prova' $false {
     if ($sql.Count -eq 0) {
         return @{ Status = 'FAIL'; Detail = 'nessuna migrazione in apps/api/prisma/migrations: eseguire npm run db:baseline -w apps/api' }
     }
-    $r = Invoke-Native 'npm run db:migrate:deploy -w apps/api'
+    # Subito dopo npm ci l'antivirus puo' bloccare per qualche secondo il
+    # motore di Prisma appena scaricato (spawn UNKNOWN / EBUSY / EPERM):
+    # in quel caso si attende e si riprova, fino a 3 tentativi.
+    $retryNote = ''
+    for ($try = 1; $try -le 3; $try++) {
+        $r = Invoke-Native 'npm run db:migrate:deploy -w apps/api'
+        if ($r.Code -eq 0) { break }
+        if ($try -eq 3 -or $r.Output -notmatch 'spawn UNKNOWN|EBUSY|EPERM') { break }
+        Write-Log "motore di Prisma non avviabile (tentativo $try), nuovo tentativo fra 10 s"
+        Start-Sleep -Seconds 10
+        $retryNote = " (riuscito al tentativo $($try + 1))"
+    }
     if ($r.Code -ne 0) { return @{ Status = 'FAIL'; Detail = 'prisma migrate deploy fallito, vedi log' } }
 
     # Deriva tra schema.prisma e database reale (solo informativo): exit code
@@ -290,9 +316,9 @@ Invoke-Step 'Database: migrazioni + dati di prova' $false {
     if ($count -eq '0' -or $Reseed) {
         $seed = Invoke-Native 'npm run db:seed -w apps/api'
         if ($seed.Code -ne 0) { return @{ Status = 'FAIL'; Detail = 'seed fallito, vedi log' } }
-        return @{ Status = $(if ($drift.Code -eq 0) { 'PASS' } else { 'WARN' }); Detail = "$($sql.Count) migrazioni, dati di prova caricati, $driftNote" }
+        return @{ Status = $(if ($drift.Code -eq 0) { 'PASS' } else { 'WARN' }); Detail = "$($sql.Count) migrazioni$retryNote, dati di prova caricati, $driftNote" }
     }
-    return @{ Status = $(if ($drift.Code -eq 0) { 'PASS' } else { 'WARN' }); Detail = "$($sql.Count) migrazioni, $count utenti gia' presenti (seed non rieseguito), $driftNote" }
+    return @{ Status = $(if ($drift.Code -eq 0) { 'PASS' } else { 'WARN' }); Detail = "$($sql.Count) migrazioni$retryNote, $count utenti gia' presenti (seed non rieseguito), $driftNote" }
 }
 
 Invoke-Step 'Versioni nei container' $false {
@@ -341,10 +367,16 @@ Invoke-Step 'Smoke HTTP infrastruttura' $SkipSmoke.IsPresent {
     }
     $web = Invoke-Http "$WebUrl/"
     if ($web.Code -ne 200) { $issues += "web $($web.Code)" }
+    # Il service worker si registra solo con un unico tipo JavaScript valido
+    $sw = Invoke-Http "$WebUrl/sw.js"
+    $swType = if ($sw.Headers) { [string]$sw.Headers['Content-Type'] } else { '' }
+    if ($sw.Code -ne 200 -or $swType -notmatch 'javascript' -or $swType -match ',') {
+        $issues += "sw.js $($sw.Code) Content-Type='$swType'"
+    }
     $docs = Invoke-Http "$ApiUrl/api/docs/json"
     if ($docs.Code -ne 200) { $issues += "openapi $($docs.Code)" }
     if ($issues.Count -gt 0) { return @{ Status = 'FAIL'; Detail = $issues -join '; ' } }
-    return @{ Status = 'PASS'; Detail = 'ping, health (db+redis ok), web, openapi' }
+    return @{ Status = 'PASS'; Detail = 'ping, health (db+redis ok), web, sw.js, openapi' }
 }
 
 # Stessi percorsi del browser: login, sessione e SSE passano dal frontend
@@ -510,6 +542,24 @@ Invoke-Step 'Test suite Vitest' $SkipTests.IsPresent {
     if ($t.Output -match '(?m)^\s*Tests\s+(.+)$') { $line = $Matches[1].Trim() }
     if ($t.Code -ne 0) { return @{ Status = 'FAIL'; Detail = "Tests: $line" } }
     return @{ Status = 'PASS'; Detail = "Tests: $line" }
+}
+
+Invoke-Step 'Test end-to-end (Playwright)' $SkipE2E.IsPresent {
+    # Usa solo utenti propri (prefisso e2e.), eliminati alla fine
+    $probe = Invoke-Native 'node e2e/check-browser.mjs'
+    if ($probe.Code -ne 0) {
+        # Motivo nel log; di solito manca il browser della versione di Playwright installata
+        return @{ Status = 'WARN'; Detail = 'Chromium per Playwright non avviabile (motivo nel log): eseguire una tantum npx playwright install chromium' }
+    }
+    $browser = ($probe.Output -split "`r?`n")[-1]
+    $env:E2E_BASE_URL = $WebUrl
+    $env:E2E_MAILPIT_URL = $MailUrl
+    $t = Invoke-Native 'npm run test:e2e'
+    $passed = 0; $failed = 0
+    if ($t.Output -match '(?m)^\s*(\d+) passed') { $passed = [int]$Matches[1] }
+    if ($t.Output -match '(?m)^\s*(\d+) failed') { $failed = [int]$Matches[1] }
+    if ($t.Code -ne 0) { return @{ Status = 'FAIL'; Detail = "$passed superati, $failed falliti: report in e2e/report/index.html" } }
+    return @{ Status = 'PASS'; Detail = "$passed superati ($browser)" }
 }
 
 if ($Down) {

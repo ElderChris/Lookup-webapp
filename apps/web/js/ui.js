@@ -2,7 +2,8 @@
    ui.js — Rendering e wiring DOM
    =============================================================================
    L'oggetto UI contiene tutti i metodi che producono HTML e collegano event
-   handler agli elementi del DOM. Dipende da API per i dati, ma non viceversa.
+   handler agli elementi del DOM. I dati arrivano dal server tramite
+   window.LB_API (vedi api-bootstrap.js).
 
    Cosa contiene (~1800 righe):
    - Render: bookCard, libraryCard, postCard, nearbyCard, stars, ridgeline
@@ -12,18 +13,11 @@
    - Init: initMobileNav, highlightActiveNav, initAuthToggle, etc.
    ============================================================================= */
 
-import { API } from './legacy/api.js';
-import {
-  LIBRARY_COVER_DESIGNS,
-  LIBRARY_COVER_DESIGN_MAP,
-  LOAN_STATUS_LABEL,
-  LOAN_STATUS_HINT,
-  LOAN_STATUS_ORDER,
-} from './data.js';
+import { LOAN_STATUS_LABEL, LOAN_STATUS_HINT, LOAN_STATUS_ORDER } from './loanStatus.js';
 
 export const UI = {
   /* =============================================================
-     v2.5 — Icone SVG inline minimali.
+     Icone SVG inline minimali.
      Generate da Claude (Anthropic) per Lookup.
      Tutte 24×24 viewBox, stroke 1.8 px, currentColor, line-cap round.
      Pensate per essere coerenti come "tratto" — la stessa mano grafica.
@@ -48,7 +42,7 @@ export const UI = {
 
   /** Render scheda libro */
   /* =============================================================
-     RECENSIONI E STELLE (v1.4)
+     RECENSIONI E STELLE
      Componenti UI per visualizzare la valutazione media (stelle d'oro
      coerenti con la palette editoriale) e renderizzare la lista delle
      recensioni e il form per scriverne una nuova.
@@ -74,7 +68,7 @@ export const UI = {
       if (diff >= 0.75) state = 'full';
       else if (diff >= 0.25) state = 'half';
       else state = 'empty';
-      stars.push(this._starSVG(state, i));
+      stars.push(this._starSVG(state));
     }
     const avgLbl = showAverage && r > 0 ? `<span class="stars__avg">${r.toFixed(1)}</span>` : '';
     const countLbl =
@@ -96,7 +90,7 @@ export const UI = {
       duplicano due path: lo sfondo (outline) e il riempimento clippato
       a 50% di larghezza via clip-path inline. Le stelle sono SVG inline
       per garantire stroke/fill coerenti col colore --color-gold. */
-  _starSVG(state, idx) {
+  _starSVG(state) {
     const path = 'M12 2 L14.5 9 L22 9 L16 13.5 L18.2 21 L12 16.5 L5.8 21 L8 13.5 L2 9 L9.5 9 Z';
     if (state === 'full') {
       return `<svg class="star star--full" viewBox="0 0 24 24" aria-hidden="true">
@@ -113,153 +107,159 @@ export const UI = {
       <path d="${path}"/></svg>`;
   },
 
-  /** Renderizza la lista delle recensioni ricevute da un utente. */
-  renderReviewsList(container, targetUserId) {
-    const reviews = API.getReviewsForUser(targetUserId);
-    if (!reviews.length) {
-      container.innerHTML = `<p class="alert alert--info">
-        Ancora nessuna recensione per questa libreria. Sii il primo a lasciarne una.
-      </p>`;
-      return;
-    }
-    container.innerHTML = reviews
-      .map((r) => {
-        const reviewer = API.getUser(r.reviewer_id);
-        if (!reviewer) return '';
-        const prefs = API.getProfilePrefs(reviewer.id) || {};
-        const themeClass = `cover--${prefs.theme || 'classic'}`;
-        const symbol =
-          prefs.avatar_style === 'symbol' && prefs.avatar_symbol
-            ? prefs.avatar_symbol
-            : (reviewer.display_name || reviewer.username || '?').trim()[0].toUpperCase();
-        const dateLabel = new Date(r.created_at).toLocaleDateString('it-IT', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        });
-        const relative = UI.timeAgo(r.created_at);
-        return `
-        <article class="review-card">
+  /** Card di una recensione. `person` e' chi mostrare: l'autore per le
+      ricevute, il destinatario per le scritte. */
+  _reviewCard(r, person, { lead = '', href = '', footer = '', extraClass = '' } = {}) {
+    const esc = (v) => this._escapeHtml(v);
+    const name = person?.displayName || person?.username || 'Utente';
+    const avatar = person?.avatarUrl
+      ? `<img src="${esc(person.avatarUrl)}" alt="">`
+      : esc(name.trim()[0].toUpperCase());
+    const dateLabel = new Date(r.createdAt).toLocaleDateString('it-IT', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    return `
+        <article class="review-card ${extraClass}">
           <div class="review-card__head">
-            <a href="library.html?id=${reviewer.id}" class="review-card__author">
-              <span class="review-card__avatar ${themeClass}" aria-hidden="true">${symbol}</span>
+            <a href="${esc(href)}" class="review-card__author">
+              <span class="review-card__avatar cover--classic" aria-hidden="true">${avatar}</span>
               <span class="review-card__author-info">
-                <span class="review-card__name">${reviewer.display_name}</span>
-                <span class="review-card__user">@${reviewer.username}</span>
+                ${lead ? `<span class="review-card__lead">${lead}</span>` : ''}
+                <span class="review-card__name">${esc(name)}</span>
+                <span class="review-card__user">@${esc(person?.username || '')}</span>
               </span>
             </a>
             <div class="review-card__meta">
               ${UI.renderStars(r.rating, { size: 'sm', showAverage: false })}
-              <time class="review-card__date" datetime="${r.created_at}">
-                <span class="review-card__date-rel">${relative}</span>
+              <time class="review-card__date" datetime="${esc(r.createdAt)}">
+                <span class="review-card__date-rel">${UI.timeAgo(r.createdAt)}</span>
                 <span class="review-card__date-abs">${dateLabel}</span>
               </time>
             </div>
           </div>
-          <p class="review-card__text">${this._escapeHtml(r.text)}</p>
+          <p class="review-card__text">${esc(r.text)}</p>
+          ${footer}
         </article>`;
-      })
+  },
+
+  /** Recensioni ricevute da un utente (dal server). `reviews` evita una
+      seconda richiesta quando la pagina le ha gia' caricate. */
+  async renderReviewsList(container, targetUserId, { reviews } = {}) {
+    let list = reviews;
+    if (!list) {
+      try {
+        list = (await window.LB_API.users.listReviews(targetUserId, { limit: 100 })).data;
+      } catch (_err) {
+        container.innerHTML = `<p class="alert alert--error">
+          Server non raggiungibile: impossibile caricare le recensioni.</p>`;
+        return;
+      }
+    }
+    if (!list.length) {
+      container.innerHTML = `<p class="alert alert--info">
+        Ancora nessuna recensione per questa libreria.
+      </p>`;
+      return;
+    }
+    container.innerHTML = list
+      .map((r) =>
+        this._reviewCard(r, r.reviewer, {
+          href: r.reviewer ? `library.html?id=${encodeURIComponent(r.reviewer.id)}` : '#',
+        })
+      )
       .join('');
   },
 
-  /** v1.6: lista delle recensioni SCRITTE da un utente. Stesso layout
-      di renderReviewsList ma mostra il destinatario (a chi è rivolta)
-      invece dell'autore, con un pulsante "Modifica" che porta alla
-      libreria target nella sezione recensioni. */
-  renderReviewsByReviewerList(container, reviewerId) {
-    const reviews = API.getReviewsByReviewer(reviewerId);
-    if (!reviews.length) {
+  /** Recensioni SCRITTE da un utente (dal server), con il destinatario e
+      i pulsanti Modifica (porta alla sua libreria) e Cancella. */
+  async renderReviewsByReviewerList(container, reviewerId) {
+    let list;
+    try {
+      list = (await window.LB_API.users.listReviewsWritten(reviewerId, { limit: 100 })).data;
+    } catch (_err) {
+      container.innerHTML = `<p class="alert alert--error">
+        Server non raggiungibile: impossibile caricare le recensioni.</p>`;
+      return;
+    }
+    if (!list.length) {
       container.innerHTML = `<p class="alert alert--info">
         Non hai ancora scritto nessuna recensione. Dopo aver concluso un
         prestito potrai valutare la libreria del prestatore.
       </p>`;
       return;
     }
-    container.innerHTML = reviews
+    container.innerHTML = list
       .map((r) => {
-        const target = API.getUser(r.target_user_id);
-        if (!target) return '';
-        const prefs = API.getProfilePrefs(target.id) || {};
-        const themeClass = `cover--${prefs.theme || 'classic'}`;
-        const symbol =
-          prefs.avatar_style === 'symbol' && prefs.avatar_symbol
-            ? prefs.avatar_symbol
-            : (target.display_name || target.username || '?').trim()[0].toUpperCase();
-        const dateLabel = new Date(r.created_at).toLocaleDateString('it-IT', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        });
-        const relative = UI.timeAgo(r.created_at);
-        return `
-        <article class="review-card review-card--written">
-          <div class="review-card__head">
-            <a href="library.html?id=${target.id}#recensioni" class="review-card__author">
-              <span class="review-card__avatar ${themeClass}" aria-hidden="true">${symbol}</span>
-              <span class="review-card__author-info">
-                <span class="review-card__lead">Hai recensito</span>
-                <span class="review-card__name">${target.display_name}</span>
-                <span class="review-card__user">@${target.username}</span>
-              </span>
-            </a>
-            <div class="review-card__meta">
-              ${UI.renderStars(r.rating, { size: 'sm', showAverage: false })}
-              <time class="review-card__date" datetime="${r.created_at}">
-                <span class="review-card__date-rel">${relative}</span>
-                <span class="review-card__date-abs">${dateLabel}</span>
-              </time>
-            </div>
-          </div>
-          <p class="review-card__text">${this._escapeHtml(r.text)}</p>
+        const targetHref = r.target
+          ? `library.html?id=${encodeURIComponent(r.target.id)}#recensioni`
+          : '#';
+        return this._reviewCard(r, r.target, {
+          lead: 'Hai recensito',
+          href: targetHref,
+          extraClass: 'review-card--written',
+          footer: `
           <div class="review-card__footer">
-            <a href="library.html?id=${target.id}#recensioni" class="btn btn--ghost btn--small">
-              ✎ Modifica
-            </a>
+            <a href="${targetHref}" class="btn btn--ghost btn--small">✎ Modifica</a>
             <button type="button" class="btn btn--ghost btn--small"
-                    data-review-delete="${r.id}">
+                    data-review-delete="${this._escapeHtml(r.targetUserId)}">
               🗑 Cancella
             </button>
-          </div>
-        </article>`;
+          </div>`,
+        });
       })
       .join('');
 
-    // Wiring del bottone cancella
-    container.addEventListener('click', (e) => {
+    // Un solo gestore anche se la lista viene ridisegnata
+    container.onclick = async (e) => {
       const btn = e.target.closest('[data-review-delete]');
       if (!btn) return;
-      if (!confirm('Cancellare definitivamente questa recensione?')) return;
-      const r = API.deleteReview(+btn.dataset.reviewDelete);
-      if (r.ok) {
+      const ok = await UI.confirm({
+        title: 'Cancellare la recensione?',
+        message: 'La recensione verrà cancellata definitivamente.',
+        okLabel: 'Cancella',
+        danger: true,
+      });
+      if (!ok) return;
+      try {
+        await window.LB_API.users.deleteMyReview(btn.dataset.reviewDelete);
         UI.toast('Recensione cancellata.', 'info');
         UI.renderReviewsByReviewerList(container, reviewerId);
-      } else {
-        UI.toast('Errore: ' + r.reason, 'error');
+      } catch (err) {
+        UI.toast(err.message || 'Impossibile cancellare la recensione.', 'error');
       }
-    });
+    };
   },
 
-  /** Form per scrivere una recensione (5 stelle cliccabili + testo).
-      Mostra il messaggio appropriato se l'utente non può recensire:
-      - guest → invito al login
-      - proprietario → non visibile
-      - già recensito → pre-popola e permette modifica */
-  renderReviewForm(container, targetUserId, onSubmit) {
-    const check = API.canReview(targetUserId);
-    if (!check.ok && check.reason === 'self') {
-      container.innerHTML = `<p class="alert alert--info" style="margin: 0;">
-        Questa è la tua libreria — qui leggi le recensioni che gli altri lasciano per te.
-      </p>`;
-      return;
-    }
-    if (!check.ok && check.reason === 'not-authenticated') {
+  /** Form per scrivere o aggiornare la propria recensione (5 stelle +
+      testo). Il server decide se si puo' recensire: serve un prestito
+      concluso con l'utente, e non si recensisce se stessi. */
+  async renderReviewForm(container, targetUserId, onSubmit) {
+    const me = window.LB_UI.currentUser();
+    if (!me) {
       container.innerHTML = `<p class="alert alert--info" style="margin: 0;">
         <a href="login.html">Accedi</a> o <a href="register.html">registrati</a>
         per lasciare una recensione a questa libreria.
       </p>`;
       return;
     }
-    if (!check.ok && check.reason === 'no-completed-loan') {
+
+    let state;
+    try {
+      state = await window.LB_API.users.getMyReview(targetUserId);
+    } catch (_err) {
+      container.innerHTML = `<p class="alert alert--error" style="margin: 0;">
+        Server non raggiungibile: impossibile verificare se puoi recensire.</p>`;
+      return;
+    }
+    if (state.reason === 'self') {
+      container.innerHTML = `<p class="alert alert--info" style="margin: 0;">
+        Questa è la tua libreria — qui leggi le recensioni che gli altri lasciano per te.
+      </p>`;
+      return;
+    }
+    if (!state.canReview) {
       container.innerHTML = `<p class="alert alert--info" style="margin: 0;">
         Per recensire questa libreria devi prima aver concluso almeno un prestito.
         Le recensioni sono ancorate a un'esperienza reale di scambio: prendi in prestito
@@ -269,8 +269,7 @@ export const UI = {
       return;
     }
 
-    const me = window.LB_UI.currentUser();
-    const existing = API.getReviewByPair(targetUserId, me.id);
+    const existing = state.review;
     const initialRating = existing ? existing.rating : 0;
     const initialText = existing ? existing.text : '';
 
@@ -301,7 +300,7 @@ export const UI = {
           <label class="form__label" for="review-text">La tua recensione</label>
           <textarea id="review-text" class="form__input" rows="4"
                     placeholder="Com'è stata l'esperienza? Cortesia, cura dei volumi, puntualità…"
-                    minlength="20" required>${this._escapeHtml(initialText)}</textarea>
+                    minlength="20" maxlength="2000" required>${this._escapeHtml(initialText)}</textarea>
           <small class="form__help">
             <span id="review-char-count">${initialText.length}</span>/20 minimi
           </small>
@@ -325,7 +324,7 @@ export const UI = {
     const errBox = form.querySelector('.review-form__error');
     let currentRating = initialRating;
 
-    function paintStars(value, isHover = false) {
+    function paintStars(value) {
       starBtns.forEach((btn, i) => {
         const n = i + 1;
         btn.classList.toggle('is-filled', n <= value);
@@ -342,9 +341,9 @@ export const UI = {
         currentRating = n;
         paintStars(currentRating);
       });
-      btn.addEventListener('mouseenter', () => paintStars(n, true));
+      btn.addEventListener('mouseenter', () => paintStars(n));
       btn.addEventListener('mouseleave', () => paintStars(currentRating));
-      btn.addEventListener('focus', () => paintStars(n, true));
+      btn.addEventListener('focus', () => paintStars(n));
       btn.addEventListener('blur', () => paintStars(currentRating));
     });
 
@@ -352,7 +351,7 @@ export const UI = {
       charCount.textContent = textArea.value.length;
     });
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       errBox.hidden = true;
       if (currentRating === 0) {
@@ -360,33 +359,46 @@ export const UI = {
         errBox.textContent = 'Scegli una valutazione da 1 a 5 stelle.';
         return;
       }
-      if (textArea.value.trim().length < 20) {
+      const text = textArea.value.trim();
+      if (text.length < 20) {
         errBox.hidden = false;
         errBox.textContent = 'Il testo della recensione deve essere lungo almeno 20 caratteri.';
         return;
       }
-      const result = API.submitReview(targetUserId, currentRating, textArea.value);
-      if (!result.ok) {
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      try {
+        const review = await window.LB_API.users.createReview(targetUserId, {
+          rating: currentRating,
+          text,
+        });
+        UI.toast(existing ? 'Recensione aggiornata.' : 'Recensione pubblicata. Grazie!', 'success');
+        if (typeof onSubmit === 'function') onSubmit({ review, updated: !!existing });
+      } catch (err) {
         errBox.hidden = false;
-        errBox.textContent = 'Errore: ' + result.reason;
-        return;
+        errBox.textContent = err.message || 'Impossibile salvare la recensione.';
+        submitBtn.disabled = false;
       }
-      UI.toast(
-        result.updated ? 'Recensione aggiornata.' : 'Recensione pubblicata. Grazie!',
-        'success'
-      );
-      if (typeof onSubmit === 'function') onSubmit(result);
     });
 
     // pulsante elimina (solo se esiste già la recensione)
     const delBtn = form.querySelector('#review-delete-btn');
     if (delBtn) {
-      delBtn.addEventListener('click', () => {
-        if (!confirm('Eliminare definitivamente la tua recensione?')) return;
-        const r = API.deleteReview(existing.id);
-        if (r.ok) {
+      delBtn.addEventListener('click', async () => {
+        const ok = await UI.confirm({
+          title: 'Eliminare la recensione?',
+          message: 'La tua recensione verrà eliminata definitivamente.',
+          okLabel: 'Elimina',
+          danger: true,
+        });
+        if (!ok) return;
+        try {
+          await window.LB_API.users.deleteMyReview(targetUserId);
           UI.toast('Recensione eliminata.', 'info');
-          if (typeof onSubmit === 'function') onSubmit({ ok: true, deleted: true });
+          if (typeof onSubmit === 'function') onSubmit({ deleted: true });
+        } catch (err) {
+          errBox.hidden = false;
+          errBox.textContent = err.message || 'Impossibile eliminare la recensione.';
         }
       });
     }
@@ -423,7 +435,71 @@ export const UI = {
     return y === 1 ? 'un anno fa' : `${y} anni fa`;
   },
 
-  /** Renderizza la timeline orizzontale a 5 stati di un prestito.
+  /** Finestra di conferma dell'app, al posto di window.confirm(): stile del
+      sito, testi in italiano, pulsante rosso per le azioni distruttive.
+      Usa <dialog> (focus trattenuto, Esc per annullare). Il messaggio puo'
+      avere piu' paragrafi separati da una riga vuota. Restituisce una
+      Promise<boolean>: true solo se si sceglie il pulsante di conferma. */
+  confirm({
+    title = 'Conferma',
+    message = '',
+    okLabel = 'Conferma',
+    cancelLabel = 'Annulla',
+    danger = false,
+  } = {}) {
+    const esc = (v) => this._escapeHtml(v);
+    return new Promise((resolve) => {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'app-confirm';
+      dialog.setAttribute('aria-labelledby', 'app-confirm-title');
+      dialog.setAttribute('aria-describedby', 'app-confirm-body');
+      const paragraphs = String(message)
+        .split(/\n\s*\n/)
+        .filter(Boolean)
+        .map((p) => `<p>${esc(p.trim())}</p>`)
+        .join('');
+      dialog.innerHTML = `
+        <form method="dialog" class="app-confirm__card">
+          <h2 id="app-confirm-title" class="app-confirm__title">${esc(title)}</h2>
+          <div id="app-confirm-body" class="app-confirm__body">${paragraphs}</div>
+          <div class="app-confirm__actions">
+            <button type="submit" value="cancel" class="btn btn--ghost">${esc(cancelLabel)}</button>
+            <button type="submit" value="ok" class="btn btn--primary ${danger ? 'btn--danger' : ''}"
+                    id="app-confirm-ok">${esc(okLabel)}</button>
+          </div>
+        </form>`;
+      document.body.appendChild(dialog);
+      // La scelta si legge dal pulsante premuto (submit), da Esc (cancel) o
+      // dal clic sullo sfondo: non solo dall'evento "close", che alcuni
+      // browser basati su Chromium non inviano
+      let done = false;
+      const finish = (ok) => {
+        if (done) return;
+        done = true;
+        if (dialog.open) dialog.close(ok ? 'ok' : 'cancel');
+        dialog.remove();
+        resolve(ok);
+      };
+      dialog.querySelector('form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        finish(e.submitter?.value === 'ok');
+      });
+      dialog.addEventListener('cancel', (e) => {
+        e.preventDefault();
+        finish(false);
+      });
+      dialog.addEventListener('click', (e) => {
+        if (e.target === dialog) finish(false);
+      });
+      dialog.addEventListener('close', () => finish(dialog.returnValue === 'ok'));
+      dialog.showModal();
+      // Per le azioni distruttive il fuoco parte da "Annulla"
+      dialog.querySelector(danger ? 'button[value="cancel"]' : '#app-confirm-ok').focus();
+    });
+  },
+
+  /** Renderizza la timeline orizzontale a 5 stati di un prestito
+      (LoanDto del server: status e timestamps).
       Disegna 5 nodi (cerchi) connessi da linee. Il nodo dello stato
       corrente è ingrossato; quelli già attraversati sono pieni con
       colore bordeaux; quelli futuri sono "ghost" (outline soft).
@@ -435,14 +511,8 @@ export const UI = {
     const states = LOAN_STATUS_ORDER; // ['requested', ..., 'returned']
     const currentIdx = states.indexOf(loan.status);
 
-    // Mappa: stato → timestamp di transizione (se presente)
-    const tsMap = {
-      requested: loan.requested_at,
-      confirmed: loan.confirmed_at,
-      borrowed: loan.borrowed_at,
-      returning: loan.returning_at,
-      returned: loan.returned_at,
-    };
+    // Stato → data di transizione (se presente)
+    const tsMap = loan.timestamps || {};
 
     const nodes = states
       .map((st, i) => {
@@ -483,85 +553,107 @@ export const UI = {
       </div>`;
   },
 
-  /** v1.7: Chat inline associata a un prestito.
-      Toggle "💬 Chat (N nuovi)" + pannello espandibile con bolle
-      messaggio (user a destra/bordeaux per chi scrive, a sinistra per
-      l'altro; system centrate, più piccole). Input + send in fondo.
-      All'apertura: auto-mark-read di tutti i messaggi + scroll bottom.
-      Re-render su submit per aggiornare il counter unread.
-      `onUpdate` viene chiamata dopo ogni invio (utile per ridipingere
-      la card contenitore se serve aggiornare contatori esterni). */
+  /** Modale "Rifiuta la richiesta di prestito": motivazione obbligatoria
+      (almeno 10 caratteri), inviata al backend con l'azione `reject`.
+      `loan` e' l'oggetto dell'API; `onDone` viene chiamata a rifiuto
+      avvenuto. */
+  openRejectLoanModal(loan, onDone) {
+    const modal = document.createElement('div');
+    modal.className = 'return-wizard';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'reject-title');
+    modal.innerHTML = `
+      <div class="return-wizard__backdrop" data-close></div>
+      <div class="return-wizard__panel">
+        <button type="button" class="return-wizard__close" aria-label="Chiudi" data-close>×</button>
+        <h2 id="reject-title">Rifiuta la richiesta</h2>
+        <p style="color: var(--color-ink-soft); margin-bottom: 1.2rem;">
+          Stai per rifiutare la richiesta di
+          <strong>${this._escapeHtml(loan.requester?.displayName || '')}</strong> per il volume
+          <em>${this._escapeHtml(loan.book?.title || '')}</em>. Aggiungi una breve motivazione:
+          la vedrà nella sua pagina dei prestiti.
+        </p>
+        <div class="form__group">
+          <label class="form__label" for="reject-reason">Motivazione</label>
+          <textarea id="reject-reason" class="form__input" rows="3" maxlength="500"
+            placeholder="Esempio: il volume è già impegnato per un altro prestito, riprova fra due settimane."
+            minlength="10" required></textarea>
+          <small class="form__help">Minimo 10 caratteri.</small>
+        </div>
+        <div class="return-wizard__actions">
+          <button type="button" class="btn btn--ghost" data-close>Annulla</button>
+          <button type="button" class="btn btn--primary" data-reject-confirm>Rifiuta richiesta</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') close();
+    };
+    function close() {
+      modal.remove();
+      document.removeEventListener('keydown', onKey);
+    }
+    document.addEventListener('keydown', onKey);
+    modal.addEventListener('click', (e) => {
+      if (e.target.matches('[data-close]')) close();
+    });
+    const confirmBtn = modal.querySelector('[data-reject-confirm]');
+    confirmBtn.addEventListener('click', async () => {
+      const reason = modal.querySelector('#reject-reason').value.trim();
+      if (reason.length < 10) {
+        UI.toast('La motivazione deve essere lunga almeno 10 caratteri.', 'error');
+        return;
+      }
+      confirmBtn.disabled = true;
+      try {
+        await window.LB_API.loans.reject(loan.id, reason);
+        window.LB_API.cache.invalidate('loans:');
+        UI.toast("Richiesta rifiutata. Chi l'ha inviata riceverà una notifica.", 'info');
+        close();
+        if (typeof onDone === 'function') onDone();
+      } catch (err) {
+        UI.toast(err.message || 'Operazione non riuscita.', 'error');
+        confirmBtn.disabled = false;
+      }
+    });
+    setTimeout(() => modal.querySelector('#reject-reason').focus(), 50);
+  },
+
+  /** Chat di un prestito (messaggi dal backend: /api/loans/:id/messages).
+      `loan` e' l'oggetto restituito dall'API (book, requester, lender,
+      role, status, unreadCount). Con la chat aperta i messaggi vengono
+      segnati come letti (POST /api/loans/:id/read) e si chiama
+      `opts.onRead`. Per i prestiti rifiutati o annullati la chat resta
+      utilizzabile ma appare attenuata, con lo stato del prestito.
+      Restituisce { refresh } per ricaricare i messaggi su notifica. */
   renderLoanChat(container, loan, opts = {}) {
     const me = window.LB_UI.currentUser();
-    if (!me) {
-      container.innerHTML = '';
-      return;
-    }
-    const isParticipant = +me.id === +loan.requester_id || +me.id === +loan.lender_id;
+    const isParticipant = me && (me.id === loan.requester?.id || me.id === loan.lender?.id);
     if (!isParticipant) {
       container.innerHTML = '';
-      return;
+      return { refresh: () => {} };
     }
-
-    const messages = API.getMessagesForLoan(loan.id);
-    const unread = API.getUnreadMessageCount(loan.id, me.id);
-    const otherId = +me.id === +loan.requester_id ? loan.lender_id : loan.requester_id;
-    const other = API.getUser(otherId);
-    const otherPrefs = API.getProfilePrefs(otherId) || {};
-    const otherTheme = `cover--${otherPrefs.theme || 'classic'}`;
-    const otherSymbol =
-      otherPrefs.avatar_style === 'symbol' && otherPrefs.avatar_symbol
-        ? otherPrefs.avatar_symbol
-        : (other ? other.display_name : '?').trim()[0].toUpperCase();
-    const mePrefs = API.getProfilePrefs(me.id) || {};
-    const meTheme = `cover--${mePrefs.theme || 'classic'}`;
-    const meSymbol =
-      mePrefs.avatar_style === 'symbol' && mePrefs.avatar_symbol
-        ? mePrefs.avatar_symbol
-        : (me.display_name || '?').trim()[0].toUpperCase();
-
-    // Etichette icone per i messaggi di sistema
-    const sysIcon = {
-      requested: '📨',
-      confirmed: '✓',
-      borrowed: '↦',
-      returning: '↩',
-      returned: '✓✓',
-      rejected: '✕',
-      cancelled: '⊘',
-      overdue_reminder: '⏰',
-    };
-
-    const startOpen = opts.startOpen || unread > 0;
+    const other = me.id === loan.requester.id ? loan.lender : loan.requester;
+    const initial = (name) => (name || '?').trim().charAt(0).toUpperCase();
+    const startOpen = opts.startOpen !== false;
+    const CLOSED_LABEL = { rejected: 'Prestito rifiutato', cancelled: 'Prestito annullato' };
+    const closedLabel = CLOSED_LABEL[loan.status];
+    let unread = loan.unreadCount || 0;
 
     container.innerHTML = `
-      <div class="loan-chat ${startOpen ? 'is-open' : ''}">
-        <button type="button" class="loan-chat__toggle" aria-expanded="${startOpen ? 'true' : 'false'}">
+      <div class="loan-chat ${startOpen ? 'is-open' : ''} ${closedLabel ? 'loan-chat--closed' : ''}">
+        <button type="button" class="loan-chat__toggle" aria-expanded="${startOpen}">
           <span aria-hidden="true">💬</span>
-          <span class="loan-chat__toggle-label">Chat con ${other ? other.display_name : 'utente'}</span>
-          ${
-            unread > 0
-              ? `<span class="loan-chat__unread-badge">${unread} nuov${unread === 1 ? 'o' : 'i'}</span>`
-              : ''
-          }
+          <span class="loan-chat__toggle-label">Chat con ${this._escapeHtml(other?.displayName || 'utente')}</span>
+          ${closedLabel ? `<span class="loan-listitem__status loan-listitem__status--${loan.status} loan-chat__state">${closedLabel}</span>` : ''}
+          ${unread > 0 ? `<span class="loan-chat__unread-badge">${unread} nuov${unread === 1 ? 'o' : 'i'}</span>` : ''}
           <span class="loan-chat__caret" aria-hidden="true">▾</span>
         </button>
         <div class="loan-chat__panel" ${startOpen ? '' : 'hidden'}>
           <div class="loan-chat__messages" role="log" aria-live="polite">
-            ${messages
-              .map((m) =>
-                this._renderChatMessage(
-                  m,
-                  me,
-                  other,
-                  meTheme,
-                  meSymbol,
-                  otherTheme,
-                  otherSymbol,
-                  sysIcon
-                )
-              )
-              .join('')}
+            <p class="loan-chat__status">Caricamento dei messaggi…</p>
           </div>
           <form class="loan-chat__form" novalidate>
             <textarea class="loan-chat__input" rows="2"
@@ -580,36 +672,61 @@ export const UI = {
     const messagesEl = root.querySelector('.loan-chat__messages');
     const form = root.querySelector('.loan-chat__form');
     const input = root.querySelector('.loan-chat__input');
+    const sendBtn = root.querySelector('.loan-chat__send');
 
-    function open() {
-      root.classList.add('is-open');
-      panel.hidden = false;
-      toggle.setAttribute('aria-expanded', 'true');
-      API.markLoanMessagesRead(loan.id, me.id);
-      const badge = toggle.querySelector('.loan-chat__unread-badge');
-      if (badge) badge.remove();
-      // Scroll alla fine (mostra gli ultimi messaggi)
+    const bubble = (m) => {
+      const isMine = m.sender?.id === me.id;
+      return `
+        <div class="chat-msg chat-msg--user ${isMine ? 'chat-msg--mine' : ''}">
+          <span class="chat-msg__avatar cover--classic" aria-hidden="true">${this._escapeHtml(initial(m.sender?.displayName))}</span>
+          <div class="chat-msg__bubble">
+            <div class="chat-msg__text">${this._escapeHtml(m.body)}</div>
+            <div class="chat-msg__time">${UI.timeAgo(m.createdAt)}</div>
+          </div>
+        </div>`;
+    };
+    const scrollToEnd = () => {
       messagesEl.scrollTop = messagesEl.scrollHeight;
-      input.focus();
+    };
+
+    // Con la chat aperta, i messaggi arrivati risultano letti
+    async function markReadIfOpen() {
+      if (!root.classList.contains('is-open') || unread === 0) return;
+      try {
+        await window.LB_API.loans.markRead(loan.id);
+        unread = 0;
+        toggle.querySelector('.loan-chat__unread-badge')?.remove();
+        if (typeof opts.onRead === 'function') opts.onRead(loan.id);
+      } catch {
+        /* resta non letto: si riprova al prossimo aggiornamento */
+      }
     }
-    function close() {
-      root.classList.remove('is-open');
-      panel.hidden = true;
-      toggle.setAttribute('aria-expanded', 'false');
-    }
-    if (startOpen) {
-      // Già aperto al primo rendering: marca letti, scroll bottom
-      API.markLoanMessagesRead(loan.id, me.id);
-      const badge = toggle.querySelector('.loan-chat__unread-badge');
-      if (badge) badge.remove();
-      setTimeout(() => {
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-      }, 30);
+
+    async function refresh({ incoming = false } = {}) {
+      try {
+        const res = await window.LB_API.loans.listMessages(loan.id, { limit: 100 });
+        const list = res.data || [];
+        if (incoming) unread = Math.max(unread, 1);
+        messagesEl.innerHTML = list.length
+          ? list.map(bubble).join('')
+          : '<p class="loan-chat__status">Nessun messaggio. Scrivi tu per primo.</p>';
+        scrollToEnd();
+        markReadIfOpen();
+      } catch {
+        messagesEl.innerHTML =
+          '<p class="loan-chat__status">Impossibile caricare i messaggi. Riprova tra poco.</p>';
+      }
     }
 
     toggle.addEventListener('click', () => {
-      if (root.classList.contains('is-open')) close();
-      else open();
+      const isOpen = root.classList.toggle('is-open');
+      panel.hidden = !isOpen;
+      toggle.setAttribute('aria-expanded', String(isOpen));
+      if (isOpen) {
+        scrollToEnd();
+        input.focus();
+        markReadIfOpen();
+      }
     });
 
     // Enter (senza Shift) invia; Shift+Enter va a capo
@@ -620,74 +737,52 @@ export const UI = {
       }
     });
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const text = input.value;
-      const r = API.sendMessage(loan.id, text);
-      if (!r.ok) {
-        if (r.reason === 'empty') {
-          input.focus();
-          return;
-        }
-        UI.toast('Errore: ' + r.reason, 'error');
+      const text = input.value.trim();
+      if (!text) {
+        input.focus();
         return;
       }
-      input.value = '';
-      // Append del nuovo messaggio senza re-render completo
-      messagesEl.insertAdjacentHTML(
-        'beforeend',
-        UI._renderChatMessage(
-          r.message,
-          me,
-          other,
-          meTheme,
-          meSymbol,
-          otherTheme,
-          otherSymbol,
-          sysIcon
-        )
-      );
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-      input.focus();
-      if (typeof opts.onUpdate === 'function') opts.onUpdate();
+      sendBtn.disabled = true;
+      try {
+        const msg = await window.LB_API.loans.sendMessage(loan.id, { body: text });
+        input.value = '';
+        messagesEl.querySelector('.loan-chat__status')?.remove();
+        messagesEl.insertAdjacentHTML('beforeend', bubble(msg));
+        scrollToEnd();
+        if (typeof opts.onUpdate === 'function') opts.onUpdate();
+      } catch (err) {
+        UI.toast(err.message || 'Messaggio non inviato. Riprova.', 'error');
+      } finally {
+        sendBtn.disabled = false;
+        input.focus();
+      }
     });
+
+    refresh();
+    return { refresh: () => refresh({ incoming: true }) };
   },
 
-  /** Helper interno: rendering di una singola bolla messaggio. */
-  _renderChatMessage(m, me, other, meTheme, meSymbol, otherTheme, otherSymbol, sysIcon) {
-    if (m.type === 'system') {
-      const icon = sysIcon[m.event_type] || 'ℹ';
-      return `
-        <div class="chat-msg chat-msg--system">
-          <span class="chat-msg__sys-icon" aria-hidden="true">${icon}</span>
-          <span class="chat-msg__sys-text">${this._escapeHtml(m.content)}</span>
-          <span class="chat-msg__sys-time">${UI.timeAgo(m.created_at)}</span>
-        </div>`;
-    }
-    const isMine = +m.sender_id === +me.id;
-    const author = isMine ? me : other;
-    const theme = isMine ? meTheme : otherTheme;
-    const symbol = isMine ? meSymbol : otherSymbol;
-    return `
-      <div class="chat-msg chat-msg--user ${isMine ? 'chat-msg--mine' : ''}">
-        <span class="chat-msg__avatar ${theme}" aria-hidden="true">${symbol}</span>
-        <div class="chat-msg__bubble">
-          <div class="chat-msg__text">${this._escapeHtml(m.content)}</div>
-          <div class="chat-msg__time">${UI.timeAgo(m.created_at)}</div>
-        </div>
-      </div>`;
+  /** Libro aggiunto negli ultimi `days` giorni (badge "Novità"). */
+  _isRecent(book, days = 14) {
+    const iso = book.createdAt;
+    if (!iso) return false;
+    return (Date.now() - new Date(iso).getTime()) / 86400000 <= days;
   },
 
-  renderBookCard(book, user, options = {}) {
-    const owner = user || API.getUser(book.owner_id);
-    const coverStyle = `style="background: ${book.cover_gradient};"`;
+  /** Scheda libro (BookDto del server). Il proprietario viene da
+      book.owner; il "mi piace" da book.likedByMe. */
+  renderBookCard(book, _user, options = {}) {
+    const esc = (v) => this._escapeHtml(v);
+    const coverStyle = `style="background: ${window.LB_UI.bookCoverGradient(book)};"`;
     const me = window.LB_UI.currentUser();
-    const liked = me && API.isLiked(me.id, book.id);
-    const isOwn = me && +book.owner_id === +me.id;
+    const liked = !!book.likedByMe;
+    const isOwn = !!me && book.owner?.id === me.id;
     const likeChip =
       me && !isOwn
         ? `<button type="button" class="like-chip auth-only ${liked ? 'is-liked' : ''}"
-                 data-book-id="${book.id}" aria-pressed="${!!liked}"
+                 data-book-id="${book.id}" aria-pressed="${liked}"
                  aria-label="${liked ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}">
            <svg viewBox="0 0 24 24" aria-hidden="true">
              <path d="M12 20 C12 20 3 14 3 8 C3 5 5 3.5 7.2 3.5 C9 3.5 10.6 4.7 12 6.6 C13.4 4.7 15 3.5 16.8 3.5 C19 3.5 21 5 21 8 C21 14 12 20 12 20 Z"
@@ -695,36 +790,35 @@ export const UI = {
            </svg>
          </button>`
         : '';
-    const isbnClean = (book.isbn || '').replace(/[^\d]/g, '');
+    const isbnClean = String(book.isbn || '').replace(/[^\d]/g, '');
     const coverImg = isbnClean
       ? `<img class="book-card__cover-img" loading="lazy" alt=""
               src="https://covers.openlibrary.org/b/isbn/${isbnClean}-M.jpg?default=false"
               onload="this.classList.add('is-loaded')"
               onerror="this.style.display='none'" />`
       : '';
-    // v2.6: tag "novità" + aura per libri aggiunti di recente.
-    // Attivo solo se options.highlightRecent === true (così solo nella
-    // sezione "Novità da chi segui" sulla home, non ovunque).
-    const isRecent = options.highlightRecent && API.isBookRecent(book);
+    // Badge "Novità" solo dove richiesto (es. "Novità da chi segui")
+    const isRecent = options.highlightRecent && UI._isRecent(book);
     const cardClasses = ['book-card'];
     if (!book.available) cardClasses.push('book-card--unavailable');
     if (isRecent) cardClasses.push('book-card--recent');
     const recentBadge = isRecent
       ? '<span class="book-card__recent-badge" aria-label="Aggiunto di recente">✦ Novità</span>'
       : '';
+    const yearPart = book.year ? `, ${book.year}` : '';
     return `
       <a href="book-detail.html?id=${book.id}" class="${cardClasses.join(' ')}">
         ${recentBadge}
         ${likeChip}
         <div class="book-card__cover book-card__cover--placeholder" ${coverStyle}>
           ${coverImg}
-          <span class="book-card__cover-title">${book.title}</span>
+          <span class="book-card__cover-title">${esc(book.title)}</span>
         </div>
-        <span class="book-card__category">${book.category}</span>
-        <h3 class="book-card__title">${book.title}</h3>
-        <p class="book-card__author">${book.author}, ${book.year}</p>
+        <span class="book-card__category">${esc(window.LB_UI.bookCategory(book)?.name || '')}</span>
+        <h3 class="book-card__title">${esc(book.title)}</h3>
+        <p class="book-card__author">${esc(book.author)}${yearPart}</p>
         <div class="book-card__meta">
-          <span>${owner ? owner.city : ''}</span>
+          <span>${esc(book.owner?.city || '')}</span>
           <span>${book.available ? 'Disponibile' : 'In prestito'}</span>
         </div>
       </a>`;
@@ -750,8 +844,15 @@ export const UI = {
       maxTags = 8,
       hiddenName = null, // se valorizzato, scrive un input nascosto con valori CSV per i form classici
     } = opts;
+    const esc = (v) => this._escapeHtml(v);
 
-    const allTags = API.getAllCategoryTags();
+    // Generi dal server (macro-aree e sottogeneri). I tag sono gli slug;
+    // le etichette sono i nomi.
+    let categories = [];
+    let bySlug = new Map();
+    let allTags = [];
+    const nameOf = (slug) => bySlug.get(slug)?.name || slug;
+    const parentOf = (slug) => bySlug.get(slug)?.parentName || '';
     let selected = [...initial];
     let activeIdx = -1; // riga evidenziata nel dropdown
 
@@ -775,8 +876,8 @@ export const UI = {
         .map(
           (t, i) =>
             `<span class="tag-chip">
-           <span class="tag-chip__label">${t}</span>
-           <button type="button" class="tag-chip__x" data-i="${i}" aria-label="Rimuovi ${t}">×</button>
+           <span class="tag-chip__label">${esc(nameOf(t))}</span>
+           <button type="button" class="tag-chip__x" data-i="${i}" aria-label="Rimuovi ${esc(nameOf(t))}">×</button>
          </span>`
         )
         .join('');
@@ -806,16 +907,18 @@ export const UI = {
       }
       dropdown.innerHTML = items
         .map((t, i) => {
-          const parent = API.getCategoryParent(t);
+          const parent = parentOf(t);
+          const label = nameOf(t);
           // evidenzia la parte di testo che combacia con la query
-          const q = input.value.trim();
-          const re = q
-            ? new RegExp('(' + q.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') + ')', 'i')
-            : null;
-          const labelHtml = re ? t.replace(re, '<mark>$1</mark>') : t;
-          return `<div class="tag-opt ${i === activeIdx ? 'is-active' : ''}" role="option" data-tag="${t}">
+          const q = input.value.trim().toLowerCase();
+          const at = q ? label.toLowerCase().indexOf(q) : -1;
+          const labelHtml =
+            at >= 0
+              ? `${esc(label.slice(0, at))}<mark>${esc(label.slice(at, at + q.length))}</mark>${esc(label.slice(at + q.length))}`
+              : esc(label);
+          return `<div class="tag-opt ${i === activeIdx ? 'is-active' : ''}" role="option" data-tag="${esc(t)}">
                   <span>${labelHtml}</span>
-                  ${parent ? `<span class="tag-opt__parent">${parent}</span>` : ''}
+                  ${parent ? `<span class="tag-opt__parent">${esc(parent)}</span>` : ''}
                 </div>`;
         })
         .join('');
@@ -834,7 +937,7 @@ export const UI = {
     function recompute() {
       const q = input.value.trim().toLowerCase();
       const items = allTags
-        .filter((t) => !selected.includes(t) && (!q || t.toLowerCase().includes(q)))
+        .filter((t) => !selected.includes(t) && (!q || nameOf(t).toLowerCase().includes(q)))
         .slice(0, 12);
       openDropdown(items);
     }
@@ -871,8 +974,38 @@ export const UI = {
     paintChips();
     if (hidden) hidden.value = selected.join(',');
 
+    // Caricamento dei generi: fino ad allora il campo e' disattivato
+    input.disabled = true;
+    container.ready = window.LB_API.categories
+      .all()
+      .then((list) => {
+        categories = list;
+        bySlug = new Map(list.map((c) => [c.slug, c]));
+        // Macro-aree prima, poi i sottogeneri, in ordine alfabetico
+        allTags = [...list]
+          .sort(
+            (a, b) =>
+              (a.parentId ? 1 : 0) - (b.parentId ? 1 : 0) || a.name.localeCompare(b.name, 'it')
+          )
+          .map((c) => c.slug);
+        selected = selected.filter((t) => bySlug.has(t));
+        input.disabled = false;
+        paintChips();
+      })
+      .catch(() => {
+        input.placeholder = 'Generi non disponibili: server non raggiungibile';
+      });
+
     // API esposta sul container per chiamanti esterni
-    container.getTags = () => selected.slice();
+    container.getTags = () => selected.slice(); // slug
+    container.getIds = () => selected.map((t) => bySlug.get(t)?.id).filter(Boolean);
+    // Slug selezionati piu' i sottogeneri delle macro-aree scelte
+    container.getExpandedTags = () => {
+      const ids = new Set(container.getIds());
+      return categories
+        .filter((c) => ids.has(c.id) || (c.parentId && ids.has(c.parentId)))
+        .map((c) => c.slug);
+    };
     container.setTags = (arr) => {
       selected = arr.slice();
       paintChips();
@@ -881,7 +1014,7 @@ export const UI = {
     return container;
   },
 
-  /** v2.5: ridimensiona e centra-crop un'immagine in un quadrato di
+  /** ridimensiona e centra-crop un'immagine in un quadrato di
       lato `size` px. Restituisce un data URL JPEG ottimizzato.
       Usato per la foto profilo (riadattata a quadrato → renderizzata
       a cerchio via CSS border-radius). */
@@ -905,19 +1038,32 @@ export const UI = {
     });
   },
 
-  /** v2.5: collega il menu a tendina al cerchio dell'avatar nel profilo.
+  /** collega il menu a tendina al cerchio dell'avatar nel profilo.
       Apre un drop-menu con due voci:
         • "Carica foto…" → apre file input
         • "Rimuovi foto" → resetta (visibile solo se foto esistente)
       Dopo l'upload, l'immagine viene ridimensionata/crop in un quadrato
-      di 320px e salvata come data URL JPEG nello user.avatar_data_url.
+      di 320px e salvata sul server (PATCH /api/users/me, avatarDataUrl).
       `onChange` viene invocato dopo il salvataggio (es. per ricaricare). */
   wireAvatarMenu(avatarEl, onChange) {
     if (!avatarEl || avatarEl.dataset.wired === '1') return;
     avatarEl.dataset.wired = '1';
     const me = window.LB_UI.currentUser();
     if (!me) return;
-    const hasPhoto = !!me.avatar_data_url;
+    const hasPhoto = !!me.avatarUrl;
+
+    // Salva (o rimuove con null) la foto sul server, poi rilegge la sessione
+    // perche' la barra di navigazione mostri subito la foto nuova
+    async function saveAvatar(avatarDataUrl, okMessage) {
+      try {
+        await window.LB_API.users.updateMe({ avatarDataUrl });
+        await window.LB_UI.refreshCurrentUser();
+        UI.toast(okMessage, avatarDataUrl ? 'success' : 'info');
+        if (onChange) onChange();
+      } catch (err) {
+        UI.toast(err.message || 'Impossibile aggiornare la foto profilo.', 'error');
+      }
+    }
 
     // Crea il menu (rimosso quando si chiude)
     function buildMenu() {
@@ -958,17 +1104,19 @@ export const UI = {
         return;
       }
       const menu = buildMenu();
-      menu.addEventListener('click', (ev) => {
+      menu.addEventListener('click', async (ev) => {
         const action = ev.target.closest('[data-action]')?.dataset.action;
         if (!action) return;
         closeMenu();
         if (action === 'remove') {
-          if (!confirm('Vuoi davvero rimuovere la foto profilo?')) return;
-          const r = API.clearUserAvatar();
-          if (r.ok) {
-            UI.toast('Foto profilo rimossa.', 'info');
-            if (onChange) onChange();
-          }
+          const ok = await UI.confirm({
+            title: 'Rimuovere la foto profilo?',
+            message: "Al suo posto tornerà l'iniziale o il simbolo scelto.",
+            okLabel: 'Rimuovi',
+            danger: true,
+          });
+          if (!ok) return;
+          saveAvatar(null, 'Foto profilo rimossa.');
         } else if (action === 'upload') {
           // Crea input file nascosto
           const input = document.createElement('input');
@@ -985,14 +1133,8 @@ export const UI = {
             reader.onload = async (re) => {
               try {
                 const cropped = await UI.cropImageToSquare(re.target.result, 320, 0.85);
-                const r = API.setUserAvatar(cropped);
-                if (r.ok) {
-                  UI.toast('Foto profilo aggiornata.', 'success');
-                  if (onChange) onChange();
-                } else {
-                  UI.toast('Errore: ' + r.reason, 'error');
-                }
-              } catch (err) {
+                await saveAvatar(cropped, 'Foto profilo aggiornata.');
+              } catch {
                 UI.toast("Impossibile elaborare l'immagine.", 'error');
               }
             };
@@ -1017,12 +1159,12 @@ export const UI = {
     });
   },
 
-  /** v2.2: Inietta un link "Admin" nella nav header solo per utenti
-      con is_admin=true. Inserito dopo "Profilo" se presente.
-      v2.5: icona SVG inline coerente con le altre nav icons. */
+  /** Inietta un link "Admin" nella nav header solo per utenti
+      amministratori. Inserito dopo "Profilo" se presente.
+      Icona SVG inline coerente con le altre nav icons. */
   initAdminLink() {
     const me = window.LB_UI.currentUser();
-    if (!me || !me.is_admin) return;
+    if (!me || !me.isAdmin) return;
     const nav = document.querySelector('header .site-nav');
     if (!nav) return;
     if (nav.querySelector('a[href="admin.html"]')) return;
@@ -1031,7 +1173,7 @@ export const UI = {
     adminLink.className = 'nav-admin nav-icon';
     adminLink.setAttribute('aria-label', 'Pannello amministrazione');
     adminLink.setAttribute('title', 'Pannello amministrazione');
-    // v2.5 quick fix: solo icona, niente label
+    // Solo icona, niente etichetta
     adminLink.innerHTML = UI.ICON.admin.replace('<svg ', '<svg class="nav-icon__svg" ');
     // Inserisci prima del bottone "Pubblica" (così l'ordine è
     // Esplora · Stats · Prestiti · Admin · Pubblica)
@@ -1043,17 +1185,33 @@ export const UI = {
     }
   },
 
-  /* v2.4: rendering condiviso dei post — composer + feed.
+  /* rendering condiviso dei post — composer + feed.
      Usato da profile.html (tab Post), library.html (tab Post sul
      profilo pubblico), index.html (aggiornamenti recenti). */
 
-  renderPostComposer(container, options = {}) {
+  /* Post delle librerie (dal server). Una reazione per utente, si
+     pubblica con almeno un volume, una segnalazione per post. */
+  POST_MAX_LENGTH: 500,
+  REACTION_EMOJI: ['👍', '❤️', '👏', '🤔'],
+
+  /** Composer dei post. options.canPublish: se l'utente ha almeno un
+      volume (se assente lo chiede al server); options.onPublished. */
+  async renderPostComposer(container, options = {}) {
     const me = window.LB_UI.currentUser();
     if (!me) {
       container.innerHTML = '';
       return;
     }
-    if (!API.canPublishPosts(me.id)) {
+    let canPublish = options.canPublish;
+    if (canPublish === undefined) {
+      try {
+        const res = await window.LB_API.books.list({ ownerId: me.id, limit: 1 });
+        canPublish = res.pagination.total > 0;
+      } catch (_err) {
+        canPublish = true; // decide il server alla pubblicazione
+      }
+    }
+    if (!canPublish) {
       container.innerHTML = `
         <div class="post-composer post-composer--locked">
           <p>📝 <strong>Pubblica almeno un volume</strong> per poter scrivere aggiornamenti
@@ -1061,26 +1219,22 @@ export const UI = {
         </div>`;
       return;
     }
+    const max = UI.POST_MAX_LENGTH;
     container.innerHTML = `
       <form class="post-composer" id="post-composer-form">
         <div class="post-composer__avatar" aria-hidden="true">
           ${
-            me.avatar_data_url
-              ? `<img class="post-composer__avatar-img" src="${me.avatar_data_url}" alt="">`
-              : (me.display_name || '?')
-                  .split(' ')
-                  .map((s) => s[0])
-                  .join('')
-                  .slice(0, 2)
-                  .toUpperCase()
+            me.avatarUrl
+              ? `<img class="post-composer__avatar-img" src="${this._escapeHtml(me.avatarUrl)}" alt="">`
+              : this._escapeHtml(UI._initials(me.displayName || me.username))
           }
         </div>
         <div class="post-composer__body">
           <textarea name="content" class="post-composer__textarea" rows="3"
-                    maxlength="${API.POST_MAX_LENGTH}"
+                    maxlength="${max}"
                     placeholder="Condividi un aggiornamento sulla tua libreria…" required></textarea>
           <div class="post-composer__bar">
-            <span class="post-composer__count" id="post-count">0 / ${API.POST_MAX_LENGTH}</span>
+            <span class="post-composer__count" id="post-count">0 / ${max}</span>
             <button type="submit" class="btn btn--primary btn--small">Pubblica</button>
           </div>
         </div>
@@ -1088,29 +1242,46 @@ export const UI = {
     const form = container.querySelector('#post-composer-form');
     const ta = form.querySelector('textarea');
     const counter = container.querySelector('#post-count');
+    const submitBtn = form.querySelector('button[type="submit"]');
     ta.addEventListener('input', () => {
-      counter.textContent = `${ta.value.length} / ${API.POST_MAX_LENGTH}`;
-      counter.classList.toggle('is-near-limit', ta.value.length > API.POST_MAX_LENGTH * 0.85);
+      counter.textContent = `${ta.value.length} / ${max}`;
+      counter.classList.toggle('is-near-limit', ta.value.length > max * 0.85);
     });
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const r = API.createPost(ta.value);
-      if (r.ok) {
+      const content = ta.value.trim();
+      if (!content) {
+        UI.toast('Il post non può essere vuoto.', 'error');
+        return;
+      }
+      submitBtn.disabled = true;
+      try {
+        await window.LB_API.posts.create({ content });
         UI.toast('Post pubblicato.', 'success');
         ta.value = '';
-        counter.textContent = `0 / ${API.POST_MAX_LENGTH}`;
+        counter.textContent = `0 / ${max}`;
         if (options.onPublished) options.onPublished();
-      } else {
-        const msgs = {
-          'no-books': 'Per pubblicare un post devi prima aggiungere almeno un volume.',
-          empty: 'Il post non può essere vuoto.',
-          'too-long': `Massimo ${API.POST_MAX_LENGTH} caratteri.`,
-        };
-        UI.toast(msgs[r.reason] || 'Errore: ' + r.reason, 'error');
+      } catch (err) {
+        UI.toast(err.message || 'Pubblicazione non riuscita. Riprova.', 'error');
+      } finally {
+        submitBtn.disabled = false;
       }
     });
   },
 
+  /** Iniziali (massimo due) da un nome. */
+  _initials(name) {
+    return String(name || '?')
+      .trim()
+      .split(/\s+/)
+      .map((w) => w[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  },
+
+  /** Elenco di post (DTO del server: author, reactionsByEmoji,
+      myReactions, reportedByMe, createdAt). */
   renderPostsFeed(container, posts, options = {}) {
     const me = window.LB_UI.currentUser();
     if (posts.length === 0) {
@@ -1122,70 +1293,51 @@ export const UI = {
   },
 
   _renderPostCard(post, me, options) {
-    const author = API.getUser(post.author_id) || { display_name: 'Sconosciuto', username: '?' };
-    const myReaction = me ? API.getUserReaction(post.id, me.id) : null;
-    const totalReactions = Object.values(post.reactions || {}).reduce(
-      (s, arr) => s + (arr || []).length,
-      0
-    );
-    const hasReported = me && (post.reports || []).some((r) => +r.reporter_id === +me.id);
+    const esc = (v) => this._escapeHtml(v);
+    const author = post.author || { id: '', displayName: 'Utente', username: '' };
+    const authorHref = `library.html?id=${encodeURIComponent(author.id)}`;
+    const isMine = !!me && author.id === me.id;
+    const myReaction = (post.myReactions || [])[0] || null;
     const showAuthor = options.showAuthor !== false;
-    const canDelete = me && (+post.author_id === +me.id || me.is_admin);
-    // v2.5: avatar dell'autore — foto se presente, altrimenti iniziali
-    const authorAvatarInner = author.avatar_data_url
-      ? `<img class="post-card__avatar-img" src="${author.avatar_data_url}" alt="">`
-      : (author.display_name || '?')
-          .split(' ')
-          .map((s) => s[0])
-          .join('')
-          .slice(0, 2)
-          .toUpperCase();
+    const authorAvatarInner = author.avatarUrl
+      ? `<img class="post-card__avatar-img" src="${esc(author.avatarUrl)}" alt="">`
+      : esc(UI._initials(author.displayName || author.username));
 
-    const reactionsHtml = API.REACTION_EMOJI.map((em) => {
-      const count = (post.reactions?.[em] || []).length;
-      const isMine = myReaction === em;
-      return `<button type="button" class="post-reaction ${isMine ? 'is-mine' : ''} ${count > 0 ? 'has-count' : ''}"
-                      data-post-react="${post.id}" data-emoji="${em}"
-                      aria-pressed="${isMine}" title="Reagisci con ${em}">
+    const reactionsHtml = UI.REACTION_EMOJI.map((em) => {
+      const count = (post.reactionsByEmoji || {})[em] || 0;
+      const mine = myReaction === em;
+      return `<button type="button" class="post-reaction ${mine ? 'is-mine' : ''} ${count > 0 ? 'has-count' : ''}"
+                      data-post-react="${esc(post.id)}" data-emoji="${em}" data-mine="${mine}"
+                      aria-pressed="${mine}" title="Reagisci con ${em}">
         <span class="post-reaction__emoji" aria-hidden="true">${em}</span>
         ${count > 0 ? `<span class="post-reaction__count">${count}</span>` : ''}
       </button>`;
     }).join('');
 
+    const deleteBtn = isMine
+      ? `<button type="button" class="post-card__delete" data-post-delete="${esc(post.id)}"
+                 title="Elimina post" aria-label="Elimina post">🗑</button>`
+      : '';
+
     return `
-      <article class="post-card" data-post-id="${post.id}">
+      <article class="post-card" data-post-id="${esc(post.id)}">
         ${
           showAuthor
             ? `
         <header class="post-card__head">
-          <a href="library.html?id=${author.id}" class="post-card__avatar" aria-hidden="true">
+          <a href="${authorHref}" class="post-card__avatar" aria-hidden="true">
             ${authorAvatarInner}
           </a>
           <div class="post-card__author">
-            <a href="library.html?id=${author.id}" class="post-card__name">${author.display_name}</a>
-            <span class="post-card__time">${UI.timeAgo(post.created_at)}</span>
+            <a href="${authorHref}" class="post-card__name">${esc(author.displayName || author.username)}</a>
+            <span class="post-card__time">${UI.timeAgo(post.createdAt)}</span>
           </div>
-          ${
-            canDelete
-              ? `
-            <button type="button" class="post-card__delete" data-post-delete="${post.id}"
-                    title="Elimina post" aria-label="Elimina post">🗑</button>
-          `
-              : ''
-          }
-        </header>
-        `
+          ${deleteBtn}
+        </header>`
             : `
         <header class="post-card__head post-card__head--anon">
-          <span class="post-card__time">${UI.timeAgo(post.created_at)}</span>
-          ${
-            canDelete
-              ? `
-            <button type="button" class="post-card__delete" data-post-delete="${post.id}"
-                    title="Elimina post" aria-label="Elimina post">🗑</button>
-          `
-              : ''
-          }
+          <span class="post-card__time">${UI.timeAgo(post.createdAt)}</span>
+          ${deleteBtn}
         </header>`
         }
         <p class="post-card__content">${UI._escapePostContent(post.content)}</p>
@@ -1194,15 +1346,14 @@ export const UI = {
             ${reactionsHtml}
           </div>
           ${
-            me && +post.author_id !== +me.id
+            me && !isMine
               ? `
-            <button type="button" class="post-card__report ${hasReported ? 'is-reported' : ''}"
-                    data-post-report="${post.id}"
-                    title="${hasReported ? 'Già segnalato' : 'Segnala come inappropriato'}"
-                    ${hasReported ? 'disabled' : ''}>
-              ${hasReported ? '⚐ Segnalato' : '⚐ Segnala'}
-            </button>
-          `
+            <button type="button" class="post-card__report ${post.reportedByMe ? 'is-reported' : ''}"
+                    data-post-report="${esc(post.id)}"
+                    title="${post.reportedByMe ? 'Già segnalato' : 'Segnala come inappropriato'}"
+                    ${post.reportedByMe ? 'disabled' : ''}>
+              ${post.reportedByMe ? '⚐ Segnalato' : '⚐ Segnala'}
+            </button>`
               : ''
           }
         </footer>
@@ -1217,38 +1368,47 @@ export const UI = {
   },
 
   _wirePostsFeed(container, options = {}) {
-    // Reactions
-    container.addEventListener('click', (e) => {
+    // Un solo gestore anche se l'elenco viene ridisegnato
+    container.onclick = async (e) => {
       const reactBtn = e.target.closest('[data-post-react]');
       const reportBtn = e.target.closest('[data-post-report]');
       const deleteBtn = e.target.closest('[data-post-delete]');
+      if (!reactBtn && !reportBtn && !deleteBtn) return;
 
-      if (reactBtn) {
-        const me = window.LB_UI.currentUser();
-        if (!me) {
-          UI.toast('Accedi per reagire ai post.', 'info');
-          return;
-        }
-        const r = API.togglePostReaction(reactBtn.dataset.postReact, reactBtn.dataset.emoji);
-        if (r.ok && options.onChange) options.onChange();
+      if ((reactBtn || reportBtn) && !window.LB_UI.currentUser()) {
+        UI.toast(
+          reactBtn ? 'Accedi per reagire ai post.' : 'Accedi per segnalare un post.',
+          'info'
+        );
+        return;
       }
-      if (reportBtn) {
-        const me = window.LB_UI.currentUser();
-        if (!me) {
-          UI.toast('Accedi per segnalare un post.', 'info');
-          return;
+      try {
+        if (reactBtn) {
+          const { postReact: id, emoji, mine } = reactBtn.dataset;
+          // Stessa emoji: la si toglie; un'altra: sostituisce la precedente
+          if (mine === 'true') await window.LB_API.posts.unreact(id, emoji);
+          else await window.LB_API.posts.react(id, emoji);
+          if (options.onChange) options.onChange();
         }
-        UI._openReportModal(reportBtn.dataset.postReport, options.onChange);
-      }
-      if (deleteBtn) {
-        if (!confirm('Eliminare definitivamente questo post?')) return;
-        const r = API.deletePost(deleteBtn.dataset.postDelete);
-        if (r.ok) {
+        if (reportBtn) {
+          UI._openReportModal(reportBtn.dataset.postReport, options.onChange);
+        }
+        if (deleteBtn) {
+          const ok = await UI.confirm({
+            title: 'Eliminare il post?',
+            message: 'Il post e le sue reazioni verranno eliminati definitivamente.',
+            okLabel: 'Elimina',
+            danger: true,
+          });
+          if (!ok) return;
+          await window.LB_API.posts.remove(deleteBtn.dataset.postDelete);
           UI.toast('Post eliminato.', 'info');
           if (options.onChange) options.onChange();
-        } else UI.toast('Errore: ' + r.reason, 'error');
+        }
+      } catch (err) {
+        UI.toast(err.message || 'Operazione non riuscita. Riprova.', 'error');
       }
-    });
+    };
   },
 
   _openReportModal(postId, onDone) {
@@ -1260,17 +1420,17 @@ export const UI = {
     modal.id = 'report-post-modal';
     modal.innerHTML = `
       <div class="admin-modal__backdrop" data-modal-close></div>
-      <div class="admin-modal__card" role="dialog" aria-modal="true">
-        <h3 class="admin-modal__title">Segnala questo post</h3>
+      <div class="admin-modal__card" role="dialog" aria-modal="true" aria-labelledby="report-post-title">
+        <h3 class="admin-modal__title" id="report-post-title">Segnala questo post</h3>
         <form id="report-post-form" class="form">
           <div class="form__group">
             <label class="form__label" for="report-reason">Motivo</label>
             <select id="report-reason" name="reason" class="form__input" required>
-              <option value="offensivo">Contenuto offensivo</option>
+              <option value="offensive">Contenuto offensivo</option>
               <option value="spam">Spam o pubblicità</option>
               <option value="off-topic">Off-topic / non pertinente</option>
-              <option value="violenza">Incitamento alla violenza o odio</option>
-              <option value="altro">Altro</option>
+              <option value="violence">Incitamento alla violenza o odio</option>
+              <option value="other">Altro</option>
             </select>
           </div>
           <div class="form__group">
@@ -1288,19 +1448,24 @@ export const UI = {
     modal
       .querySelectorAll('[data-modal-close]')
       .forEach((el) => el.addEventListener('click', () => modal.remove()));
-    modal.querySelector('#report-post-form').addEventListener('submit', (e) => {
+    modal.querySelector('#report-post-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const reason = modal.querySelector('#report-reason').value;
-      const note = modal.querySelector('#report-note').value;
-      const r = API.reportPost(postId, reason, note);
-      if (r.ok) {
+      const note = modal.querySelector('#report-note').value.trim();
+      try {
+        await window.LB_API.posts.report(postId, note ? { reason, note } : { reason });
         UI.toast('Segnalazione inviata. Un moderatore la esaminerà.', 'success');
         modal.remove();
         if (onDone) onDone();
-      } else if (r.reason === 'already-reported') {
-        UI.toast('Hai già segnalato questo post.', 'info');
-        modal.remove();
-      } else UI.toast('Errore: ' + r.reason, 'error');
+      } catch (err) {
+        if (err.code === 'ALREADY_REPORTED') {
+          UI.toast('Hai già segnalato questo post.', 'info');
+          modal.remove();
+          if (onDone) onDone();
+        } else {
+          UI.toast(err.message || 'Segnalazione non riuscita. Riprova.', 'error');
+        }
+      }
     });
   },
 
@@ -1313,14 +1478,25 @@ export const UI = {
       e.preventDefault();
       e.stopPropagation();
       const me = window.LB_UI.currentUser();
-      if (!me) return;
-      const bookId = +chip.dataset.bookId;
-      const nowLiked = API.toggleLike(bookId);
-      chip.classList.toggle('is-liked', nowLiked);
-      chip.setAttribute('aria-pressed', String(nowLiked));
-      const path = chip.querySelector('path');
-      if (path) path.setAttribute('fill', nowLiked ? 'currentColor' : 'none');
-      if (this._refreshNotifications) this._refreshNotifications();
+      if (!me || chip.disabled) return;
+      const bookId = chip.dataset.bookId;
+      const nowLiked = chip.getAttribute('aria-pressed') !== 'true';
+      chip.disabled = true;
+      (nowLiked ? window.LB_API.books.like(bookId) : window.LB_API.books.unlike(bookId))
+        .then(() => {
+          chip.classList.toggle('is-liked', nowLiked);
+          chip.setAttribute('aria-pressed', String(nowLiked));
+          chip.setAttribute(
+            'aria-label',
+            nowLiked ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'
+          );
+          const path = chip.querySelector('path');
+          if (path) path.setAttribute('fill', nowLiked ? 'currentColor' : 'none');
+        })
+        .catch((err) => UI.toast(err.message || 'Operazione non riuscita. Riprova.', 'error'))
+        .finally(() => {
+          chip.disabled = false;
+        });
     });
   },
 
@@ -1341,17 +1517,31 @@ export const UI = {
      importante per chi cerca un prestito di prossimità) e lo stato
      di disponibilità con un badge animato a colori d'accento.
      Le righe entrano con un'animazione a cascata. ------------- */
-  renderSearchResults(container, books) {
+  /** Distanza leggibile: "350 m", "1,2 km", "18 km" */
+  formatDistance(meters) {
+    if (meters == null) return '';
+    if (meters < 1000) return `${Math.max(10, Math.round(meters / 10) * 10)} m`;
+    const km = meters / 1000;
+    return km < 10
+      ? `${km.toLocaleString('it-IT', { maximumFractionDigits: 1 })} km`
+      : `${Math.round(km).toLocaleString('it-IT')} km`;
+  },
+
+  /**
+   * Risultati della ricerca. options.distanceFrom (es. "dal centro di Napoli")
+   * aggiunge la distanza della libreria quando il server la fornisce.
+   */
+  renderSearchResults(container, books, options = {}) {
     if (!books.length) {
       container.innerHTML = `<p class="alert alert--info">Nessun libro trovato con i filtri correnti. Prova ad allargare il raggio o a cambiare categoria.</p>`;
       return;
     }
     container.innerHTML = books
       .map((b, i) => {
-        const owner = API.getUser(b.owner_id);
-        const isOrg = owner && window.LB_UI.isOrganization(owner);
-        const ownerLabel = owner ? owner.display_name : 'Sconosciuto';
-        const place = owner ? owner.city || '—' : '—';
+        const esc = (v) => this._escapeHtml(v);
+        const isOrg = b.owner?.accountType === 'organization';
+        const ownerLabel = esc(b.owner?.displayName || 'Utente');
+        const place = esc(b.owner?.city || '—');
         const availBadge = b.available
           ? `<span class="result-badge result-badge--available">
              <span class="result-badge__dot" aria-hidden="true"></span>Disponibile
@@ -1360,13 +1550,13 @@ export const UI = {
 
         return `
         <a href="book-detail.html?id=${b.id}" class="result-item" style="--i: ${i};">
-          <div class="result-item__cover" style="background: ${b.cover_gradient};" aria-hidden="true">
-            <span>${b.title.split(' ').slice(0, 3).join(' ')}</span>
+          <div class="result-item__cover" style="background: ${window.LB_UI.bookCoverGradient(b)};" aria-hidden="true">
+            <span>${esc(b.title.split(' ').slice(0, 3).join(' '))}</span>
           </div>
           <div class="result-item__main">
-            <span class="result-item__category">${b.category}</span>
-            <h3 class="result-item__title">${b.title}</h3>
-            <p class="result-item__author">${b.author} · ${b.year}</p>
+            <span class="result-item__category">${esc(window.LB_UI.bookCategory(b)?.name || '')}</span>
+            <h3 class="result-item__title">${esc(b.title)}</h3>
+            <p class="result-item__author">${esc(b.author)}${b.year ? ` · ${b.year}` : ''}</p>
             <div class="result-item__place">
               <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" class="result-item__pin">
                 <path d="M12 2 C 8 2, 5 5, 5 9 c 0 5, 7 13, 7 13 s 7 -8, 7 -13 c 0 -4, -3 -7, -7 -7 z"
@@ -1376,6 +1566,11 @@ export const UI = {
               <span class="result-item__place-text">
                 <strong>${place}</strong>
                 <span class="result-item__owner">${isOrg ? '🏛 ' : ''}libreria di ${ownerLabel}</span>
+                ${
+                  options.distanceFrom && b.distanceMeters != null
+                    ? `<span class="result-item__distance">a ${this.formatDistance(b.distanceMeters)} ${esc(options.distanceFrom)}</span>`
+                    : ''
+                }
               </span>
             </div>
           </div>
@@ -1394,7 +1589,7 @@ export const UI = {
     const nav = document.querySelector('.site-nav');
     if (!toggle || !nav) return;
 
-    // Beta 9: focus trap + ESC close per accessibilita' mobile
+    // focus trap + ESC close per accessibilita' mobile
     const openMenu = () => {
       nav.classList.add('open');
       toggle.setAttribute('aria-expanded', 'true');
@@ -1449,7 +1644,7 @@ export const UI = {
   },
 
   /**
-   * Beta 9: Feedback offline. Aggiunge un badge fisso in alto se navigator.onLine
+   * Feedback offline. Aggiunge un badge fisso in alto se navigator.onLine
    * ritorna false, e lo rimuove quando torna online.
    */
   initOfflineBadge() {
@@ -1477,11 +1672,10 @@ export const UI = {
   /** Notifiche toast */
   toast(message, type = 'info') {
     const t = document.createElement('div');
-    t.className = `alert alert--${type}`;
-    t.setAttribute('role', 'status');
+    // Avviso breve centrato in alto nella pagina (stile in .toast)
+    t.className = `alert alert--${type} toast`;
+    t.setAttribute('role', type === 'error' ? 'alert' : 'status');
     t.textContent = message;
-    t.style.cssText =
-      'position:fixed;top:5rem;right:1.5rem;z-index:1000;max-width:360px;box-shadow:0 8px 24px rgba(0,0,0,.15);';
     document.body.appendChild(t);
     setTimeout(() => (t.style.opacity = '0'), 3000);
     setTimeout(() => t.remove(), 3500);
@@ -1491,88 +1685,76 @@ export const UI = {
      Card "Libreria utente" — mini-profilo con bio e conteggio libri.
      Distingue visivamente le librerie-ente dalle librerie-persona.
      ------------------------------------------------------------- */
-  renderLibraryCard(user) {
-    const initial = (user.display_name || user.username || '?').trim()[0].toUpperCase();
-    const bookLabel = user.book_count === 1 ? 'volume' : 'volumi';
-    const isOrg = window.LB_UI.isOrganization(user);
-    const typeBadge = isOrg
-      ? `<span class="library-card__type library-card__type--org">${window.LB_UI.orgCategoryLabel((API.getOrgProfile(user.id) || {}).org_category)}</span>`
-      : '<span class="library-card__type">Libreria personale</span>';
-    return `
-      <a href="library.html?id=${user.id}" class="library-card">
-        <div class="library-card__head">
-          <div class="library-card__avatar" aria-hidden="true">${initial}</div>
-          <div>
-            <h3 class="library-card__name">${user.display_name}</h3>
-            <span class="library-card__city">${user.city || '—'}</span>
-          </div>
-        </div>
-        ${typeBadge}
-        <p class="library-card__bio">${user.bio || 'Nessuna biografia disponibile.'}</p>
-        <div class="library-card__footer">
-          <span class="library-card__count">${user.book_count} ${bookLabel}</span>
-          <span class="library-card__link">visita →</span>
-        </div>
-      </a>`;
-  },
-
   /* -------------------------------------------------------------
      Card "Libreria vicino a te" — variante ricca del componente
      libreria, con copertina generata, distanza dichiarata e numero
      di volumi disponibili al prestito messo graficamente in risalto.
      ------------------------------------------------------------- */
   renderNearbyLibraryCard(lib) {
-    const { themeClass, design, letter } = window.LB_UI.libraryCoverData(lib, lib.prefs);
-    const isOrg = window.LB_UI.isOrganization(lib);
+    // lib: elemento di GET /api/libraries (distanza sulla posizione pubblica)
+    const esc = (v) => this._escapeHtml(v);
+    // L'elemento porta sia i dati dell'utente sia le sue preferenze grafiche
+    const { themeClass, design, letter } = window.LB_UI.libraryCoverData(lib, lib);
+    const isOrg = lib.accountType === 'organization';
 
-    /* Distanza in linguaggio naturale */
-    const dist = lib.distance_km;
+    /* Distanza in linguaggio naturale (solo se c'e' un punto di riferimento
+       e la libreria mostra la posizione) */
+    const dist = lib.distanceKm;
     const distLabel =
-      dist < 1
-        ? `a ${Math.round(dist * 1000)} m da te`
-        : `a ${dist.toFixed(1).replace('.', ',')} km da te`;
+      dist == null
+        ? ''
+        : dist < 1
+          ? `a ${Math.round(dist * 1000)} m da te`
+          : `a ${dist.toFixed(1).replace('.', ',')} km da te`;
 
-    /* Descrizione breve: il motto personalizzato se presente,
-       altrimenti la biografia, altrimenti un testo neutro. */
-    const shortDesc =
-      lib.prefs && lib.prefs.motto
-        ? `«${lib.prefs.motto}»`
-        : lib.bio ||
-          (isOrg
-            ? 'Libreria di comunità aperta al prestito.'
-            : 'Collezione privata condivisa con la comunità.');
+    /* Descrizione breve: il motto se presente, altrimenti la biografia,
+       altrimenti un testo neutro. */
+    const shortDesc = lib.motto
+      ? `«${esc(lib.motto)}»`
+      : lib.bio
+        ? esc(lib.bio)
+        : isOrg
+          ? 'Libreria di comunità aperta al prestito.'
+          : 'Collezione privata condivisa con la comunità.';
 
-    /* Tipo: badge in alto a sinistra con icona dedicata. */
     const typeLabel = isOrg
-      ? window.LB_UI.orgCategoryLabel((API.getOrgProfile(lib.id) || {}).org_category)
+      ? esc(window.LB_UI.orgCategoryLabel(lib.orgCategory))
       : 'Libreria personale';
     const typeIcon = isOrg ? '🏛' : '📖';
     const typeClass = isOrg ? 'nearby-card--org' : 'nearby-card--person';
+    // "Appena aperta": iscritta da meno di 14 giorni
+    const fresh =
+      lib.createdAt && (Date.now() - new Date(lib.createdAt).getTime()) / 86400000 <= 14;
 
-    /* Avviso visivo "pochi volumi disponibili": quando la libreria ha
-       <= 2 libri disponibili, il blocco numero+etichetta pulsa con un
-       bordo arancione che attira l'attenzione (caso 0 = grigio). */
-    const lowStock = lib.available_count > 0 && lib.available_count <= 2;
-    const emptyStock = lib.available_count === 0;
+    /* Avviso visivo "pochi volumi disponibili" (<= 2; 0 = grigio) */
+    const available = lib.availableCount || 0;
+    const lowStock = available > 0 && available <= 2;
+    const emptyStock = available === 0;
     const availClass =
       (emptyStock ? ' nearby-card__avail-num--zero' : '') +
       (lowStock ? ' nearby-card__avail-num--low' : '');
     const blockClass = lowStock ? ' nearby-card__avail-block--low' : '';
-    const availLbl = lib.available_count === 1 ? 'libro disponibile' : 'libri disponibili';
+    const availLbl = available === 1 ? 'libro disponibile' : 'libri disponibili';
+
+    const stars = lib.reviewsCount
+      ? `<div class="nearby-card__stars">
+          ${UI.renderStars(lib.avgRating || 0, { count: lib.reviewsCount, size: 'sm', showAverage: true })}
+        </div>`
+      : '<div class="nearby-card__stars nearby-card__stars--empty"><span class="nearby-card__no-reviews">Nessuna recensione ancora</span></div>';
 
     return `
-      <a href="library.html?id=${lib.id}" class="nearby-card ${typeClass}">
+      <a href="library.html?id=${encodeURIComponent(lib.id)}" class="nearby-card ${typeClass}">
         <div class="nearby-card__cover ${themeClass}">
           <svg class="nearby-card__art" viewBox="0 0 200 140" preserveAspectRatio="xMidYMid slice"
                xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            ${design.render({ letter })}
+            ${design.render({ letter: esc(letter) })}
           </svg>
           <span class="nearby-card__type">
             <span class="nearby-card__type-ico" aria-hidden="true">${typeIcon}</span>
             ${typeLabel}
           </span>
           ${
-            API.isLibraryFresh(lib)
+            fresh
               ? `
             <span class="nearby-card__fresh" title="Libreria aperta da poco">
               <span aria-hidden="true">✦</span> Appena aperta
@@ -1581,20 +1763,8 @@ export const UI = {
           }
         </div>
         <div class="nearby-card__body">
-          <h3 class="nearby-card__name">${lib.display_name}</h3>
-          ${(() => {
-            // v1.4: piccolo riepilogo recensioni sotto al nome, coerente
-            // col resto della scheda (font-mono, color soft).
-            // v2.6: se non ci sono recensioni, placeholder mantengo
-            // lo stesso spazio per non rompere il layout di tutte le card.
-            const s = API.getReviewSummary(lib.id);
-            if (s.count === 0) {
-              return '<div class="nearby-card__stars nearby-card__stars--empty"><span class="nearby-card__no-reviews">Nessuna recensione ancora</span></div>';
-            }
-            return `<div class="nearby-card__stars">
-              ${UI.renderStars(s.average, { count: s.count, size: 'sm', showAverage: true })}
-            </div>`;
-          })()}
+          <h3 class="nearby-card__name">${esc(lib.displayName)}</h3>
+          ${stars}
           <p class="nearby-card__desc">${shortDesc}</p>
 
           <div class="nearby-card__hilite">
@@ -1605,12 +1775,12 @@ export const UI = {
                         fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                   <circle cx="12" cy="8" r="2.4" fill="currentColor"/>
                 </svg>
-                <span>${lib.city || '—'}</span>
+                <span>${esc(lib.city || '—')}</span>
               </span>
-              <span class="nearby-card__place-dist">${distLabel}</span>
+              ${distLabel ? `<span class="nearby-card__place-dist">${distLabel}</span>` : ''}
             </div>
             <div class="nearby-card__avail-block${blockClass}">
-              <span class="nearby-card__avail-num${availClass}">${lib.available_count}</span>
+              <span class="nearby-card__avail-num${availClass}">${available}</span>
               <span class="nearby-card__avail-lbl">${availLbl}</span>
             </div>
           </div>
@@ -1624,13 +1794,13 @@ export const UI = {
      Logica condivisa fra library.html e l'anteprima di
      profile-setup.html.
      ------------------------------------------------------------- */
-  renderBooksInMode(container, books, mode, gradientFallback) {
+  renderBooksInMode(container, books, mode) {
     if (!books.length) {
       container.innerHTML = `<p style="color: var(--color-ink-soft); font-style: italic; padding: var(--sp-6) 0;">
         Questa libreria non ha ancora volumi pubblicati.</p>`;
       return;
     }
-    const grad = gradientFallback || 'linear-gradient(135deg, #7a1e2b, #b08840)';
+    const esc = (v) => this._escapeHtml(v);
 
     switch (mode) {
       case 'list':
@@ -1639,16 +1809,16 @@ export const UI = {
             .map(
               (b) => `
             <a href="book-detail.html?id=${b.id}" class="books-list__item">
-              <div class="books-list__cover" style="background: ${b.cover_gradient || grad};">
-                ${b.title.split(' ').slice(0, 2).join(' ')}
+              <div class="books-list__cover" style="background: ${window.LB_UI.bookCoverGradient(b)};">
+                ${esc(b.title.split(' ').slice(0, 2).join(' '))}
               </div>
               <div class="books-list__main">
-                <h4>${b.title}</h4>
-                <span>${b.author} · ${b.year} · ${b.category}</span>
+                <h4>${esc(b.title)}</h4>
+                <span>${[b.author, b.year, window.LB_UI.bookCategory(b)?.name].filter(Boolean).map(esc).join(' · ')}</span>
               </div>
               <div class="books-list__meta">
                 ${b.available ? 'disponibile' : 'in prestito'}<br/>
-                <small>${b.condition}</small>
+                <small>${esc(b.condition || '')}</small>
               </div>
             </a>`
             )
@@ -1662,8 +1832,8 @@ export const UI = {
             .map(
               (b) => `
             <a href="book-detail.html?id=${b.id}" class="books-shelf__book"
-               style="background: ${b.cover_gradient || grad};"
-               title="${b.title} — ${b.author}">${b.title}</a>`
+               style="background: ${window.LB_UI.bookCoverGradient(b)};"
+               title="${esc(b.title)} — ${esc(b.author)}">${esc(b.title)}</a>`
             )
             .join('')}
         </div>`;
@@ -1672,13 +1842,13 @@ export const UI = {
       case 'timeline':
         container.innerHTML = `<div class="books-timeline">
           ${[...books]
-            .sort((a, b) => a.year - b.year)
+            .sort((a, b) => (a.year || 0) - (b.year || 0))
             .map(
               (b) => `
             <a href="book-detail.html?id=${b.id}" class="books-timeline__item" style="text-decoration:none;display:block;">
-              <div class="books-timeline__year">${b.year}</div>
-              <div class="books-timeline__title">${b.title}</div>
-              <div class="books-timeline__author">${b.author} — ${b.category}</div>
+              <div class="books-timeline__year">${b.year || '—'}</div>
+              <div class="books-timeline__title">${esc(b.title)}</div>
+              <div class="books-timeline__author">${esc(b.author)}${window.LB_UI.bookCategory(b) ? ` — ${esc(window.LB_UI.bookCategory(b).name)}` : ''}</div>
             </a>`
             )
             .join('')}
@@ -1780,21 +1950,16 @@ export const UI = {
   },
 
   /* -------------------------------------------------------------
-     Setta sul <body> il data-attr `authState` con lo stato corrente,
-     così i selettori CSS `.auth-only` e `.guest-only` mostrano/nascondono
-     i bit di UI appropriati.
-
-     v3.0.0-alpha.0: il bottone "auth-toggle" del prototipo è stato
-     rimosso; in Alpha lo stato di autenticazione viene dalla session
-     reale (cookie httpOnly del backend, non da localStorage). Qui
-     teniamo solo l'aggiornamento del data-attr per supporto CSS. */
+     Allinea data-auth-state su <html> (selettori CSS `.auth-only` e
+     `.guest-only`) alla sessione verificata dal server. Lo stato
+     iniziale, prima del primo disegno, lo imposta auth-hint.js. */
   initAuthToggle() {
-    const state = API.getAuthState();
-    document.body.dataset.authState = state;
+    if (window.LB_AUTH_ERROR) return; // sessione non verificata: resta l'indizio
+    window.LB_UI.setAuthState(window.LB_UI.currentUser() ? 'user' : 'guest');
   },
 
   /* -------------------------------------------------------------
-     ICONA-AVATAR PROFILO NELLA BARRA (v1.2)
+     ICONA-AVATAR PROFILO NELLA BARRA
      Inietta automaticamente, accanto alla campanella, un pallino
      circolare con il simbolo/iniziale dell'utente loggato. Il
      pallino prende il colore dal tema cromatico scelto. Click →
@@ -1804,7 +1969,7 @@ export const UI = {
     const nav = document.querySelector('.site-nav');
     if (!nav || nav.querySelector('.nav-avatar-wrap')) return;
 
-    /* Wrapper avatar + dropdown. v1.3: l'avatar non è più un semplice
+    /* Wrapper avatar + dropdown: l'avatar non è più un semplice
        link, ma un bottone che apre un menu a tendina (logout + scorciatoia
        al profilo), pattern standard per webapp loggate. */
     const wrap = document.createElement('div');
@@ -1834,7 +1999,7 @@ export const UI = {
         </button>
       </div>`;
 
-    // v3.0.0-alpha.0: il vecchio .auth-toggle è stato rimosso;
+    // Il vecchio .auth-toggle è stato rimosso;
     // inserisco l'avatar in coda alla nav.
     nav.appendChild(wrap);
 
@@ -1845,26 +2010,36 @@ export const UI = {
     const userEl = wrap.querySelector('.nav-avatar__menu-user');
     const logoutBtn = wrap.querySelector('#nav-logout-btn');
 
+    // Preferenze (tema, simbolo) lette dal server una volta per pagina
+    let prefs = {};
+    async function loadPrefs() {
+      if (!window.LB_UI.currentUser()) return;
+      try {
+        prefs = (await window.LB_API.prefs.getMe()) || {};
+        paint();
+      } catch (_) {
+        /* restano tema e iniziali predefiniti */
+      }
+    }
+
     function paint() {
       const me = window.LB_UI.currentUser();
       if (!me) return;
-      const prefs = API.getProfilePrefs(me.id) || {};
       const themeClass = `cover--${prefs.theme || 'classic'}`;
-      // v2.5: se l'utente ha una foto profilo, mostrarla come <img>
-      // dentro lo span glyph; altrimenti fallback alle iniziali/simbolo.
-      if (me.avatar_data_url) {
+      // Foto profilo se presente, altrimenti iniziale o simbolo scelto
+      if (me.avatarUrl) {
         button.className = `nav-avatar nav-avatar--photo ${themeClass}`;
-        glyph.innerHTML = `<img class="nav-avatar__img" src="${me.avatar_data_url}" alt="">`;
+        glyph.innerHTML = `<img class="nav-avatar__img" src="${UI._escapeHtml(me.avatarUrl)}" alt="">`;
       } else {
         const symbol =
-          prefs.avatar_style === 'symbol' && prefs.avatar_symbol
-            ? prefs.avatar_symbol
-            : (me.display_name || me.username || '?').trim()[0].toUpperCase();
+          prefs.avatarStyle === 'symbol' && prefs.avatarSymbol
+            ? prefs.avatarSymbol
+            : (me.displayName || me.username || '?').trim()[0].toUpperCase();
         button.className = `nav-avatar ${themeClass}`;
         glyph.textContent = symbol;
       }
-      button.title = me.display_name || me.username || '';
-      nameEl.textContent = me.display_name || '';
+      button.title = me.displayName || me.username || '';
+      nameEl.textContent = me.displayName || '';
       userEl.textContent = '@' + (me.username || '');
     }
 
@@ -1893,25 +2068,20 @@ export const UI = {
        Lasciamo intatti like/follow/notifiche/preferenze (sono attribuiti
        all'utente per ID, riappaiono al login successivo). */
     logoutBtn.addEventListener('click', async () => {
-      // Beta 8: chiude la connessione SSE prima del signOut
+      // chiude la connessione SSE prima del signOut
       if (window.LB_EVENTS) window.LB_EVENTS.stop();
 
-      // Fase 3.2: logout via Better Auth (distrugge cookie session)
-      // + reset legacy Storage per pagine ancora non migrate
-      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-        try {
-          await window.LB_API.authClient.signOut();
-        } catch (err) {
-          console.debug('[logout] Better Auth skip:', err.code || err.message);
+      // Chiude la sessione sul server (cancella il cookie)
+      try {
+        await window.LB_API.authClient.signOut();
+      } catch (err) {
+        // 401: la sessione era gia' scaduta, l'utente e' comunque fuori
+        if (err.status !== 401) {
+          UI.toast('Uscita non riuscita: il server non risponde. Riprova tra poco.', 'error');
+          return;
         }
       }
-      try {
-        // Beta 2: current_user_id non piu' in localStorage — rimuovo solo auth_state
-        localStorage.removeItem('auth_state');
-      } catch (_) {
-        /* ignora */
-      }
-      API.setAuthState('guest');
+      window.LB_UI.setAuthState('guest');
       // feedback breve e poi via
       UI.toast('Sei uscito. A presto su Lookup.', 'info');
       setTimeout(() => {
@@ -1920,8 +2090,13 @@ export const UI = {
     });
 
     paint();
+    loadPrefs();
     document.addEventListener('auth:change', paint);
-    UI._refreshAvatar = paint;
+    // Dopo una modifica del profilo: rilegge anche tema e simbolo
+    UI._refreshAvatar = () => {
+      paint();
+      loadPrefs();
+    };
   },
 
   /* -------------------------------------------------------------
@@ -1964,7 +2139,7 @@ export const UI = {
         <div class="notif__list"></div>
       </div>`;
 
-    // v3.0.0-alpha.0: il vecchio .auth-toggle è stato rimosso;
+    // Il vecchio .auth-toggle è stato rimosso;
     // inserisco la campanella in coda alla nav (verrà naturalmente
     // alla sinistra dell'avatar, anch'esso appended in coda).
     nav.appendChild(wrap);
@@ -1985,61 +2160,111 @@ export const UI = {
       if (d < 30) return `${d} g fa`;
       return new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' });
     };
-    const icon = (t) =>
-      t === 'new_book'
-        ? '📚'
-        : t === 'book_available'
-          ? '✅'
-          : t === 'onboarding'
-            ? '👋'
-            : t === 'loan_request'
-              ? '📨'
-              : t === 'loan_confirmed'
-                ? '✓'
-                : t === 'loan_rejected'
-                  ? '✕'
-                  : t === 'loan_cancelled'
-                    ? '⊘'
-                    : t === 'loan_overdue'
-                      ? '⏰'
-                      : t === 'loan_message'
-                        ? '💬'
-                        : t === 'loan_returning' || t === 'loan_returned'
-                          ? '↦'
-                          : t === 'new_post'
-                            ? '📝'
-                            : 'ℹ️';
-
-    // v1.7: filtro attivo (stato di UI), persiste tra le aperture del panel
-    let activeFilter = 'all';
-    const matchesFilter = (n) => {
-      if (activeFilter === 'all') return true;
-      if (activeFilter === 'loans') return n.type && n.type.startsWith('loan_');
-      if (activeFilter === 'reviews') return n.type === 'new_review' || n.type === 'loan_returned';
-      if (activeFilter === 'social')
-        return (
-          n.type === 'new_book' ||
-          n.type === 'book_available' ||
-          n.type === 'new_follower' ||
-          n.type === 'new_post'
-        );
-      if (activeFilter === 'system') return n.type === 'onboarding';
-      return true;
+    // Icona per tipo di notifica (tipi del server): SVG a tratto, stesso
+    // stile della campanella, in un tondo colorato per tono
+    const svg = (paths) =>
+      `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+            stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+    const GLYPHS = {
+      envelope:
+        '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 6.5 8.5 6.5 8.5-6.5"/>',
+      check: '<path d="M5 12.5 10 17.5 19 7"/>',
+      cross: '<path d="M6 6l12 12M18 6 6 18"/>',
+      ban: '<circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/>',
+      book: '<path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5 2-1.5 5-2 8.5-1.5V5C17 4.5 14 5 12 6.5z"/><path d="M12 6.5v13"/>',
+      undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+      checkCircle: '<circle cx="12" cy="12" r="8.5"/><path d="m8 12.5 3 3 5-6"/>',
+      chat: '<path d="M20 15a2 2 0 0 1-2 2H8l-4 3.5V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/>',
+      alert:
+        '<path d="M10.3 4.2 2.7 17.5A2 2 0 0 0 4.4 20.5h15.2a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4M12 17h.01"/>',
+      calendar:
+        '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M8 3v4M16 3v4M3.5 10h17"/>',
+      star: '<path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
+      userPlus:
+        '<circle cx="9.5" cy="8" r="3.5"/><path d="M3 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M19 8v6M16 11h6"/>',
+      heart:
+        '<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/>',
+      info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/>',
+    };
+    // [glifo, tono]: neutral (bordeaux), success (verde), danger (rosso), warning (oro)
+    const ICONS = {
+      loan_requested: ['envelope', 'neutral'],
+      loan_accepted: ['check', 'success'],
+      loan_rejected: ['cross', 'danger'],
+      loan_cancelled: ['ban', 'danger'],
+      loan_borrowed: ['book', 'neutral'],
+      loan_returning: ['undo', 'neutral'],
+      loan_returned: ['checkCircle', 'success'],
+      loan_message: ['chat', 'neutral'],
+      loan_overdue_borrower: ['alert', 'danger'],
+      loan_overdue_lender: ['alert', 'danger'],
+      loan_deadline_upcoming_borrower: ['calendar', 'warning'],
+      loan_deadline_upcoming_lender: ['calendar', 'warning'],
+      new_review: ['star', 'warning'],
+      new_follower: ['userPlus', 'neutral'],
+      post_reaction: ['heart', 'neutral'],
+    };
+    const icon = (t) => {
+      const [glyph, tone] = ICONS[t] || ['info', 'neutral'];
+      return `<span class="notif__item-icon notif__item-icon--${tone}" aria-hidden="true">${svg(GLYPHS[glyph])}</span>`;
     };
 
-    const render = () => {
-      const me = window.LB_UI.currentUser();
-      if (!me) return;
-      const allItems = API.getNotifications(me.id);
-      // Il counter sulla campanella conta SEMPRE tutto (non filtrato)
-      const unread = allItems.filter((n) => !n.read).length;
-      badge.textContent = unread;
-      badge.hidden = unread === 0;
+    // Testo con il soggetto in grassetto: chi ha fatto l'azione ("Luca
+    // Esposito ha richiesto...") o, nei promemoria, il titolo del volume
+    const messageHtml = (n) => {
+      const msg = n.message || '';
+      const esc = (v) => UI._escapeHtml(v);
+      const actorName = n.actor?.displayName;
+      if (actorName && msg.startsWith(actorName)) {
+        return `<strong>${esc(actorName)}</strong>${esc(msg.slice(actorName.length))}`;
+      }
+      const quoted = msg.match(/^"[^"]+"/);
+      if (quoted) return `<strong>${esc(quoted[0])}</strong>${esc(msg.slice(quoted[0].length))}`;
+      return esc(msg);
+    };
+
+    // Filtro attivo (stato di UI), persiste tra le aperture del pannello
+    let activeFilter = 'all';
+    const matchesFilter = (n) => {
+      const t = n.type || '';
+      if (activeFilter === 'all') return true;
+      if (activeFilter === 'loans') return t.startsWith('loan_');
+      if (activeFilter === 'reviews') return t === 'new_review';
+      if (activeFilter === 'social') return t === 'new_follower' || t === 'post_reaction';
+      return !t.startsWith('loan_') && !['new_review', 'new_follower', 'post_reaction'].includes(t);
+    };
+
+    // Dove porta una notifica
+    const hrefFor = (n) => {
+      if (n.loanId) return `loans.html#loan-${n.loanId}`;
+      if ((n.type || '').startsWith('loan_')) return 'loans.html';
+      if (n.type === 'new_review') return 'profile.html#panel-reviews';
+      if (n.type === 'post_reaction') return 'profile.html#panel-posts';
+      if (n.type === 'new_follower' && n.actor) {
+        return `library.html?id=${encodeURIComponent(n.actor.id)}`;
+      }
+      if (n.book) return `book-detail.html?id=${n.book.id}`;
+      return '#';
+    };
+
+    // Notifiche dal server; null finche' non arrivano o se non raggiungibile
+    let allItems = null;
+    let loadError = false;
+
+    const paint = (unread) => {
+      badge.textContent = unread > 99 ? '99+' : unread;
+      badge.hidden = !unread;
       bell.classList.toggle('has-unread', unread > 0);
 
-      // La lista mostra solo quelle che passano il filtro corrente
+      if (loadError) {
+        list.innerHTML = `<p class="notif__empty">Server non raggiungibile: notifiche non disponibili.</p>`;
+        return;
+      }
+      if (!allItems) {
+        list.innerHTML = `<p class="notif__empty">Caricamento…</p>`;
+        return;
+      }
       const items = allItems.filter(matchesFilter);
-
       if (!items.length) {
         list.innerHTML =
           activeFilter === 'all'
@@ -2048,52 +2273,50 @@ export const UI = {
         return;
       }
       list.innerHTML = items
-        .map((n) => {
-          // Le notifiche di onboarding (👋) puntano alle azioni d'avvio
-          let href;
-          if (n.type === 'onboarding') {
-            href = n.onboarding_action === 'personalize' ? 'profile-setup.html' : 'add-book.html';
-          } else if (
-            n.type === 'loan_confirmed' ||
-            n.type === 'loan_overdue' ||
-            n.type === 'loan_rejected' ||
-            n.type === 'loan_returned' ||
-            n.type === 'loan_message'
-          ) {
-            // Lato richiedente / partecipante chat: porta alla pagina dei
-            // propri prestiti, evidenziando quello specifico.
-            href = n.loan_id ? `loans.html?id=${n.loan_id}` : 'loans.html';
-          } else if (
-            n.type === 'loan_request' ||
-            n.type === 'loan_cancelled' ||
-            n.type === 'loan_returning' ||
-            n.type === 'loan_picked_up'
-          ) {
-            // Lato prestatore: porta alla tab "Richieste ricevute".
-            href = 'profile.html#panel-requests';
-          } else if (n.type === 'new_post') {
-            href = n.actor_id ? `library.html?id=${n.actor_id}#posts` : 'index.html';
-          } else {
-            href = n.book_id
-              ? `book-detail.html?id=${n.book_id}`
-              : n.actor_id
-                ? `library.html?id=${n.actor_id}`
-                : '#';
-          }
-          return `<a class="notif__item ${n.read ? '' : 'is-unread'}" href="${href}">
-          <span class="notif__item-icon" aria-hidden="true">${icon(n.type)}</span>
+        .map(
+          (n) => `<a class="notif__item ${n.isRead ? '' : 'is-unread'}" href="${hrefFor(n)}">
+          ${icon(n.type)}
           <span class="notif__item-body">
-            <span class="notif__item-msg">${n.message}</span>
-            <span class="notif__item-time">${timeAgo(n.created_at)}</span>
+            <span class="notif__item-msg">${messageHtml(n)}</span>
+            <span class="notif__item-time">${timeAgo(n.createdAt)}</span>
           </span>
-        </a>`;
-        })
+        </a>`
+        )
         .join('');
     };
 
+    let lastUnread = 0;
+    const render = async () => {
+      if (!window.LB_UI.currentUser()) return;
+      try {
+        const res = await window.LB_API.notifications.list({ limit: 50 });
+        allItems = res.data || [];
+        lastUnread = res.unreadCount ?? allItems.filter((n) => !n.isRead).length;
+        loadError = false;
+      } catch (_err) {
+        loadError = true;
+      }
+      paint(lastUnread);
+    };
+
+    // Segna tutte come lette sul server, poi aggiorna badge ed elenco
+    const markAllRead = async () => {
+      if (!lastUnread) return;
+      try {
+        await window.LB_API.notifications.markAllRead();
+      } catch (_err) {
+        return;
+      }
+      render();
+    };
+
+    // Chiudendo il pannello (campanella, clic fuori, Esc) le notifiche
+    // viste diventano lette
     const closePanel = () => {
+      if (panel.hidden) return;
       panel.hidden = true;
       bell.setAttribute('aria-expanded', 'false');
+      markAllRead();
     };
     const openPanel = () => {
       render();
@@ -2106,21 +2329,15 @@ export const UI = {
       if (panel.hidden) openPanel();
       else closePanel();
     });
-    readAll.addEventListener('click', () => {
-      const me = window.LB_UI.currentUser();
-      if (me) {
-        API.markAllNotificationsRead(me.id);
-        render();
-      }
-    });
+    readAll.addEventListener('click', markAllRead);
 
-    // v1.7: wiring chip-filtro
+    // wiring chip-filtro
     wrap.querySelectorAll('.notif__filter').forEach((btn) => {
       btn.addEventListener('click', () => {
         wrap.querySelectorAll('.notif__filter').forEach((b) => b.classList.remove('is-active'));
         btn.classList.add('is-active');
         activeFilter = btn.dataset.filter;
-        render();
+        paint(lastUnread);
       });
     });
     // Chiusura cliccando fuori
@@ -2131,25 +2348,13 @@ export const UI = {
       if (e.key === 'Escape') closePanel();
     });
 
-    // Marca come lette quando il pannello viene chiuso dopo essere stato aperto
-    bell.addEventListener('click', () => {
-      if (panel.hidden) {
-        // appena chiuso
-        const me = window.LB_UI.currentUser();
-        if (me) {
-          API.markAllNotificationsRead(me.id);
-          setTimeout(render, 50);
-        }
-      }
-    });
-
     render();
     // Ricalcola il badge quando cambia lo stato di autenticazione
     document.addEventListener('auth:change', render);
     // Espone un refresh globale per altri script (es. dopo un follow/like)
     UI._refreshNotifications = render;
 
-    // Beta 8: aggiornamento realtime via SSE.
+    // aggiornamento realtime via SSE.
     // Quando arriva un evento 'notification', ricalcola il badge e mostra
     // un toast se la campanella non e' aperta (evita rumore visivo se
     // l'utente sta gia' consultando le notifiche).
@@ -2158,8 +2363,7 @@ export const UI = {
         // Refresh badge (fetch nuovo count backend)
         render();
         // Toast solo se la lista notifiche e' chiusa
-        const panelOpen = document.querySelector('.notif-panel')?.classList.contains('is-open');
-        if (!panelOpen && payload.data?.message) {
+        if (panel.hidden && payload.data?.message) {
           const shortMsg =
             payload.data.message.length > 90
               ? payload.data.message.slice(0, 87) + '...'

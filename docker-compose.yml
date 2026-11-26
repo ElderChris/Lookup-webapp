@@ -32,7 +32,7 @@ services:
       # nginx config
       - ./infra/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       # Mount dell'intera cartella apps/web come read-only.
-      # Ogni nuovo file HTML (es. api-test.html) viene automaticamente
+      # Ogni nuovo file HTML viene automaticamente
       # servito senza dover toccare docker-compose.yml.
       # nginx ignora file non-HTML/CSS/JS (no MIME mapping) — innocuo se
       # ci sono no-cache-server.py o package.json residui.
@@ -85,8 +85,8 @@ services:
   # ==========================================================================
   # CACHE / SESSION — Redis 8
   # ==========================================================================
-  # Usato in Fase 1c+ per: session store (lucia-auth), rate limiting,
-  # future queue (BullMQ). Per ora gira "in attesa", consuma ~10MB RAM.
+  # Code dei job in background (BullMQ) e pub/sub degli eventi in tempo
+  # reale (SSE).
   redis:
     image: redis:8.10-alpine
     container_name: lookup-redis
@@ -128,7 +128,7 @@ services:
     restart: unless-stopped
 
   # ==========================================================================
-  # BACKEND — Fastify API (Fase 1c+)
+  # BACKEND — Fastify API
   # ==========================================================================
   # Servizio attivo ma sotto profilo "backend" — si avvia solo con:
   #   docker compose --profile backend up -d
@@ -192,7 +192,7 @@ services:
     restart: unless-stopped
 
   # ==========================================================================
-  # PROMETHEUS — Beta 10: scraping metriche time-series
+  # PROMETHEUS — raccolta delle metriche
   # ==========================================================================
   # Scrapa GET /metrics dal backend api ogni 15s. Conserva 30 giorni di
   # storia. UI accessibile su http://localhost:9090 (Explorer PromQL).
@@ -213,7 +213,7 @@ services:
     restart: unless-stopped
 
   # ==========================================================================
-  # GRAFANA — Beta 10: dashboard visualizzazione metriche
+  # GRAFANA — dashboard delle metriche
   # ==========================================================================
   # UI accessibile su http://localhost:3001 (login admin/admin di default).
   # Datasource Prometheus e dashboard sono provisioned automaticamente dai
@@ -247,7 +247,7 @@ volumes:
     name: lookup-redis-data
   pgadmin-data:
     name: lookup-pgadmin-data
-  # Beta 10: monitoring
+  # Monitoraggio
   prometheus-data:
     name: lookup-prometheus-data
   grafana-data:

@@ -62,14 +62,14 @@ export async function buildApp(opts = {}) {
       }
       callback(new Error(`CORS: origin ${origin} non permessa`), false);
     },
-    credentials: true, // per session cookie (Fase 3)
+    credentials: true, // per session cookie
     // Da @fastify/cors 11 il default e' solo GET,HEAD,POST: senza questa
     // riga le preflight di PUT/PATCH/DELETE da un'origine diversa
     // (frontend di sviluppo su :8765) verrebbero rifiutate.
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   });
 
-  // --- Rate limit globale (Beta 5) ---
+  // --- Rate limit globale ---
   // Limita le richieste per IP per proteggere il backend da abusi e
   // scraping. In produzione si consiglia Redis come store per distribuire
   // il conteggio tra piu' istanze (workerId nel bucket).
@@ -129,7 +129,7 @@ export async function buildApp(opts = {}) {
   fastify.setErrorHandler(errorHandler);
   fastify.setNotFoundHandler(notFoundHandler);
 
-  // --- OpenAPI doc (Fase 1g) ---
+  // --- Documentazione OpenAPI ---
   // @fastify/swagger legge automaticamente i JSON Schema attaccati ad ogni route
   // (params/querystring/body/response) e genera una spec OpenAPI 3.1.
   // Ogni endpoint puo' arricchirla con schema.tags + schema.summary +
@@ -146,13 +146,16 @@ export async function buildApp(opts = {}) {
         version: API_VERSION,
         license: { name: 'GPL-3.0', url: 'https://www.gnu.org/licenses/gpl-3.0.html' },
       },
-      servers: [{ url: 'http://localhost:3000', description: 'Sviluppo locale' }],
+      servers: [
+        { url: '/', description: 'Stessa origine del sito (API dietro nginx)' },
+        { url: 'http://localhost:3000', description: 'API diretta, sviluppo locale' },
+      ],
       tags: [
         { name: 'Health', description: 'Health check e ping' },
         {
           name: 'Auth',
           description:
-            'Autenticazione (Better Auth): sign-up, sign-in, sign-out, verify-email, reset-password, get-session',
+            "Iscrizione (POST /api/register) e autenticazione con Better Auth sotto /api/auth: sign-in, sign-out, verify-email, send-verification-email, request-password-reset, reset-password, get-session. Si accede solo dopo aver confermato l'email.",
         },
         { name: 'Books', description: 'Catalogo libri (CRUD + filtri + like + views + nearby)' },
         { name: 'Categories', description: 'Categorie BISAC (lista flat per dropdown UI)' },
@@ -167,14 +170,15 @@ export async function buildApp(opts = {}) {
       ],
       components: {
         securitySchemes: {
-          // In alpha: header X-Lookup-User-Id (dev stub). In Fase 3 sara' session cookie via lucia-auth.
-          devAuth: {
+          // Sessione di Better Auth: cookie httpOnly impostato da sign-in o
+          // dalla conferma dell'email
+          sessionCookie: {
             type: 'apiKey',
-            in: 'header',
-            name: 'X-Lookup-User-Id',
+            in: 'cookie',
+            name: 'better-auth.session_token',
             description:
-              "Auth dev stub: passa l'ID intero dell'utente (es. \"1\") nell'header per simulare login. " +
-              "In produzione (Fase 3) sara' sostituito da session cookie lucia-auth.",
+              'Cookie di sessione httpOnly impostato da POST /api/auth/sign-in/email o dalla ' +
+              "conferma dell'email. Con HTTPS il nome ha il prefisso __Secure-.",
           },
         },
       },
@@ -192,7 +196,7 @@ export async function buildApp(opts = {}) {
     staticCSP: true,
   });
 
-  // --- Beta 10: HTTP metrics hook ---
+  // --- HTTP metrics hook ---
   // Registra latency e count di ogni request. Il routerPath e' il template
   // ("/api/books/:id"), non l'URL istanziato ("/api/books/42"), cosi' evitiamo
   // esplosione di cardinality nelle metriche Prometheus.
@@ -248,7 +252,7 @@ export async function buildApp(opts = {}) {
     }
   });
 
-  // --- Better Auth handler mount on /api/auth/* (Fase 3.1) ---
+  // --- Better Auth handler mount on /api/auth/* ---
   await fastify.register(authPlugin);
 
   // --- Routes ---
@@ -262,7 +266,7 @@ export async function buildApp(opts = {}) {
     void checkSmtp(fastify.log);
   }
 
-  // --- Background jobs (Beta 7) ---
+  // --- Background jobs ---
   // Startup dei worker BullMQ + registrazione dei repeat job (overdue-loans,
   // retention). Disabilitato in NODE_ENV=test (i test non hanno bisogno di
   // job async, e ci sarebbero flaky per il worker che gira in background
@@ -284,7 +288,7 @@ export async function buildApp(opts = {}) {
     startWorkers(fastify.log);
     attachQueueEvents(fastify.log);
     await registerRecurringJobs(fastify.log);
-    // Beta 10: polling gauge queue size ogni 30s per Prometheus
+    // polling gauge queue size ogni 30s per Prometheus
     if (metricsEnabled) await startQueueSizePolling();
     fastify.decorate('closeJobs', async () => {
       stopQueueSizePolling();
@@ -299,7 +303,7 @@ export async function buildApp(opts = {}) {
     if (instance.closeJobs) {
       await instance.closeJobs();
     }
-    // Beta 8: chiude subscriber SSE + libera canali pub/sub
+    // chiude subscriber SSE + libera canali pub/sub
     const { closeEventBus } = await import('./lib/eventBus.js');
     await closeEventBus();
     await prisma.$disconnect();

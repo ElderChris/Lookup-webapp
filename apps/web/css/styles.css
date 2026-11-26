@@ -5,7 +5,7 @@
    ============================================================ */
 
 /* ---- 1. Importazione font distintivi ------------------- */
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('../vendor/fonts/fonts.css'); /* caratteri serviti dal sito */
 
 /* ---- 2. Variabili di design (design tokens) ------------ */
 :root {
@@ -41,8 +41,11 @@
   --sp-2: 0.5rem;
   --sp-3: 0.75rem;
   --sp-4: 1rem;
+  --sp-5: 1.25rem;
   --sp-6: 1.5rem;
+  --sp-7: 1.75rem;
   --sp-8: 2rem;
+  --sp-10: 2.5rem;
   --sp-12: 3rem;
   --sp-16: 4rem;
 
@@ -54,12 +57,15 @@
      centratura e i margini — non serve scrivere altro CSS. */
   --max-width: 1080px;          /* contenuto raccolto e otticamente centrato */
   --max-width-narrow: 760px;    /* per pagine di sola lettura / form stretti */
+  --radius-sm: 2px;
   --radius: 2px;            /* angoli quasi squadrati, stile editoriale */
   --radius-md: 4px;
 }
 
 /* ---- 3. Reset e impostazioni globali ------------------- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* Le finestre <dialog> restano centrate nonostante il reset dei margini */
+dialog { margin: auto; }
 
 html { font-size: 16px; scroll-behavior: smooth; }
 
@@ -156,7 +162,9 @@ a:hover { color: var(--color-burgundy-dk); }
 
 .container--narrow { max-width: var(--max-width-narrow); }
 
-.section { padding: var(--sp-16) 0; }
+/* Solo spaziatura verticale: in "section container" il margine laterale
+   resta quello di .container (altrimenti su mobile il testo tocca i bordi) */
+.section { padding-block: var(--sp-16); }
 
 /* ---- 6. Header e navigazione --------------------------- */
 .site-header {
@@ -248,7 +256,7 @@ a:hover { color: var(--color-burgundy-dk); }
 /* ---- 8. Hero ------------------------------------------- */
 .hero {
   /* ┌──────────────────────────────────────────────────────────────┐
-     │ POSIZIONE PAGINA AL CARICAMENTO (v1.0):                      │
+     │ POSIZIONE PAGINA AL CARICAMENTO:                            │
      │ Il valore di padding-top qui sotto è il principale "spazio   │
      │ bianco" che separa l'header dal contenuto dell'hero. Più è   │
      │ piccolo, più la home parte alta e si vede subito il CTA.     │
@@ -526,6 +534,8 @@ a:hover { color: var(--color-burgundy-dk); }
 /* ---- 10. Sezione con intestazione editoriale ----------- */
 .section-header {
   display: flex;
+  flex-wrap: wrap;            /* su schermi stretti le azioni vanno a capo */
+  gap: var(--sp-3);
   justify-content: space-between;
   align-items: flex-end;
   border-bottom: 2px solid var(--color-ink);
@@ -550,6 +560,10 @@ a:hover { color: var(--color-burgundy-dk); }
   margin-bottom: var(--sp-6);
 }
 #map { width: 100%; height: 100%; }
+/* Le mappe Leaflet usano z-index fino a 1000 per livelli e pulsanti: un
+   contesto di sovrapposizione proprio le tiene sotto l'intestazione fissa
+   (z-index 100) quando si scorre la pagina */
+.leaflet-container { isolation: isolate; z-index: 0; }
 
 /* Stile custom per i popup di Leaflet */
 .leaflet-popup-content-wrapper {
@@ -780,6 +794,28 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 .search-bar .form__input,
 .search-bar .form__select { margin: 0; }
+/* "Usa la mia posizione" sotto la casella di ricerca (Esplora) */
+.search-bar__position {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-2);
+}
+.search-bar__position-status {
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+}
+/* Pulsante con l'aspetto di un link (azioni secondarie dentro un testo) */
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--color-burgundy);
+  text-decoration: underline;
+  cursor: pointer;
+}
 
 .filter-chips { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-4); }
 .filter-chip {
@@ -894,7 +930,7 @@ a:hover { color: var(--color-burgundy-dk); }
 @media (max-width: 768px) {
   :root { --fs-3xl: 2.5rem; --fs-2xl: 2rem; }
   .container, .site-header__inner { padding: 0 var(--sp-4); }
-  .section { padding: var(--sp-12) 0; }
+  .section { padding-block: var(--sp-12); }
 
   /* Menu mobile */
   .nav-toggle { display: block; }
@@ -928,7 +964,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   23. ESTENSIONI — sezioni aggiunte nella revisione v0.2
+   23. ESTENSIONI DELLE SEZIONI DI BASE
    ===================================================================== */
 
 /* ---- 23.1 Toggle stato autenticazione (header) -------------------- */
@@ -993,6 +1029,26 @@ a:hover { color: var(--color-burgundy-dk); }
    quando l'utente è autenticato, perché la home gli dà priorità a
    contenuti personalizzati (novità, preferiti, librerie vicine). */
 [data-auth-state="user"] .guest-presentation { display: none !important; }
+
+/* Segnaposto dei contenuti personali in arrivo dal server: visibile solo
+   finche' il contenitore e' vuoto (aria-busy viene tolto dagli script). */
+[aria-busy="true"]:empty {
+  display: block;
+  min-height: 7rem;
+  border-radius: var(--radius);
+  background: linear-gradient(90deg,
+    var(--color-paper-dark) 25%, var(--color-paper) 50%, var(--color-paper-dark) 75%);
+  background-size: 200% 100%;
+  animation: lb-skeleton 1.4s ease-in-out infinite;
+}
+.home-welcome__title[aria-busy="true"]:empty { min-height: 2.6rem; max-width: 22rem; }
+@keyframes lb-skeleton {
+  from { background-position: 100% 0; }
+  to   { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [aria-busy="true"]:empty { animation: none; }
+}
 
 /* ---- 23.2 Card "Libreria utente" ---------------------------------- */
 /* Sostituisce la lista chip delle categorie con una vetrina di
@@ -1130,7 +1186,10 @@ a:hover { color: var(--color-burgundy-dk); }
   font-size: var(--fs-xs);
   font-style: italic;
   margin-top: 2px;
-  min-height: 1em;
+  /* Spazio riservato a una riga: il messaggio che compare all'uscita dal
+     campo non sposta il resto della pagina sotto il puntatore */
+  line-height: 1.4;
+  min-height: 1.4em;
 }
 .form__feedback--ok    { color: var(--color-sage); }
 .form__feedback--error { color: var(--color-burgundy); }
@@ -1302,7 +1361,7 @@ a:hover { color: var(--color-burgundy-dk); }
 
 /* Swatches di colore-tema */
 /* Theme swatches — bottoni-card con preview del gradiente.
-   v1.8: trasformati da semplici cerchi a card cliccabili che mostrano
+   Trasformati da semplici cerchi a card cliccabili che mostrano
    il colore + nome + breve descrizione. Sempre visibile l'anteprima. */
 .theme-swatches {
   display: grid;
@@ -1587,7 +1646,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   24. ESTENSIONI v0.3 — contatori live + librerie di prossimità
+   24. contatori live + librerie di prossimità
    ===================================================================== */
 
 /* ---- 24.1 Contatori "live" nell'hero ------------------------------ */
@@ -1856,7 +1915,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   25. ESTENSIONI v0.4 — pagina libreria, enti, wizard di registrazione
+   25. pagina libreria, enti, wizard di registrazione
    ===================================================================== */
 
 /* ---- 25.1 Badge tipo libreria sulle card ------------------------- */
@@ -2259,7 +2318,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   26. ESTENSIONI v0.5 — CTA primarie, infografica, mobile-first
+   26. CTA primarie, infografica, mobile-first
    ===================================================================== */
 
 /* ---- 26.1 Bottoni "large" + pulse + ripple ----------------------- */
@@ -2560,7 +2619,7 @@ a:hover { color: var(--color-burgundy-dk); }
 [hidden] { display: none !important; }
 
 /* =====================================================================
-   27. ESTENSIONI v0.6 — risultati di ricerca a elenco (explore.html)
+   27. risultati di ricerca a elenco (explore.html)
    ===================================================================== */
 
 /* Contenitore: gli item entrano con animazione a cascata quando viene
@@ -2661,6 +2720,11 @@ a:hover { color: var(--color-burgundy-dk); }
   font-size: 0.72rem;
   color: var(--color-ink-soft);
 }
+.result-item__distance {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-burgundy);
+}
 
 .result-item__aside {
   display: flex;
@@ -2750,7 +2814,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   28. ESTENSIONI v0.6 — flusso "Lettore" (borrower)
+   28. flusso "Lettore" (borrower)
    ===================================================================== */
 
 /* Griglia a 3 colonne per la scelta tipo-account (persona/lettore/ente).
@@ -2839,7 +2903,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   29. ESTENSIONI v0.7 — ricerca esplora: hint, empty state, validazione
+   29. ricerca esplora: hint, empty state, validazione
    ===================================================================== */
 
 /* Testo di aiuto sotto la barra di ricerca */
@@ -2850,6 +2914,29 @@ a:hover { color: var(--color-burgundy-dk); }
   line-height: 1.5;
 }
 .search-hint strong { color: var(--color-ink); font-weight: 600; }
+
+/* Luogo riconosciuto nella ricerca (comune): da dove si misurano le distanze */
+.search-place {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 3px solid var(--color-burgundy);
+  background: var(--color-paper-dark);
+  font-size: var(--fs-sm);
+  color: var(--color-ink);
+}
+.search-place[hidden] { display: none; }
+.search-place__icon { flex-shrink: 0; margin-top: 2px; color: var(--color-burgundy); }
+.search-place p { margin: 0; line-height: 1.5; }
+.search-place .link-button { margin-left: var(--sp-1); }
+.search-place__credit {
+  display: block;
+  margin-top: var(--sp-1);
+  font-size: 0.7rem;
+  color: var(--color-ink-soft);
+}
 
 /* Stato iniziale: invito a cercare (mostrato finché non si avvia la ricerca) */
 .search-empty {
@@ -2889,7 +2976,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   30. SOCIAL v0.8 — campanella notifiche, follow, like
+   30. campanella notifiche, follow, like
    ===================================================================== */
 
 /* ---- 30.1 Campanella di notifiche nell'header -------------------- */
@@ -2948,13 +3035,20 @@ a:hover { color: var(--color-burgundy-dk); }
 .notif__list { max-height: min(420px, 70vh); overflow-y: auto; }
 .notif__empty { padding: var(--sp-6) var(--sp-4); color: var(--color-ink-soft); font-size: var(--fs-sm); text-align: center; line-height: 1.5; }
 
+/* .site-nav .notif__item: il pannello sta dentro la nav, le cui regole per
+   i link (padding, spaziatura delle lettere, bordo) non devono valere qui */
+.site-nav .notif__item,
 .notif__item {
   display: flex; gap: var(--sp-3);
+  align-items: flex-start;
   padding: var(--sp-3) var(--sp-4);
   border-bottom: 1px solid var(--color-line);
+  font-size: inherit;
+  letter-spacing: normal;
   text-decoration: none; color: var(--color-ink);
   transition: background 0.15s ease;
 }
+.site-nav .notif__item:last-child,
 .notif__item:last-child { border-bottom: none; }
 .notif__item:hover { background: var(--color-paper-dark); }
 .notif__item.is-unread { background: rgba(122, 30, 43, 0.05); }
@@ -2963,7 +3057,23 @@ a:hover { color: var(--color-burgundy-dk); }
   width: 7px; height: 7px; margin-left: 6px; border-radius: 50%;
   background: var(--color-burgundy); vertical-align: middle;
 }
-.notif__item-icon { font-size: 1.1rem; flex-shrink: 0; line-height: 1.3; }
+/* Icona per tipo: SVG a tratto in un tondo, colore per tono (contrasto
+   del simbolo sullo sfondo almeno 4.5:1, anche sulle righe non lette) */
+.notif__item-icon {
+  --notif-tone: var(--color-burgundy);
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  color: var(--notif-tone);
+  background: var(--color-paper);
+  border: 1.5px solid var(--notif-tone);
+}
+.notif__item-icon svg { display: block; }
+.notif__item-icon--success { --notif-tone: #4a5a36; }
+.notif__item-icon--danger  { --notif-tone: #9b1c1c; }
+.notif__item-icon--warning { --notif-tone: #7a5a1c; }
+.notif__item-msg strong { font-weight: 700; }
 .notif__item-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .notif__item-msg { font-size: var(--fs-sm); line-height: 1.4; }
 .notif__item-time { font-size: 0.68rem; color: var(--color-ink-soft); }
@@ -3070,7 +3180,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   31. v0.9 — bottone nav "Registrati / Accedi" e link di accesso
+   31. bottone nav "Registrati / Accedi" e link di accesso
    ===================================================================== */
 /* CTA di autenticazione nella navbar: ingresso unico ma discreto,
    nessun riempimento colorato (urtava visivamente). Bordo sottile
@@ -3125,7 +3235,7 @@ a:hover { color: var(--color-burgundy-dk); }
 .auth-switch a:hover { text-decoration-thickness: 2px; }
 
 /* =====================================================================
-   32. v1.0 — slider distanza, tag-input BISAC, redesign Librerie vicine
+   32. slider distanza, tag-input BISAC, redesign Librerie vicine
    ===================================================================== */
 
 /* ---- 32.1 Slider distanza (sostituisce il <select>) -------------- */
@@ -3352,7 +3462,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   33. v1.1 — stats inline accanto al CTA, fix UX index
+   33. stats inline accanto al CTA, fix UX index
    ===================================================================== */
 
 /* Contatori "live" minimali sulla stessa riga dei CTA primari.
@@ -3412,7 +3522,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   34. v1.1 — cover SVG, low-stock warning, Open Library covers
+   34. cover SVG, low-stock warning, Open Library covers
    ===================================================================== */
 
 /* Grafica decorativa SVG dentro la copertina (sostituisce il glifo
@@ -3470,7 +3580,7 @@ a:hover { color: var(--color-burgundy-dk); }
   opacity: 0;
 }
 
-/* ---- Stato "non disponibile" per le card libro (v1.1) -----------
+/* ---- Stato "non disponibile" per le card libro -----------
    Quando un volume è attualmente in prestito (book.available = false)
    la card è visivamente smorzata e non risponde al click — l'utente
    capisce subito che non può chiederlo. La pagina di dettaglio resta
@@ -3496,7 +3606,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   35. v1.1 — library.html: mini-mappa, statistiche, filtro volumi
+   35. library.html: mini-mappa, statistiche, filtro volumi
    ===================================================================== */
 
 /* ---- Statistiche "hero" della libreria: disponibili + totali al
@@ -3624,7 +3734,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   36. v1.2 — nav semplificata: bottone "Pubblica" + avatar profilo
+   36. nav semplificata: bottone "Pubblica" + avatar profilo
    ===================================================================== */
 
 /* Piccolo bottone primario nella nav per la pubblicazione: è l'azione
@@ -3683,7 +3793,7 @@ a:hover { color: var(--color-burgundy-dk); }
 .nav-avatar.cover--notturno  { background: linear-gradient(135deg, #1a1512, #3d342e); }
 
 /* =====================================================================
-   37. v1.2 — Librerie vicine: numero centrato, layout più equilibrato
+   37. Librerie vicine: numero centrato, layout più equilibrato
    ===================================================================== */
 
 /* Il "numero libri disponibili" ora è centrato a destra con maggiore
@@ -3727,7 +3837,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   38. v1.3 — dropdown profilo, empty-state primo libro, password reset
+   38. dropdown profilo, empty-state primo libro, password reset
    ===================================================================== */
 
 /* ---- Auth-switch in cima alla pagina di registrazione ---------- */
@@ -3796,7 +3906,7 @@ a:hover { color: var(--color-burgundy-dk); }
 .nav-avatar__menu-item--danger:hover { background: rgba(122, 30, 43, 0.08); }
 
 /* ---- Empty-state "pubblica il primo volume" (profilo) ----------
-   v2.1: usa flex column su container per centrare in modo affidabile
+   Usa flex column su container per centrare in modo affidabile
    ogni elemento figlio, eliminando dipendenza da margin auto. */
 .empty-state--first-book {
   display: flex;
@@ -3820,7 +3930,7 @@ a:hover { color: var(--color-burgundy-dk); }
   font-family: var(--font-display);
   font-size: 1.4rem;
   margin: 0 auto var(--sp-3);
-  max-width: 48ch;            /* v2.1: uniformato a p, hint */
+  max-width: 48ch;            /* uniformato a p, hint */
   color: var(--color-ink);
   text-align: center;
 }
@@ -3829,36 +3939,16 @@ a:hover { color: var(--color-burgundy-dk); }
   margin: 0 auto var(--sp-5);
   max-width: 48ch;
   line-height: 1.55;
-  text-align: center;          /* v2.1: forza centratura del testo */
+  text-align: center;          /* forza centratura del testo */
 }
 .empty-state__hint {
-  margin: var(--sp-5) auto 0 !important;     /* v2.1: margin auto per centrare */
+  margin: var(--sp-5) auto 0 !important;     /* margin auto per centrare */
   max-width: 48ch;
   font-size: var(--fs-xs);
   color: var(--color-ink-soft);
   text-align: center;
 }
 .empty-state__hint a { color: var(--color-burgundy); text-decoration: underline; }
-
-/* ---- "Email simulata" sulla pagina di reset password ----------- */
-.simulated-email {
-  margin-top: var(--sp-4);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius);
-  background: var(--color-paper-dark);
-  overflow: hidden;
-}
-.simulated-email__header {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px var(--sp-4);
-  background: rgba(176, 136, 64, 0.12);    /* oro pallido = "demo" */
-  border-bottom: 1px dashed var(--color-line);
-  font-size: 0.82rem;
-}
-.simulated-email__body {
-  padding: var(--sp-4);
-  background: var(--color-paper);
-}
 
 /* ---- Campo password con toggle "occhio" ------------------------ */
 .password-field { position: relative; }
@@ -3894,7 +3984,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   39. v1.4 — Recensioni e valutazioni a stelle
+   39. Recensioni e valutazioni a stelle
    ===================================================================== */
 
 /* ---- Stelle (display): SVG inline, colore --color-gold ----------
@@ -4150,6 +4240,8 @@ a:hover { color: var(--color-burgundy-dk); }
   flex-shrink: 0;
 }
 /* Riusa le palette dei temi (definite altrove come .cover--*) */
+.review-card__avatar { overflow: hidden; }
+.review-card__avatar img { width: 100%; height: 100%; object-fit: cover; }
 .review-card__avatar.cover--classic   { background: linear-gradient(135deg, #7a1e2b, #5a141f); }
 .review-card__avatar.cover--bordeaux  { background: linear-gradient(135deg, #7a1e2b, #3d342e); }
 .review-card__avatar.cover--sage      { background: linear-gradient(135deg, #6e7a5a, #3d342e); }
@@ -4198,7 +4290,7 @@ a:hover { color: var(--color-burgundy-dk); }
 .nearby-card__stars .stars { gap: 2px; }
 
 /* =====================================================================
-   40. v1.5 — Prestiti: timeline orizzontale, loan card, wizard restituzione
+   40. Prestiti: timeline orizzontale, loan card, wizard restituzione
    ===================================================================== */
 
 /* ---- "X tempo fa" sopra alla data assoluta nelle recensioni ---------- */
@@ -4533,7 +4625,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   41. v1.6 — Slider giorni, overdue, sub-tabs Recensioni, rifiuto/annullo
+   41. Slider giorni, overdue, sub-tabs Recensioni, rifiuto/annullo
    ===================================================================== */
 
 /* ---- Slider "giorni" nella richiesta prestito --------------------- */
@@ -4717,7 +4809,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   42. v1.7 — Chat di prestito, filtri notifiche, doc legali, GDPR export
+   42. Chat di prestito, filtri notifiche, doc legali, GDPR export
    ===================================================================== */
 
 /* ---- Chat: toggle + pannello espandibile -------------------------- */
@@ -4955,6 +5047,12 @@ a:hover { color: var(--color-burgundy-dk); }
   padding-bottom: 0.4rem;
 }
 .legal-doc h2:first-child { margin-top: 0; }
+.legal-doc h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  margin: 1.4rem 0 0.4rem;
+  color: var(--color-ink);
+}
 .legal-doc p, .legal-doc ul {
   margin: 0 0 1rem;
 }
@@ -4973,6 +5071,142 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 .legal-doc a {
   color: var(--color-burgundy);
+}
+
+/* ---- Pagine legali: sezioni e indice ------------------------------
+   Privacy e Termini: testo a sinistra, indice a destra fisso durante lo
+   scorrimento (schermi larghi); indice richiudibile in cima su quelli
+   stretti. Sezione attiva evidenziata da js/legal-toc.js. */
+.legal-page__head { max-width: 46rem; margin-bottom: var(--sp-10); }
+.legal-page__head h1 { font-size: 2.4rem; margin: var(--sp-2) 0 var(--sp-3); }
+.legal-page__intro { color: var(--color-ink-soft); font-size: 1.05rem; margin: 0 0 var(--sp-2); }
+.legal-page__updated {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+}
+
+.legal-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-6);
+}
+@media (min-width: 960px) {
+  .legal-layout {
+    grid-template-columns: minmax(0, 1fr) 17rem;
+    grid-template-areas: "doc toc";
+    gap: var(--sp-12);
+    align-items: start;
+  }
+  .legal-layout > .legal-doc { grid-area: doc; }
+  .legal-layout > .legal-toc {
+    grid-area: toc;
+    position: sticky;
+    top: 6.5rem;
+    max-height: calc(100vh - 8rem);
+    overflow-y: auto;
+  }
+}
+
+.legal-toc__box {
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+}
+.legal-toc__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+  cursor: pointer;
+  list-style: none;
+}
+.legal-toc__summary::-webkit-details-marker { display: none; }
+.legal-toc__summary::after {
+  content: "";
+  width: 8px; height: 8px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.2s ease;
+}
+.legal-toc__box[open] > .legal-toc__summary::after { transform: translateY(2px) rotate(-135deg); }
+.legal-toc__box[open] > .legal-toc__summary { border-bottom: 1px solid var(--color-line); }
+/* Schermi larghi: l'indice e' sempre aperto, il titolo non e' un comando */
+.legal-toc.is-wide .legal-toc__summary { cursor: default; }
+.legal-toc.is-wide .legal-toc__summary::after { display: none; }
+
+.legal-toc__list {
+  list-style: none;
+  margin: 0;
+  padding: var(--sp-2) 0;
+}
+.legal-toc__list a {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  border-left: 3px solid transparent;
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  color: var(--color-ink-soft);
+  text-decoration: none;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.legal-toc__list a:hover { color: var(--color-ink); background: var(--color-paper-dark); }
+.legal-toc__list a:focus-visible { outline: 2px solid var(--color-burgundy); outline-offset: -2px; }
+.legal-toc__list a.is-active {
+  color: var(--color-ink);
+  font-weight: 600;
+  border-left-color: var(--color-burgundy);
+  background: rgba(122, 30, 43, 0.06);
+}
+.legal-toc__num {
+  flex-shrink: 0;
+  min-width: 1.4rem;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  color: var(--color-burgundy);
+}
+
+/* Schermi stretti: la barra dell'indice resta sotto l'intestazione */
+@media (max-width: 959px) {
+  .legal-layout > .legal-toc {
+    position: sticky;
+    top: var(--legal-toc-top, 4.5rem);
+    z-index: 50;
+  }
+  .legal-toc__box { box-shadow: 0 6px 16px var(--color-shadow); }
+  .legal-toc__box[open] .legal-toc__list { max-height: 60vh; overflow-y: auto; }
+}
+
+/* Sezioni: l'ancora si ferma sotto l'intestazione fissa (e, su schermi
+   stretti, sotto la barra dell'indice) */
+.legal-section { scroll-margin-top: 6rem; }
+@media (max-width: 959px) {
+  .legal-section { scroll-margin-top: calc(var(--legal-toc-top, 4.5rem) + 4rem); }
+}
+.legal-section + .legal-section { margin-top: var(--sp-10); }
+.legal-doc .legal-section h2 { margin-top: 0; }
+.legal-section__num {
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  color: var(--color-burgundy);
+  margin-right: var(--sp-1);
+}
+.legal-doc__top {
+  margin-top: var(--sp-10);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--color-line);
+  font-size: var(--fs-sm);
 }
 
 /* ---- GDPR export panel ------------------------------------------- */
@@ -4997,7 +5231,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   43. v1.8 — Banner "Apri la tua libreria" sull'hub
+   43. Banner "Apri la tua libreria" sull'hub
    ===================================================================== */
 .open-library-cta {
   position: relative;
@@ -5054,7 +5288,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   44. v1.9 — Simulatore stato + wizard inline apertura libreria
+   44. Simulatore stato + wizard inline apertura libreria
    ===================================================================== */
 
 /* ---- Simulatore demo sotto a ogni card di prestito attivo ---------- */
@@ -5207,7 +5441,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   45. v2.0 — Master-detail loans, list items, badge esperienza
+   45. Master-detail loans, list items, badge esperienza
    ===================================================================== */
 
 /* ---- Badge "X prestiti completati" sul profilo ------------------- */
@@ -5461,7 +5695,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   46. v2.1 — Visibility pill/banner, error-unique input states
+   46. Visibility pill/banner, error-unique input states
    ===================================================================== */
 
 /* ---- Pill di stato visibilità libreria --------------------------- */
@@ -5545,7 +5779,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   47. v2.2 — Stats redesign, admin nav link, login error banner
+   47. Stats redesign, admin nav link, login error banner
    ===================================================================== */
 
 /* ---- Pagina statistiche, layout generale ------------------------ */
@@ -5654,7 +5888,9 @@ a:hover { color: var(--color-burgundy-dk); }
   margin-bottom: var(--sp-4);
 }
 .chart-wrap--square {
-  height: 380px;
+  /* Quadrato che si adatta alla larghezza disponibile (anche su mobile) */
+  width: 100%;
+  height: auto;
   aspect-ratio: 1;
   max-width: 480px;
   margin: 0 auto;
@@ -5663,12 +5899,12 @@ a:hover { color: var(--color-burgundy-dk); }
 /* ---- Genere grid (sunburst + matrice) --------------------------- */
 .stats-genre-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--sp-4);
   margin-bottom: var(--sp-4);
 }
 @media (max-width: 900px) {
-  .stats-genre-grid { grid-template-columns: 1fr; }
+  .stats-genre-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ---- Matrice co-occorrenza ------------------------------------- */
@@ -5939,7 +6175,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   48. v2.3 — Book detail expand, admin CRUD, modals, danger button
+   48. Book detail expand, admin CRUD, modals, danger button
    ===================================================================== */
 
 /* ---- Bottone danger per delete ----------------------------------- */
@@ -5951,6 +6187,37 @@ a:hover { color: var(--color-burgundy-dk); }
   background: var(--color-burgundy);
   color: var(--color-paper);
   border-color: var(--color-burgundy);
+}
+/* Pulsante pieno di conferma (finestre admin): testo chiaro su bordeaux */
+.btn--primary.btn--danger {
+  background: var(--color-burgundy);
+  color: var(--color-paper);
+  border-color: var(--color-burgundy);
+}
+.btn--primary.btn--danger:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+/* Pulsanti disattivati (es. "Elimina volume" con un prestito in corso):
+   attenuati e senza effetto al passaggio del mouse */
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn--ghost.btn--danger:disabled:hover {
+  background: transparent;
+  color: var(--color-burgundy);
+  border-color: rgba(122, 30, 43, 0.4);
+}
+/* Volume ritirato dal proprietario dopo la fine del prestito (prestiti) */
+.loan-card__retired {
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  font-style: italic;
+  color: var(--color-ink-soft);
+}
+/* Perche' non si puo' eliminare il volume (dettaglio, solo proprietario) */
+.book-detail__delete-note {
+  margin: -0.5rem 0 1.25rem;
+  max-width: 60ch;
 }
 
 /* ---- Top-book item espandibile ---------------------------------- */
@@ -6229,11 +6496,14 @@ a:hover { color: var(--color-burgundy-dk); }
 .status-pill--ok  { background: rgba(110,122,90,.18); color: var(--color-sage); }
 .status-pill--off { background: var(--color-paper-dark); color: var(--color-ink-soft); }
 
-/* System pane */
-.admin-system-actions {
+/* Conteggio e "Mostra altri" sotto le tabelle del pannello admin */
+.admin-pager {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  color: var(--color-ink-soft);
+  font-size: .88rem;
 }
 
 /* ---- Modal ----------------------------------------------------- */
@@ -6287,7 +6557,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   49. v2.4 — Posts, recent updates, reports
+   49. Posts, recent updates, reports
    ===================================================================== */
 
 /* ---- Composer ---------------------------------------------------- */
@@ -6624,7 +6894,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   50. v2.5 — Nav icone SVG, avatar profilo modificabile
+   50. Nav icone SVG, avatar profilo modificabile
    ===================================================================== */
 
 /* ---- Nav icons (desktop: icona + label, mobile: solo icona) ------- */
@@ -6806,7 +7076,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   51. v2.5 quick fix — Nav icon-only, CTA Registrati/Accedi rifinito
+   51. Nav icon-only, CTA Registrati/Accedi rifinito
    ===================================================================== */
 
 /* Niente più label di testo accanto alle icone, mai */
@@ -6859,7 +7129,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* =====================================================================
-   52. v2.6 — Featured algoritmico, welcome messages, novità con aura,
+   52. Featured algoritmico, welcome messages, novità con aura,
        libreria "appena aperta", ridgeline top utenti, popover conferma
    ===================================================================== */
 
@@ -7068,7 +7338,7 @@ a:hover { color: var(--color-burgundy-dk); }
 }
 
 /* ============================================================================
-   Beta 9: PWA + mobile UX polish
+   PWA + rifiniture mobile
    ============================================================================ */
 
 /* Safe area su iPhone con notch (viewport-fit=cover)
@@ -7227,4 +7497,90 @@ body.is-offline .offline-badge {
     padding: var(--sp-3) var(--sp-4);
     font-size: 1rem; /* Prevent iOS Safari zoom */
   }
+}
+
+/* Richieste di prestito ricevute (riepilogo nel profilo) */
+.lender-loans { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.lender-loans__link {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: .4rem 1rem;
+  padding: .8rem 1rem; border: 1px solid var(--color-line); border-radius: var(--radius);
+  color: inherit; text-decoration: none; background: var(--color-paper);
+}
+.lender-loans__link:hover, .lender-loans__link:focus-visible { border-color: var(--color-burgundy); }
+
+/* Messaggio iniziale della richiesta di prestito */
+.loan-card__message { margin: .8rem 0 0; font-style: italic; color: var(--color-ink-soft); }
+.loan-chat__status { color: var(--color-ink-soft); font-size: .9rem; margin: .5rem 0; }
+
+/* Chat di un prestito rifiutato o annullato: resta utilizzabile, ma appare
+   attenuata e riporta lo stato; torna piena quando ci si interagisce. */
+.loan-chat--closed {
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+.loan-chat--closed:hover,
+.loan-chat--closed:focus-within { opacity: 0.9; }
+.loan-chat--closed .loan-chat__toggle { border-style: dashed; }
+.loan-chat__state { font-size: 0.7rem; }
+
+/* Esplora: punto di riferimento del raggio (scelta della posizione) */
+.range-control__ref {
+  display: block;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--color-ink-soft);
+}
+.range-control input[type="range"]:disabled { opacity: 0.45; cursor: not-allowed; }
+
+
+/* =====================================================================
+   Finestra di conferma dell'app (UI.confirm), al posto di window.confirm
+   ===================================================================== */
+.app-confirm {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: min(480px, calc(100vw - 2 * var(--sp-4)));
+  width: 100%;
+}
+.app-confirm::backdrop {
+  background: rgba(26, 21, 18, 0.6);
+  backdrop-filter: blur(2px);
+}
+.app-confirm__card {
+  background: var(--color-paper);
+  border-radius: var(--radius);
+  padding: var(--sp-6);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+.app-confirm__title {
+  margin: 0 0 var(--sp-3);
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--color-ink);
+}
+.app-confirm__body p {
+  margin: 0 0 var(--sp-3);
+  color: var(--color-ink-soft);
+}
+.app-confirm__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+  margin-top: var(--sp-4);
+}
+
+/* Avvisi brevi (UI.toast): centrati in alto, sopra l'intestazione */
+.toast {
+  position: fixed;
+  top: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: max-content;
+  max-width: min(480px, calc(100vw - 2 * var(--sp-4)));
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  transition: opacity 0.4s;
 }

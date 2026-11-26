@@ -1,5 +1,5 @@
 // =============================================================================
-// apps/web/js/api/endpoints/library.js — Beta 2
+// apps/web/js/api/endpoints/library.js
 // =============================================================================
 
 import { apiClient } from '../apiClient.js';
@@ -10,6 +10,15 @@ import { apiClient } from '../apiClient.js';
  */
 export function getByUser(userId, options = {}) {
   return apiClient.get(`/api/users/${encodeURIComponent(userId)}/library`, options);
+}
+
+/**
+ * GET /api/libraries — librerie ordinate per vicinanza (posizione pubblica)
+ * e attivita'. Senza lat/lng: solo per attivita'.
+ * @param {{lat?: number, lng?: number, limit?: number}} query
+ */
+export function nearby(query = {}, options = {}) {
+  return apiClient.get('/api/libraries', { query, ...options });
 }
 
 /**

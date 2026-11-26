@@ -11,6 +11,20 @@ afterAll(async () => {
 });
 
 describe('GET /api/books', () => {
+  it('la ricerca tollera piccoli errori di battitura su titolo e autore', async () => {
+    const app = await buildTestApp();
+    const titles = async (q) =>
+      (await app.inject({ method: 'GET', url: `/api/books?q=${encodeURIComponent(q)}` }))
+        .json()
+        .data.map((b) => b.title);
+    expect(await titles('Calvno')).toContain('Le città invisibili');
+    expect(await titles('Gatopardo')).toContain('Il Gattopardo');
+    expect(await titles('promesi sposi')).toContain('I Promessi Sposi');
+    // Parole diverse e ricerche corte restano senza risultati imprecisi
+    expect(await titles('zzzqqq')).toEqual([]);
+    expect(await titles('Gtp')).not.toContain('Il Gattopardo');
+  });
+
   it('ritorna la lista paginata di libri attivi', async () => {
     const app = await buildTestApp();
     const res = await app.inject({ method: 'GET', url: '/api/books' });
@@ -42,14 +56,16 @@ describe('GET /api/books', () => {
     }
   });
 
-  it('filtra per ricerca testuale q=napoli', async () => {
+  it('filtra per ricerca testuale q=napoli (place=false: solo testo)', async () => {
     const app = await buildTestApp();
-    const res = await app.inject({ method: 'GET', url: '/api/books?q=napoli' });
+    // Senza place=false "napoli" e' anche un comune: vedi places.test.js
+    const res = await app.inject({ method: 'GET', url: '/api/books?q=napoli&place=false' });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.data.length).toBeGreaterThan(0);
+    // Il testo cerca in titolo, autore e citta' pubblica del proprietario
     for (const b of body.data) {
-      const haystack = (b.title + ' ' + b.author).toLowerCase();
+      const haystack = `${b.title} ${b.author} ${b.owner.city || ''}`.toLowerCase();
       expect(haystack).toContain('napoli');
     }
   });
@@ -82,6 +98,23 @@ describe('GET /api/books/:id', () => {
     const res = await app.inject({ method: 'GET', url: '/api/books/999999' });
     expect(res.statusCode).toBe(404);
     expect(res.json().error.code).toBe('NOT_FOUND');
+  });
+
+  it("indica se il libro piace all'utente autenticato (likedByMe)", async () => {
+    const app = await buildTestApp();
+    const url = `/api/books/${SEED.BOOK_GATTOPARDO}`;
+    const headers = await authHeaders(SEED.USER_MARCO);
+
+    const guest = await app.inject({ method: 'GET', url });
+    expect(guest.json().likedByMe).toBe(false);
+
+    await app.inject({ method: 'DELETE', url: `${url}/like`, headers });
+    expect((await app.inject({ method: 'GET', url, headers })).json().likedByMe).toBe(false);
+
+    await app.inject({ method: 'POST', url: `${url}/like`, headers });
+    expect((await app.inject({ method: 'GET', url, headers })).json().likedByMe).toBe(true);
+
+    await app.inject({ method: 'DELETE', url: `${url}/like`, headers });
   });
 });
 
@@ -156,6 +189,64 @@ describe('PATCH /api/books/:id', () => {
     await prisma.book.delete({ where: { id } });
   });
 
+  it('il proprietario cambia tutti i dati e svuota quelli facoltativi', async () => {
+    const app = await buildTestApp();
+    const headers = await authHeaders(SEED.USER_CHIARA);
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/books',
+      headers,
+      payload: randomBookData({ isbn: '9788804668237', pages: 300 }),
+    });
+    const id = created.json().id;
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/books/${id}`,
+      headers,
+      payload: {
+        title: 'Nuovo titolo',
+        author: 'Nuovo autore',
+        year: 1999,
+        language: 'Inglese',
+        condition: 'discrete',
+        description: 'Descrizione aggiornata dal proprietario.',
+        categoryIds: [SEED.CAT_GIALLI, SEED.CAT_NARRATIVA],
+        isbn: null,
+        pages: null,
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const b = res.json();
+    expect([b.title, b.author, b.year, b.language, b.condition]).toEqual([
+      'Nuovo titolo',
+      'Nuovo autore',
+      1999,
+      'Inglese',
+      'discrete',
+    ]);
+    expect(b.isbn).toBeNull();
+    expect(b.pages).toBeNull();
+    expect(b.categories.find((c) => c.isPrimary).id).toBe(SEED.CAT_GIALLI);
+
+    // La disponibilita' non si cambia a mano (campo ignorato)
+    const avail = await app.inject({
+      method: 'PATCH',
+      url: `/api/books/${id}`,
+      headers,
+      payload: { available: false },
+    });
+    expect(avail.json().available).toBe(true);
+    // ISBN solo di 10 o 13 cifre
+    const bad = await app.inject({
+      method: 'PATCH',
+      url: `/api/books/${id}`,
+      headers,
+      payload: { isbn: '123' },
+    });
+    expect(bad.statusCode).toBe(400);
+    await prisma.book.delete({ where: { id } });
+  });
+
   it('ritorna 403 se non sei owner', async () => {
     const app = await buildTestApp();
     const res = await app.inject({
@@ -188,6 +279,111 @@ describe('DELETE /api/books/:id', () => {
 
     const check = await prisma.book.findUnique({ where: { id } });
     expect(check).toBeNull();
+  });
+
+  // Volume di Chiara con un prestito di Marco nello stato indicato
+  async function bookWithLoan(app, status) {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/books',
+      headers: await authHeaders(SEED.USER_CHIARA),
+      payload: randomBookData(),
+    });
+    const book = created.json();
+    const loan = await prisma.loanRequest.create({
+      data: {
+        bookId: book.id,
+        requesterId: SEED.USER_MARCO,
+        lenderId: SEED.USER_CHIARA,
+        status,
+        daysRequested: 14,
+      },
+    });
+    return { bookId: book.id, loanId: loan.id };
+  }
+
+  it.each(['requested', 'confirmed', 'borrowed', 'returning'])(
+    "rifiuta con 409 se un prestito e' in corso (%s), senza toccare nulla",
+    async (status) => {
+      const app = await buildTestApp();
+      const { bookId, loanId } = await bookWithLoan(app, status);
+      const res = await app.inject({
+        method: 'DELETE',
+        url: `/api/books/${bookId}`,
+        headers: await authHeaders(SEED.USER_CHIARA),
+      });
+      expect(res.statusCode).toBe(409);
+      expect(res.json().error.code).toBe('BOOK_ON_LOAN');
+      expect(res.json().error.loan).toEqual({ id: loanId, status });
+      expect(await prisma.loanRequest.findUnique({ where: { id: loanId } })).not.toBeNull();
+      expect((await prisma.book.findUnique({ where: { id: bookId } })).status).toBe('active');
+      await prisma.book.delete({ where: { id: bookId } });
+    }
+  );
+
+  it('con soli prestiti conclusi ritira il volume e conserva lo storico', async () => {
+    const app = await buildTestApp();
+    const { bookId, loanId } = await bookWithLoan(app, 'returned');
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/books/${bookId}`,
+      headers: await authHeaders(SEED.USER_CHIARA),
+    });
+    expect(res.statusCode).toBe(204);
+    const book = await prisma.book.findUnique({ where: { id: bookId } });
+    expect(book.status).toBe('removed');
+    expect(await prisma.loanRequest.findUnique({ where: { id: loanId } })).not.toBeNull();
+
+    // Sparito per gli altri, il prestito resta visibile a chi l'ha preso
+    const pub = await app.inject({ method: 'GET', url: `/api/books/${bookId}` });
+    expect(pub.statusCode).toBe(404);
+    const loan = await app.inject({
+      method: 'GET',
+      url: `/api/loans/${loanId}`,
+      headers: await authHeaders(SEED.USER_MARCO),
+    });
+    expect(loan.statusCode).toBe(200);
+    expect(loan.json().book.status).toBe('removed');
+
+    // Ritirato: non si modifica ne' si elimina di nuovo
+    const again = await app.inject({
+      method: 'DELETE',
+      url: `/api/books/${bookId}`,
+      headers: await authHeaders(SEED.USER_CHIARA),
+    });
+    expect(again.statusCode).toBe(404);
+    await prisma.book.delete({ where: { id: bookId } });
+  });
+
+  it("neanche l'amministratore elimina un volume con un prestito in corso", async () => {
+    const app = await buildTestApp();
+    const { bookId } = await bookWithLoan(app, 'confirmed');
+    const res = await app.inject({
+      method: 'DELETE',
+      url: `/api/admin/books/${bookId}`,
+      headers: await authHeaders(SEED.USER_ADMIN),
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.code).toBe('BOOK_ON_LOAN');
+    await prisma.book.delete({ where: { id: bookId } });
+  });
+
+  it("il dettaglio dice al proprietario se un prestito e' in corso", async () => {
+    const app = await buildTestApp();
+    const { bookId, loanId } = await bookWithLoan(app, 'borrowed');
+    const own = await app.inject({
+      method: 'GET',
+      url: `/api/books/${bookId}`,
+      headers: await authHeaders(SEED.USER_CHIARA),
+    });
+    expect(own.json().activeLoan).toEqual({ id: loanId, status: 'borrowed' });
+    const other = await app.inject({
+      method: 'GET',
+      url: `/api/books/${bookId}`,
+      headers: await authHeaders(SEED.USER_ANNA),
+    });
+    expect(other.json()).not.toHaveProperty('activeLoan');
+    await prisma.book.delete({ where: { id: bookId } });
   });
 });
 
@@ -285,5 +481,38 @@ describe('GET /api/books/nearby (PostGIS)', () => {
       url: '/api/books/nearby?lat=999&lng=14&radius=1000',
     });
     expect(res.statusCode).toBe(400);
+  });
+});
+
+describe('GET /api/books: preferiti e librerie seguite', () => {
+  const prisma2 = createTestPrisma();
+  afterAll(async () => {
+    await prisma2.like.deleteMany({ where: { userId: SEED.USER_LUCA } });
+    await prisma2.follow.deleteMany({ where: { followerId: SEED.USER_LUCA } });
+    await prisma2.$disconnect();
+  });
+
+  it('liked=true: solo i volumi con il proprio "mi piace"', async () => {
+    const app = await buildTestApp();
+    const headers = await authHeaders(SEED.USER_LUCA);
+    await app.inject({ method: 'POST', url: `/api/books/${SEED.BOOK_GADDA}/like`, headers });
+    const res = await app.inject({ method: 'GET', url: '/api/books?liked=true', headers });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().data.map((b) => b.id)).toEqual([SEED.BOOK_GADDA]);
+  });
+
+  it('following=true: solo i volumi delle librerie seguite', async () => {
+    const app = await buildTestApp();
+    const headers = await authHeaders(SEED.USER_LUCA);
+    await app.inject({ method: 'POST', url: `/api/users/${SEED.USER_ANNA}/follow`, headers });
+    const res = await app.inject({ method: 'GET', url: '/api/books?following=true', headers });
+    const owners = new Set(res.json().data.map((b) => b.owner.id));
+    expect([...owners]).toEqual([SEED.USER_ANNA]);
+  });
+
+  it('senza accesso: 401', async () => {
+    const app = await buildTestApp();
+    const res = await app.inject({ method: 'GET', url: '/api/books?liked=true' });
+    expect(res.statusCode).toBe(401);
   });
 });

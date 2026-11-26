@@ -1,5 +1,5 @@
 // =============================================================================
-// src/routes/orgProfile.js — Organization profile (Beta 2)
+// src/routes/orgProfile.js — Organization profile
 // =============================================================================
 // Endpoint per gestire il record OrganizationProfile (legalName, orgCategory,
 // contactPerson, website, publicEmail, publicPhone, publicAddress, openingHours).

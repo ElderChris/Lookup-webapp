@@ -1,5 +1,5 @@
 // =============================================================================
-// apps/web/js/pwa.js — Service worker registration + install prompt (Beta 9)
+// apps/web/js/pwa.js — Service worker registration + install prompt
 // =============================================================================
 // Espone `window.LB_PWA` con:
 //   - install()  → mostra il prompt di installazione se disponibile
@@ -55,13 +55,10 @@ class PwaManager {
         });
       });
 
-      // Su cambio di controller (dopo skipWaiting), reload della pagina
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return;
-        refreshing = true;
-        window.location.reload();
-      });
+      // Nessun ricaricamento automatico al cambio di service worker: alla
+      // prima visita (clients.claim) e a ogni aggiornamento ricaricava la
+      // pagina, cancellando quello che l'utente stava scrivendo. Il nuovo
+      // service worker serve i file aggiornati dalla navigazione successiva.
     } catch (err) {
       console.error('[pwa] registrazione fallita:', err);
     }

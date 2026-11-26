@@ -1,5 +1,5 @@
 /* =============================================================================
- * apps/web/sw.js — Service Worker Lookup (Beta 9)
+ * apps/web/sw.js — Service Worker Lookup
  * =============================================================================
  * Strategie di caching differenziate per tipo di risorsa:
  *
@@ -12,23 +12,22 @@
  *      Ottimizzato per "asset che non cambiano mai" — se cambia, cambia il
  *      cache name (CACHE_VERSION) e si scarica di nuovo.
  *
- *   3. NETWORK-FIRST per API JSON e HTML dinamiche: prova la rete;
- *      se fallisce (offline), serve la versione cachata (se esiste).
- *      Preferisce dati freschi ma degrada gracefully offline.
+ *   3. NETWORK-FIRST per le pagine HTML: prova la rete; se fallisce
+ *      (offline), serve la versione in cache (se esiste).
  *
- *   4. STALE-WHILE-REVALIDATE per liste che possono essere leggermente stale
- *      (feed, categorie): serve subito la cache + fetcha rete in background
- *      per aggiornare la cache per la prossima volta.
- *
- *   5. BYPASS per SSE (/api/me/events) e auth (/api/auth/*): passano sempre
- *      alla rete senza toccare la cache. Streaming e cookie non si cacheranno mai.
+ *   4. NIENTE CACHE per l'API (/api/*): le risposte contengono dati personali
+ *      (profilo, prestiti, messaggi, notifiche) che non devono restare nel
+ *      browser dopo l'uscita, e i dati vengono sempre dal server. Senza rete
+ *      le pagine mostrano "Server non raggiungibile", mai dati vecchi.
  * =============================================================================
  */
 
-const CACHE_VERSION = 'lookup-v3'; // v3: auth.js (reset password)
+// Da cambiare a ogni rilascio del sito: il service worker nuovo cancella le
+// cache precedenti e le pagine ricaricano CSS e JS aggiornati
+// (cancella anche le cache dell'API delle versioni che le salvavano)
+const CACHE_VERSION = 'lookup-v26';
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
-const API_CACHE = `${CACHE_VERSION}-api`;
 
 // Asset da precacheare al primo install. Include solo quello essenziale:
 // la home + CSS core + JS bootstrap + manifest + icone.
@@ -41,12 +40,15 @@ const PRECACHE_ASSETS = [
   '/login.html',
   '/register.html',
   '/css/styles.css',
+  '/js/auth-hint.js',
   '/js/app.js',
   '/js/ui.js',
   '/js/ui-helpers.js',
   '/js/api-bootstrap.js',
   '/js/eventStream.js',
-  '/js/data.js',
+  '/js/coverDesigns.js',
+  '/js/loanStatus.js',
+  '/vendor/fonts/fonts.css',
   '/manifest.json',
   '/img/icon-192.png',
   '/img/icon-512.png',
@@ -120,14 +122,15 @@ self.addEventListener('fetch', (event) => {
   // Solo GET (POST/PATCH/DELETE devono sempre andare in rete)
   if (request.method !== 'GET') return;
 
-  // BYPASS per SSE stream — deve sempre stare in rete, mai cache
-  if (url.pathname === '/api/me/events') return;
+  // API (compresi accesso e notifiche in tempo reale): sempre e solo rete,
+  // mai in cache (dati personali)
+  if (url.pathname.startsWith('/api/')) return;
 
-  // BYPASS per auth endpoints (cookie session, no cache mai)
-  if (url.pathname.startsWith('/api/auth/')) return;
-
-  // Route by resource type
-  if (url.pathname.startsWith('/api/')) {
+  // Route by resource type: il codice dell'app (CSS e JavaScript) sempre dalla
+  // rete, come le pagine, altrimenti dopo un aggiornamento una pagina nuova
+  // girerebbe con script vecchi presi dalla cache; immagini, caratteri e
+  // librerie di vendor/ (versionate nel percorso) prima dalla cache
+  if (isAppCode(url.pathname)) {
     event.respondWith(networkFirstStrategy(request));
   } else if (isStaticAsset(url.pathname)) {
     event.respondWith(cacheFirstStrategy(request));
@@ -165,13 +168,13 @@ async function cacheFirstStrategy(request) {
 
 /**
  * Network-first: prova la rete; se fallisce, serve dalla cache.
- * Ideale per HTML e API che devono essere fresh ma degradare offline.
+ * Per le pagine HTML: sempre aggiornate, ma disponibili anche offline.
  */
 async function networkFirstStrategy(request) {
   try {
     const response = await fetch(request);
     if (response.ok) {
-      const cache = await caches.open(request.url.includes('/api/') ? API_CACHE : RUNTIME_CACHE);
+      const cache = await caches.open(RUNTIME_CACHE);
       cache.put(request, response.clone());
     }
     return response;
@@ -195,6 +198,10 @@ async function networkFirstStrategy(request) {
 // -----------------------------------------------------------------------------
 // HELPERS
 // -----------------------------------------------------------------------------
+
+function isAppCode(pathname) {
+  return /\.(css|m?js)$/.test(pathname) && !pathname.startsWith('/vendor/');
+}
 
 function isStaticAsset(pathname) {
   return /\.(css|js|mjs|png|jpg|jpeg|svg|webp|woff2?|ttf|otf|ico)$/.test(pathname);

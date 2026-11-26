@@ -11,7 +11,6 @@ import globals from 'globals';
  * - regole stilistiche minime che riflettono lo stile esistente
  * - globals appropriati per browser modules
  *
- * In Fase 1 quando ci sarà TypeScript aggiungeremo typescript-eslint.
  */
 
 export default [
@@ -62,7 +61,7 @@ export default [
     // Stesse regole del frontend, con i globali di Node al posto di quelli
     // del browser. Fino al 19 nov 2026 questi file venivano letti senza
     // nessuna regola attiva.
-    files: ['apps/api/**/*.{js,mjs}', 'packages/**/*.js', 'scripts/**/*.mjs'],
+    files: ['apps/api/**/*.{js,mjs}', 'packages/**/*.js', 'scripts/**/*.mjs', 'e2e/**/*.mjs'],
     languageOptions: {
       ecmaVersion: 2025,
       sourceType: 'module',
@@ -95,8 +94,10 @@ export default [
       'node_modules/**',
       'dist/**',
       '.husky/**',
-      // Archivio storico del vecchio frontend: conservato invariato
-      'apps/web/js/legacy/**',
+      // Archivio del prototipo: conservato invariato, non servito dal sito
+      'archive/**',
+      // Librerie di terze parti copiate invariate
+      'apps/web/vendor/**',
       'apps/api/coverage/**',
       'apps/api/src/generated/**'
     ]

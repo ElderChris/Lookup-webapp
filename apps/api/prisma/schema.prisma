@@ -1,20 +1,20 @@
 // =============================================================================
 // Lookup — Schema Prisma
 // =============================================================================
-// Generato in Fase 1b. Modelli derivati da:
+// Modelli derivati in origine da:
 //   - apps/api/prisma/_reference/schema.sql (riferimento storico, 15 tabelle)
-//   - apps/web/js/data.js (SAMPLE_* arrays — shape effettivo lato frontend)
+//   - i dati del prototipo (archive/prototipo/js/data.js)
 //
 // Convenzioni:
 //   - Field Prisma in camelCase
 //   - Colonne DB in snake_case via @map
 //   - Tabelle in snake_case plurale via @@map
-//   - ID interi (autoincrement) — match con SAMPLE_* del frontend
+//   - ID interi (autoincrement) per libri, prestiti, ecc.; CUID per gli utenti
 //
 // PostGIS: estensioni postgis/pg_trgm/citext sono abilitate dall'init.sql
-// del container (vedi infra/postgres/init.sql), ma in Fase 1b NON usiamo
-// geography(Point) — User ha semplici lat/lng Float. PostGIS arriverà in
-// Fase 1f come migration dedicata per indici GIST e query con ST_DWithin.
+// del container (vedi infra/postgres/init.sql). User ha lat/lng Float e le
+// colonne geography(Point) location / public_location, mantenute da trigger
+// (migrazioni PostGIS), con indici GIST per ST_DWithin.
 // =============================================================================
 
 generator client {
@@ -33,10 +33,10 @@ datasource db {
 // =============================================================================
 
 model User {
-  id             String    @id @default(cuid())               // Fase 3.0: CUID string per compat Better Auth (Fase 3.1)
+  id             String    @id @default(cuid())               // CUID string per compat Better Auth
   username       String    @unique @db.VarChar(30)
   email          String    @unique @db.VarChar(255)
-  // Fase 3.1: passwordHash rimosso. Better Auth memorizza le credenziali
+  // passwordHash rimosso. Better Auth memorizza le credenziali
   // nel modello Account (provider 'credential') con hash Argon2id gestito
   // internamente. Sessioni HTTP → modello Session (cookie httpOnly).
 
@@ -44,7 +44,7 @@ model User {
   displayName    String    @map("display_name") @db.VarChar(100)
   bio            String?   @db.Text
   avatarUrl      String?   @map("avatar_url") @db.VarChar(500)
-  avatarDataUrl  String?   @map("avatar_data_url") @db.Text // base64 inline (legacy prototype)
+  avatarDataUrl  String?   @map("avatar_data_url") @db.Text // foto profilo (data URL), servita da /api/users/:id/avatar
   city           String?   @db.VarChar(150)
 
   // Tipo account
@@ -60,16 +60,31 @@ model User {
   lng            Float?
   location       Unsupported("geography(Point, 4326)")?
 
+  // Privacy della posizione: 0 nascosta (niente coordinate ne' citta'),
+  // 1 solo citta', 2 zona (~200 m), 3 esatta. Predefinito dal trigger:
+  // 2 per le persone, 3 per gli enti.
+  // public_*: cio' che vedono gli altri utenti, calcolato dal trigger
+  // (migrazione 20261122140000_location_privacy). Le risposte pubbliche e
+  // le ricerche per distanza usano solo questi campi.
+  locationPrecision Int?    @map("location_precision") @db.SmallInt
+  publicCity     String?   @map("public_city") @db.VarChar(150)
+  publicLat      Float?    @map("public_lat")
+  publicLng      Float?    @map("public_lng")
+  publicLocation Unsupported("geography(Point, 4326)")? @map("public_location")
+
   // Ruolo libreria (curator / co-curator / viewer — per gestione condivisa futura)
   libraryRole    String    @default("curator") @map("library_role") @db.VarChar(20)
 
   // Stato account
   role           String    @default("user") @db.VarChar(20)         // user | moderator | admin
+  // pending: iscritto che non ha ancora confermato l'email
   status         String    @default("active") @db.VarChar(20)       // active | pending | suspended | deleted
   emailVerified  Boolean   @default(false) @map("email_verified")
+  // Accettazione di termini e privacy al momento dell'iscrizione
+  termsAcceptedAt DateTime? @map("terms_accepted_at") @db.Timestamptz
   publicProfile  Boolean   @default(true) @map("public_profile")
 
-  // Welcome message rotation (Fase 2 v2.6)
+  // Rotazione dei messaggi di benvenuto
   welcomeIndex   Int       @default(0) @map("welcome_index")
 
   // Timestamps
@@ -95,7 +110,7 @@ model User {
   postReactions       PostReaction[]
   postReportsFiled    PostReport[]      @relation("PostReporter")
 
-  // Fase 3.1: relazioni Better Auth (sessioni + account credential/OAuth)
+  // relazioni Better Auth (sessioni + account credential/OAuth)
   sessions            Session[]
   accounts            Account[]
 
@@ -104,6 +119,7 @@ model User {
   // Indice GIST per le query PostGIS; funzione e trigger che popolano
   // location sono nella migrazione 20261120090000_postgis_users_location
   @@index([location], type: Gist, map: "users_location_gist")
+  @@index([publicLocation], type: Gist, map: "users_public_location_gist")
   @@map("users")
 }
 
@@ -199,7 +215,9 @@ model Book {
 
   // Moderazione
   status        String    @default("active") @db.VarChar(20)
-  // 'active' | 'pending_review' | 'hidden' | 'removed'
+  // 'active' | 'pending_email' | 'pending_review' | 'hidden' | 'removed'
+  // pending_email: volumi inseriti all'iscrizione, pubblicati quando il
+  // proprietario conferma l'email
 
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
@@ -208,6 +226,7 @@ model Book {
   categories    BookCategory[]
   loanRequests  LoanRequest[]
   likes         Like[]
+  viewDays      BookViewDay[]
   notifications Notification[]
 
   @@index([ownerId])
@@ -245,7 +264,7 @@ model LoanRequest {
 
   message       String?   @db.Text
 
-  // Ciclo a 5 stati (v1.5): requested → confirmed → borrowed → returning → returned
+  // Ciclo a 5 stati: requested → confirmed → borrowed → returning → returned
   // + rami terminali: rejected | cancelled
   status        String    @default("requested") @db.VarChar(20)
 
@@ -258,7 +277,7 @@ model LoanRequest {
   rejectedAt    DateTime? @map("rejected_at") @db.Timestamptz
   cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz
 
-  // Beta 7: durata prestito + deadline calcolata + flag reminder inviato.
+  // durata prestito + deadline calcolata + flag reminder inviato.
   // deadline = borrowedAt + daysRequested giorni (calcolata al passaggio a
   // status='borrowed'). Il job overdue-loans usa (status, deadline, reminderSentAt)
   // per generare solleciti automatici via email + notifica in-app.
@@ -266,26 +285,32 @@ model LoanRequest {
   deadline       DateTime? @db.Timestamptz
   reminderSentAt DateTime? @map("reminder_sent_at") @db.Timestamptz
 
-  // Beta 7.1: flag per il reminder PRE-scadenza (T-3 giorni). Usato dal job
+  // flag per il reminder PRE-scadenza (T-3 giorni). Usato dal job
   // upcoming-deadline per notificare requester + lender qualche giorno prima
   // del rientro. Idempotenza: un solo pre-reminder per prestito.
   preReminderSentAt DateTime? @map("pre_reminder_sent_at") @db.Timestamptz
 
-  // Fase 1g.2: motivazione del rifiuto, richiesta dal frontend in UX
+  // Ultima lettura della chat per ciascun partecipante: i messaggi
+  // dell'altro piu' recenti di questo istante sono "non letti".
+  requesterLastReadAt DateTime? @map("requester_last_read_at") @db.Timestamptz
+  lenderLastReadAt    DateTime? @map("lender_last_read_at") @db.Timestamptz
+
+  // motivazione del rifiuto, richiesta dal frontend in UX
   // (min 10 char lato client, opzionale ma raccomandato). NULL quando lo
   // stato non e' "rejected" o quando il rifiuto e' stato fatto da
   // un'integrazione che non ha passato reason.
   rejectReason  String?   @map("reject_reason") @db.Text
 
   messages      LoanMessage[]
+  notifications Notification[]
 
   @@index([requesterId, requestedAt(sort: Desc)])
   @@index([lenderId, requestedAt(sort: Desc)])
   @@index([bookId])
   @@index([status])
-  // Beta 7: indice composito per query overdue job (WHERE status + deadline + reminderSentAt)
+  // indice composito per query overdue job (WHERE status + deadline + reminderSentAt)
   @@index([status, deadline, reminderSentAt])
-  // Beta 7.1: indice per query pre-deadline job
+  // indice per query pre-deadline job
   @@index([status, deadline, preReminderSentAt])
   @@map("loan_requests")
 }
@@ -340,6 +365,20 @@ model Follow {
   @@map("user_follows")
 }
 
+// Visualizzazioni per giorno (anonime: nessun riferimento a chi ha guardato).
+// Alimenta l'andamento nel tempo delle statistiche; il totale resta in
+// books.view_count.
+model BookViewDay {
+  bookId      Int      @map("book_id")
+  day         DateTime @db.Date
+  count       Int      @default(0)
+
+  book        Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@id([bookId, day])
+  @@map("book_view_days")
+}
+
 model Like {
   userId      String   @map("user_id")
   bookId      Int      @map("book_id")
@@ -356,9 +395,10 @@ model Like {
 model Notification {
   id          Int       @id @default(autoincrement())
   userId      String    @map("user_id")        // destinatario
-  type        String    @db.VarChar(20)        // new_book | profile_update | book_available | post_reaction | ...
+  type        String    @db.VarChar(40)        // loan_requested | loan_overdue_borrower | post_reaction | ...
   actorId     String?   @map("actor_id")       // chi ha generato l'evento
   bookId      Int?      @map("book_id")        // volume coinvolto (opzionale)
+  loanId      Int?      @map("loan_id")        // prestito coinvolto (link diretto)
   message     String    @db.Text
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
   readAt      DateTime? @map("read_at") @db.Timestamptz
@@ -366,13 +406,14 @@ model Notification {
   user        User      @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
   actor       User?     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
   book        Book?     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  loan        LoanRequest? @relation(fields: [loanId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("notifications")
 }
 
 // =============================================================================
-// POSTS — micro-blog di libreria (v2.4)
+// POSTS — micro-blog di libreria
 // =============================================================================
 
 model Post {
@@ -411,7 +452,7 @@ model PostReport {
   id          Int      @id @default(autoincrement())
   postId      String   @map("post_id") @db.VarChar(40)
   reporterId  String   @map("reporter_id")
-  reason      String   @db.VarChar(40)         // off-topic | spam | harassment | other
+  reason      String   @db.VarChar(40)         // offensive | spam | off-topic | violence | other (harassment: storico)
   note        String?  @db.Text
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
 
@@ -486,7 +527,7 @@ model Verification {
 }
 
 // =============================================================================
-// Beta 5: Audit log azioni admin
+// Audit log azioni admin
 // =============================================================================
 // Traccia ogni operazione eseguita dagli amministratori sulla piattaforma.
 // Utile per: (a) accountability nel post-mortem incidenti, (b) rilevamento
@@ -515,4 +556,42 @@ model AdminAuditLog {
   @@index([targetType, targetId])
   @@index([createdAt])
   @@map("admin_audit_log")
+}
+
+// =============================================================================
+// LUOGHI — comuni italiani per la ricerca per luogo
+// =============================================================================
+// Dati caricati dalla migrazione 20261125150000_places (generata con
+// scripts/build-places-migration.mjs). Fonte: confini comunali ISTAT, via
+// Openpolis. Confini amministrativi © ISTAT, CC BY 4.0.
+// lat/lng: centro geometrico del territorio comunale.
+// =============================================================================
+
+model Place {
+  code         String      @id @db.VarChar(6)                  // codice ISTAT del comune
+  name         String
+  provinceCode String      @map("province_code") @db.VarChar(2) // sigla (NA, RM, ...)
+  provinceName String      @map("province_name")
+  regionName   String      @map("region_name")
+  lat          Float
+  lng          Float
+  areaKm2      Float       @map("area_km2")                     // per scegliere fra comuni omonimi
+
+  names        PlaceName[]
+
+  @@map("places")
+}
+
+// Nomi con cui un comune si puo' cercare, normalizzati (lib/placeName.js):
+// ufficiale, versioni bilingui e nomi d'uso comune
+model PlaceName {
+  placeCode String @map("place_code") @db.VarChar(6)
+  nameNorm  String @map("name_norm")
+
+  place     Place  @relation(fields: [placeCode], references: [code], onDelete: Cascade)
+
+  @@id([placeCode, nameNorm])
+  @@index([nameNorm])
+  @@index([nameNorm(ops: raw("gin_trgm_ops"))], type: Gin, map: "place_names_name_norm_trgm")
+  @@map("place_names")
 }

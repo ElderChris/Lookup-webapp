@@ -1,9 +1,8 @@
 // =============================================================================
 // apps/web/js/api/endpoints/auth.js
 // =============================================================================
-// Wrapper delle route Better Auth (/api/auth/*). Sostituisce parzialmente
-// le API legacy (`API.createUser`, `API.authenticate`, ecc.) — le pagine
-// auth ora chiamano queste funzioni per parlare direttamente col backend.
+// Wrapper delle route Better Auth (/api/auth/*) e dell'iscrizione
+// (/api/register): accesso, uscita, sessione, conferma email, password.
 //
 // Tutte le funzioni usano `credentials: 'include'` per inviare/ricevere
 // il cookie httpOnly `better-auth.session_token` firmato dal backend.
@@ -36,10 +35,10 @@ export class AuthError extends Error {
  * @returns {Promise<any>}
  */
 async function authFetch(path, opts = {}) {
-  const { method = 'POST', body } = opts;
+  const { method = 'POST', body, base = AUTH_BASE } = opts;
   let response;
   try {
-    response = await fetch(AUTH_BASE + path, {
+    response = await fetch(base + path, {
       method,
       credentials: 'include', // cookie httpOnly firmato
       headers: body ? { 'Content-Type': 'application/json' } : undefined,
@@ -81,24 +80,57 @@ async function authFetch(path, opts = {}) {
 // -----------------------------------------------------------------------------
 
 /**
- * Registra un nuovo utente con email/password. Setta cookie session
- * (`autoSignIn: true` in config Better Auth) e invia email verify a Mailpit.
+ * Iscrizione in un'unica richiesta: account, profilo, preferenze, dati
+ * dell'ente e primi volumi. Non apre una sessione: si entra aprendo il
+ * link di conferma inviato per email (anche da un altro dispositivo).
+ * Con un'email gia' registrata la risposta e' la stessa.
  *
- * @param {object} params
- * @param {string} params.email
- * @param {string} params.password - min 8 char
- * @param {string} params.name - display name (mapped to display_name)
- * @param {string} params.username - min 1 char, unique
- * @param {string} [params.bio]
- * @param {string} [params.city]
- * @param {number} [params.lat]
- * @param {number} [params.lng]
- * @param {'person'|'organization'} [params.accountType='person']
- * @returns {Promise<{ user: object, token: string }>}
- * @throws {AuthError} EMAIL_TAKEN, USERNAME_TAKEN, INVALID_PASSWORD, ...
+ * @param {object} body vedi POST /api/register nella documentazione API
+ * @returns {Promise<{ status: 'verification_sent', email: string }>}
+ * @throws {AuthError} USERNAME_TAKEN, VALIDATION_ERROR, INVALID_CATEGORY, RATE_LIMITED, ...
  */
-export function signUp(params) {
-  return authFetch('/sign-up/email', { body: params });
+export function register(body) {
+  return authFetch('/register', { body, base: '/api' });
+}
+
+/**
+ * Indica se un nome utente e' libero.
+ * @param {string} username
+ * @returns {Promise<{ username: string, valid: boolean, available: boolean }>}
+ */
+export function checkUsername(username) {
+  const q = new URLSearchParams({ username });
+  return authFetch('/users/check-username?' + q.toString(), { method: 'GET', base: '/api' });
+}
+
+/**
+ * Cancella definitivamente il proprio account e i dati collegati.
+ * Poi va chiamato signOut() per togliere i cookie di sessione.
+ * @param {{ password: string }} params
+ * @throws {AuthError} INVALID_PASSWORD, UNAUTHENTICATED, RATE_LIMITED
+ */
+export function deleteAccount(params) {
+  return authFetch('/users/me', { method: 'DELETE', body: params, base: '/api' });
+}
+
+/**
+ * Pagina di conferma dell'email su questo sito; `next` e' la pagina in cui
+ * proseguire dopo la conferma (percorso relativo, es. '/profile.html').
+ * @param {string} [next]
+ */
+export function verifyPageUrl(next) {
+  const u = new URL('/verify-email.html', location.origin);
+  if (next) u.searchParams.set('next', next);
+  return u.toString();
+}
+
+/**
+ * Invia di nuovo l'email di conferma.
+ * @param {{ email: string, callbackURL?: string }} params
+ * @returns {Promise<{ status: boolean }>}
+ */
+export function sendVerificationEmail(params) {
+  return authFetch('/send-verification-email', { body: params });
 }
 
 // -----------------------------------------------------------------------------
@@ -138,9 +170,12 @@ export function signOut() {
  *
  * @returns {Promise<{ user: object, session: object } | null>}
  */
-export async function getSession() {
+export async function getSession({ fresh = false } = {}) {
   try {
-    const result = await authFetch('/get-session', { method: 'GET' });
+    // fresh: salta la cache della sessione nel cookie (5 minuti), per
+    // leggere subito un profilo appena modificato (nome, foto, ruolo)
+    const path = fresh ? '/get-session?disableCookieCache=true' : '/get-session';
+    const result = await authFetch(path, { method: 'GET' });
     // Better Auth ritorna null (o {}) per utente anonimo
     if (!result || !result.user) return null;
     return result;
@@ -182,10 +217,8 @@ export function resetPassword(params) {
 
 /**
  * Consuma il token di verifica email. Chiamato da verify-email.html
- * quando l'utente clicca il link nell'email.
- *
- * Nota: Better Auth di default espone questo endpoint come GET con
- * query param, ma il POST con body funziona uguale.
+ * quando l'utente apre il link dell'email: conferma l'indirizzo, attiva
+ * l'account e apre la sessione.
  *
  * @param {{ token: string }} params
  * @returns {Promise<{ status: boolean, user?: object }>}

@@ -36,6 +36,25 @@ describe('POST /api/books/:id/loan-requests', () => {
     expect(body.role).toBe('requester');
   });
 
+  it('la notifica al prestatore porta il riferimento al prestito', async () => {
+    const app = await buildTestApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/books/${SEED.BOOK_GATTOPARDO}/loan-requests`,
+      headers: await authHeaders(SEED.USER_MARCO),
+      payload: {},
+    });
+    const loanId = res.json().id;
+    const notifs = await app.inject({
+      method: 'GET',
+      url: '/api/me/notifications',
+      headers: await authHeaders(SEED.USER_CHIARA),
+    });
+    const mine = notifs.json().data.find((n) => n.loanId === loanId);
+    expect(mine).toBeTruthy();
+    expect(mine.type).toBe('loan_requested');
+  });
+
   it('rifiuta self-loan (owner del libro)', async () => {
     const app = await buildTestApp();
     const res = await app.inject({
@@ -161,6 +180,41 @@ describe('PATCH /api/loans/:id (state machine)', () => {
     expect(book.available).toBe(false);
   });
 
+  it('mark_borrowed: la scadenza usa i giorni richiesti, non il default di 14', async () => {
+    const app = await buildTestApp();
+    const lender = await authHeaders(SEED.USER_CHIARA);
+    // Nuova richiesta con 21 giorni (quella del beforeEach non li indica)
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/loans/${loanId}`,
+      headers: await authHeaders(SEED.USER_MARCO),
+      payload: { action: 'cancel' },
+    });
+    const created = await app.inject({
+      method: 'POST',
+      url: `/api/books/${SEED.BOOK_GATTOPARDO}/loan-requests`,
+      headers: await authHeaders(SEED.USER_MARCO),
+      payload: { daysRequested: 21 },
+    });
+    const id = created.json().id;
+    await app.inject({
+      method: 'PATCH',
+      url: `/api/loans/${id}`,
+      headers: lender,
+      payload: { action: 'accept' },
+    });
+    const before = Date.now();
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/api/loans/${id}`,
+      headers: lender,
+      payload: { action: 'mark_borrowed' },
+    });
+    const days = (new Date(res.json().deadline).getTime() - before) / 86_400_000;
+    expect(days).toBeGreaterThan(20.9);
+    expect(days).toBeLessThan(21.1);
+  });
+
   it('ciclo completo: accept → borrowed → returning → returned (book disponibile di nuovo)', async () => {
     const app = await buildTestApp();
     const transitions = [
@@ -197,7 +251,7 @@ describe('PATCH /api/loans/:id (state machine)', () => {
 });
 
 // =============================================================================
-// Fase 1g.2: rejectReason
+// rejectReason
 // =============================================================================
 describe('PATCH /api/loans/:id with action=reject + reason', () => {
   let loanId;
@@ -320,5 +374,70 @@ describe('POST /api/loans/:id/messages', () => {
       headers: await authHeaders(SEED.USER_CHIARA), // lender
     });
     expect(msgs.json().data.length).toBe(1);
+  });
+});
+
+describe('Messaggi non letti (unreadCount + POST /api/loans/:id/read)', () => {
+  it("conta i messaggi dell'altro partecipante e si azzera con la lettura", async () => {
+    const app = await buildTestApp();
+    const marco = await authHeaders(SEED.USER_MARCO); // requester
+    const chiara = await authHeaders(SEED.USER_CHIARA); // lender
+    const created = await app.inject({
+      method: 'POST',
+      url: `/api/books/${SEED.BOOK_GATTOPARDO}/loan-requests`,
+      headers: marco,
+      payload: {},
+    });
+    const loanId = created.json().id;
+    const send = (headers, body) =>
+      app.inject({
+        method: 'POST',
+        url: `/api/loans/${loanId}/messages`,
+        headers,
+        payload: { body },
+      });
+    const unreadOf = async (headers, list) => {
+      const res = await app.inject({ method: 'GET', url: `/api/me/loans/${list}`, headers });
+      return res.json().data.find((l) => l.id === loanId).unreadCount;
+    };
+
+    await send(marco, 'Primo');
+    await send(marco, 'Secondo');
+    expect(await unreadOf(chiara, 'received')).toBe(2);
+    expect(await unreadOf(marco, 'sent')).toBe(0); // i propri messaggi non contano
+
+    const read = await app.inject({
+      method: 'POST',
+      url: `/api/loans/${loanId}/read`,
+      headers: chiara,
+    });
+    expect(read.statusCode).toBe(200);
+    const detail = await app.inject({
+      method: 'GET',
+      url: `/api/loans/${loanId}`,
+      headers: chiara,
+    });
+    expect(detail.json().unreadCount).toBe(0);
+
+    await send(marco, 'Terzo');
+    expect(await unreadOf(chiara, 'received')).toBe(1);
+    await send(chiara, 'Risposta');
+    expect(await unreadOf(marco, 'sent')).toBe(1);
+  });
+
+  it('solo i partecipanti possono segnare come letto', async () => {
+    const app = await buildTestApp();
+    const created = await app.inject({
+      method: 'POST',
+      url: `/api/books/${SEED.BOOK_GATTOPARDO}/loan-requests`,
+      headers: await authHeaders(SEED.USER_MARCO),
+      payload: {},
+    });
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/loans/${created.json().id}/read`,
+      headers: await authHeaders(SEED.USER_LUCA),
+    });
+    expect(res.statusCode).toBe(403);
   });
 });

@@ -5,8 +5,7 @@
 //
 // Responsabilita':
 //   - Costruzione URL (base + path + query string)
-//   - Auth header X-Lookup-User-Id (dev stub, sara' sostituito in Fase 3
-//     da sessione cookie + lucia-auth)
+//   - Invio del cookie di sessione (credentials: 'include')
 //   - Serializzazione body JSON
 //   - Parsing response + gestione errori uniforme
 //   - Mapping degli error code stabili del backend a eccezioni leggibili
@@ -25,26 +24,18 @@
  */
 const config = {
   // Base URL del backend.
-  //
-  // Logica di detection automatica:
-  //   - In dev locale (frontend servito da qualunque porta che NON sia 3000:
-  //     :8080 = nginx Docker, :8765 = python no-cache-server, :5500 = LiveServer, ecc.)
-  //     → usa http://localhost:3000 esplicito (cross-origin, richiede CORS)
-  //   - In prod (Docker compose con nginx reverse-proxy che proxa /api/* al
-  //     container api:3000) → baseUrl vuota, richieste relative
-  //   - Caso edge: frontend servito DAL backend stesso sulla :3000 (raro) →
-  //     stesso origin, baseUrl vuota
+  //   - Normalmente vuota: richieste relative `/api/...`, che nginx inoltra al
+  //     container dell'API (stessa origine, nessun CORS).
+  //   - Solo con un server statico di sviluppo senza proxy (python
+  //     no-cache-server su :8765, Live Server su :5500) si chiama
+  //     direttamente l'API su http://localhost:3000 (cross-origin, CORS).
   baseUrl: (() => {
     const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    if (isLocalhost && window.location.port !== '3000') {
+    if (isLocalhost && ['8765', '5500'].includes(window.location.port)) {
       return 'http://localhost:3000';
     }
-    return ''; // stesso origin (prod via nginx, o servito dal backend)
+    return '';
   })(),
-
-  // ID utente per il dev-auth stub. Il frontend lo setta dopo "login" (Storage).
-  // Sara' sostituito in Fase 3 dal cookie di sessione.
-  currentUserId: null,
 
   // Timeout di default per le richieste (ms)
   timeoutMs: 15000,
@@ -97,14 +88,10 @@ function buildUrl(path, query) {
 }
 
 function buildHeaders(extra) {
-  const headers = { 'Content-Type': 'application/json', ...extra };
-  if (config.currentUserId != null) {
-    headers['X-Lookup-User-Id'] = String(config.currentUserId);
-  }
-  return headers;
+  return { 'Content-Type': 'application/json', ...extra };
 }
 
-async function parseError(res, raw) {
+async function parseError(res) {
   let body = null;
   try {
     body = await res.json();
@@ -139,7 +126,7 @@ async function doFetch(method, path, options = {}) {
       headers: buildHeaders(extraHeaders),
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
-      credentials: 'include', // per future sessioni cookie (Fase 3)
+      credentials: 'include', // per future sessioni cookie
     });
   } catch (err) {
     clearTimeout(timeoutId);

@@ -1,7 +1,7 @@
 // =============================================================================
 // packages/shared/src/schemas/categories.js
 // =============================================================================
-// Schemi Zod per /api/categories (Fase 1g.2).
+// Schemi Zod per /api/categories.
 // Lista flat di categorie BISAC, no paginazione (poche righe).
 // =============================================================================
 

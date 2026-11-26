@@ -1,55 +1,64 @@
 // =============================================================================
-// src/jobs/retention.js — Retention policy audit log (Beta 7)
+// src/jobs/retention.js — Conservazione dei dati
 // =============================================================================
-// Job schedulato ogni notte alle 3 AM che cancella le righe di
-// `admin_audit_log` piu' vecchie di N mesi (default 12).
-//
-// PERCHE':
-//   - Compliance GDPR: dati personali (ipAddress, userAgent) non possono
-//     essere conservati indefinitamente senza motivo. 12 mesi e' un compromesso
-//     ragionevole per audit di sicurezza + rispetto delle norme
-//   - Costi storage: la tabella cresce ~1 riga per ogni azione admin. Su un
-//     anno di operatività, aspettative decine di migliaia di righe. Purge
-//     mantiene la tabella performante per le query "azioni recenti"
-//   - Chiarezza operativa: la UI admin puo' documentare "log retention: 12 mesi"
-//
-// ALTERNATIVE VALUTATE:
-//   - Anonimizzazione invece di delete: manterrebbe conteggio storico ma
-//     con ipAddress/userAgent = null. Piu' complesso, guadagno marginale
-//     per un'app di scala piccola. Rimandato a scenari con compliance stretta
-//   - Aggregation: sostituire N righe con un summary. Overkill per un log
-//     che cresce lentamente
-//
-// TUNING via env:
-//   RETENTION_AUDIT_MONTHS=12  (default). Puoi mettere 6, 24, ecc.
+// Job notturno (alle 3 UTC) che cancella cio' che non va conservato oltre:
+//   - log delle azioni admin dopo 12 mesi (contiene IP e browser)
+//   - iscrizioni mai confermate dopo 30 giorni
+//   - sessioni e token di verifica scaduti
+// I periodi si cambiano con RETENTION_AUDIT_MONTHS e RETENTION_PENDING_DAYS
+// e sono quelli dichiarati nell'informativa privacy.
 // =============================================================================
 
 import { prisma } from '../lib/prisma.js';
 
 /**
- * Handler purge audit log oltre soglia.
+ * Pulizia notturna dei dati scaduti:
+ *  - voci del log admin piu' vecchie di RETENTION_AUDIT_MONTHS (12 mesi)
+ *  - iscrizioni mai confermate piu' vecchie di RETENTION_PENDING_DAYS
+ *    (30 giorni): account e volumi inseriti all'iscrizione
+ *  - sessioni e token di verifica scaduti
  *
  * @param {import('bullmq').Job} job
  * @param {import('pino').Logger} logger
- * @returns {Promise<{cutoff: string, purged: number, retentionMonths: number}>}
  */
 export async function processRetentionPurge(job, logger) {
   const months = Number(process.env.RETENTION_AUDIT_MONTHS || 12);
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - months);
 
-  const result = await prisma.adminAuditLog.deleteMany({
-    where: { createdAt: { lt: cutoff } },
-  });
+  const pendingDays = Number(process.env.RETENTION_PENDING_DAYS || 30);
+  const pendingCutoff = new Date(Date.now() - pendingDays * 24 * 3600 * 1000);
+  const now = new Date();
+
+  const [audit, pending, sessions, verifications] = await prisma.$transaction([
+    prisma.adminAuditLog.deleteMany({ where: { createdAt: { lt: cutoff } } }),
+    prisma.user.deleteMany({
+      where: { status: 'pending', emailVerified: false, createdAt: { lt: pendingCutoff } },
+    }),
+    prisma.session.deleteMany({ where: { expiresAt: { lt: now } } }),
+    prisma.verification.deleteMany({ where: { expiresAt: { lt: now } } }),
+  ]);
 
   logger.info(
-    { purged: result.count, cutoff: cutoff.toISOString(), retentionMonths: months },
-    '[retention] audit log purge completed'
+    {
+      purged: audit.count,
+      pendingAccounts: pending.count,
+      expiredSessions: sessions.count,
+      expiredVerifications: verifications.count,
+      cutoff: cutoff.toISOString(),
+      retentionMonths: months,
+      pendingDays,
+    },
+    '[retention] purge completed'
   );
 
   return {
     cutoff: cutoff.toISOString(),
-    purged: result.count,
+    purged: audit.count,
     retentionMonths: months,
+    pendingAccounts: pending.count,
+    pendingDays,
+    expiredSessions: sessions.count,
+    expiredVerifications: verifications.count,
   };
 }

@@ -2,10 +2,27 @@
 // tests/routes/notifications.test.js
 // =============================================================================
 
-import { describe, it, expect, afterAll, beforeEach } from 'vitest';
-import { buildTestApp, authHeaders, createTestPrisma, SEED } from '../helpers.mjs';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import {
+  buildTestApp,
+  authHeaders,
+  createTestPrisma,
+  createReturnedLoan,
+  SEED,
+} from '../helpers.mjs';
 
 const prisma = createTestPrisma();
+
+// Le recensioni richiedono un prestito concluso fra i due utenti
+const REVIEW_TEXT = 'Prestito puntuale, libro tenuto con cura.';
+let loanId;
+beforeAll(async () => {
+  loanId = await createReturnedLoan(prisma, {
+    requesterId: SEED.USER_MARCO,
+    lenderId: SEED.USER_CHIARA,
+    bookId: SEED.BOOK_GATTOPARDO,
+  });
+});
 
 async function cleanup() {
   await prisma.notification.deleteMany();
@@ -20,6 +37,7 @@ async function cleanup() {
 // dall'ordine di esecuzione.
 afterAll(async () => {
   await cleanup();
+  await prisma.loanRequest.delete({ where: { id: loanId } });
   await prisma.$disconnect();
 });
 
@@ -52,7 +70,7 @@ describe('Emissione cross-cutting da altri endpoint', () => {
       method: 'POST',
       url: `/api/users/${SEED.USER_CHIARA}/reviews`,
       headers: await authHeaders(SEED.USER_MARCO),
-      payload: { rating: 5, text: 'Top' },
+      payload: { rating: 5, text: REVIEW_TEXT },
     });
 
     const res = await app.inject({
@@ -75,7 +93,7 @@ describe('Emissione cross-cutting da altri endpoint', () => {
       method: 'POST',
       url: `/api/posts/${post.json().id}/reactions`,
       headers: await authHeaders(SEED.USER_MARCO),
-      payload: { emoji: 'like' },
+      payload: { emoji: '👍' },
     });
     const res = await app.inject({
       method: 'GET',
@@ -114,7 +132,7 @@ describe('GET /api/me/notifications', () => {
       method: 'POST',
       url: `/api/users/${SEED.USER_CHIARA}/reviews`,
       headers: await authHeaders(SEED.USER_MARCO),
-      payload: { rating: 5, text: 'X' },
+      payload: { rating: 5, text: REVIEW_TEXT },
     });
 
     const res = await app.inject({
@@ -167,7 +185,7 @@ describe('POST /api/me/notifications/read-all', () => {
       method: 'POST',
       url: `/api/users/${SEED.USER_CHIARA}/reviews`,
       headers: await authHeaders(SEED.USER_MARCO),
-      payload: { rating: 5, text: 'X' },
+      payload: { rating: 5, text: REVIEW_TEXT },
     });
 
     const res = await app.inject({

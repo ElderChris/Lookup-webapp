@@ -1,5 +1,5 @@
 // =============================================================================
-// src/routes/dataExport.js — GDPR data portability export (Beta 2)
+// src/routes/dataExport.js — GDPR data portability export
 // =============================================================================
 // GET /api/me/export → dump JSON completo dei dati personali dell'utente
 // corrente (art. 20 GDPR — data portability). Il client scarica il file
@@ -103,6 +103,7 @@ export default async function dataExportRoutes(fastify) {
         avatarUrl: user.avatarUrl,
         lat: user.lat,
         lng: user.lng,
+        locationPrecision: user.locationPrecision,
         role: user.role,
         status: user.status,
         createdAt: user.createdAt.toISOString(),

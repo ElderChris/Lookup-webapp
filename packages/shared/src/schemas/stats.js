@@ -118,7 +118,7 @@ export const BisacResponse = z.object({
 });
 
 // -----------------------------------------------------------------------------
-// Beta 2: Global stats (per admin.html + landing kpi)
+// Global stats (per admin.html + landing kpi)
 // -----------------------------------------------------------------------------
 
 /** Aggregato "quanti X ci sono nella piattaforma". Query O(N) leggere. */
@@ -145,7 +145,7 @@ export const GlobalStatsDto = z.object({
 });
 
 // -----------------------------------------------------------------------------
-// Beta 2: Activity timeline (aggregato attivita' recente per admin)
+// Activity timeline (aggregato attivita' recente per admin)
 // -----------------------------------------------------------------------------
 
 /** Serie temporale con conteggi giornalieri di eventi tipizzati. */
@@ -168,7 +168,7 @@ export const ActivityTimelineQuery = z.object({
 });
 
 // -----------------------------------------------------------------------------
-// Beta 2: Book timeline (per grafico attivita' su singolo libro)
+// Book timeline (per grafico attivita' su singolo libro)
 // -----------------------------------------------------------------------------
 
 export const BookTimelineDto = z.object({

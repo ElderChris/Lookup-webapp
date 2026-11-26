@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <!-- Beta 9: PWA meta tags -->
+  <!-- PWA meta tags -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#7a1e2b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -11,116 +11,179 @@
   <meta name="apple-mobile-web-app-title" content="Lookup" />
   <link rel="apple-touch-icon" href="/img/icon-180.png" />
 
-  <title>Verifica email — Lookup</title>
+  <title>Conferma email — Lookup</title>
   <link rel="stylesheet" href="css/styles.css" />
+  <script src="js/auth-hint.js"></script>
   <script type="module" src="js/api-bootstrap.js"></script>
-  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+  <script type="module" src="js/app.js"></script>
 </head>
 <body>
   <div id="nav-mount"></div>
 
   <main class="container" style="max-width: 480px; margin-top: 3rem;">
     <section class="card" style="padding: 2rem;">
-      <h1 style="margin-top: 0;">Verifica email</h1>
+      <h1 style="margin-top: 0;">Conferma email</h1>
 
-      <div id="loading" class="alert alert--info">
-        Sto verificando il tuo link...
+      <div id="loading" class="alert alert--info" role="status">
+        Sto confermando il tuo indirizzo…
       </div>
 
       <div id="success" hidden>
-        <div class="alert alert--success">
-          <strong>Email verificata!</strong> Il tuo account e' ora attivo.
+        <div class="alert alert--success" role="status" id="success-msg">
+          <strong>Email confermata.</strong> Il tuo account è attivo e hai già effettuato l'accesso.
         </div>
         <p style="margin-top: 1.5rem; text-align: center;">
-          <a href="profile.html" class="btn btn--primary">Vai al tuo profilo</a>
+          <a href="profile.html" class="btn btn--primary" id="continue-link">Continua</a>
         </p>
       </div>
 
       <div id="error" hidden>
-        <div class="alert alert--error" id="error-msg">
-          <strong>Verifica fallita.</strong>
-        </div>
+        <div class="alert alert--error" role="alert" id="error-msg"></div>
+        <form id="resend-form" class="form" style="margin-top: 1.5rem;" novalidate>
+          <div class="form__group">
+            <label class="form__label" for="resend-email">Email dell'account</label>
+            <input type="email" id="resend-email" class="form__input" required autocomplete="email" />
+          </div>
+          <button type="submit" class="btn btn--primary" style="width: 100%;">Invia un nuovo link</button>
+          <p id="resend-msg" aria-live="polite" style="margin: .75rem 0 0; font-size: .9rem;"></p>
+        </form>
         <p style="margin-top: 1.5rem; text-align: center;">
-          <a href="login.html">Vai al login</a> — o <a href="register.html">registrati di nuovo</a>
+          <a href="login.html">Vai all'accesso</a>
         </p>
       </div>
 
       <div id="no-token" hidden>
         <div class="alert alert--info">
-          <strong>Nessun token trovato.</strong> Il link di verifica dovrebbe
-          contenere un parametro <code>?token=...</code>. Se sei arrivato qui
-          per errore, torna alla <a href="index.html">home</a>.
+          Per confermare l'indirizzo apri il link contenuto nell'email che ti abbiamo
+          inviato al momento dell'iscrizione. Se non la trovi, controlla la cartella
+          spam oppure chiedi un nuovo invio dalla pagina di <a href="login.html">accesso</a>.
         </div>
       </div>
     </section>
   </main>
 
-  <footer class="site-footer">
+  <footer class="site-footer" role="contentinfo">
     <div class="container">
-      <div><h4>Lookup</h4></div>
-      <div></div>
-      <div></div>
-      <div><h4>Info</h4><a href="privacy.html">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Lookup</span><span>v3.0.0-alpha</span></div>
+      <div>
+        <h4>Lookup</h4>
+        <p style="color: rgba(244,239,230,.7); font-size: .9rem;">
+          Condivisione dei libri privati e delle biblioteche di comunità, fra vicini.
+        </p>
+      </div>
+      <div>
+        <h4>Esplora</h4>
+        <a href="explore.html">Mappa dei libri</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="loans.html" class="auth-only">I miei prestiti</a>
+      </div>
+      <div>
+        <h4>Partecipa</h4>
+        <a href="add-book.html" class="auth-only">Pubblica un libro</a>
+        <a href="profile.html" class="auth-only">Il tuo profilo</a>
+        <a href="register.html" class="guest-only">Iscriviti</a>
+        <a href="login.html" class="guest-only">Accedi</a>
+      </div>
+      <div>
+        <h4>Informazioni</h4>
+        <a href="privacy.html">Informativa sulla privacy</a>
+        <a href="terms.html">Termini di utilizzo</a>
+      </div>
+      <div class="site-footer__colophon">
+        <span>© 2026 Lookup</span>
+        <span>Codice con licenza GPL-3.0<span data-app-version></span></span>
+      </div>
     </div>
   </footer>
 
   <script>
-    // =============================================================================
-    // Fase 3.2: verify-email landing page
-    // =============================================================================
-    // L'utente arriva qui cliccando il link nell'email inviata da Better Auth
-    // durante sign-up. URL: /verify-email.html?token=XXX
-    //
-    // Flow:
-    //   1. Leggo `token` da URL query string
-    //   2. Chiamo authClient.verifyEmail({ token }) → backend consuma il token
-    //   3. Se OK: mostra success + link al profilo
-    //   4. Se KO: mostra errore specifico (invalid, expired) + fallback options
-    // =============================================================================
-
+    // Pagina aperta dal link dell'email di conferma:
+    //   /verify-email.html?token=...&next=/pagina.html?...
+    // Conferma l'indirizzo con il server, che attiva l'account, pubblica i
+    // volumi inseriti all'iscrizione e apre la sessione; poi prosegue verso
+    // `next` (es. il volume di cui si voleva chiedere il prestito) o il
+    // profilo. Funziona su qualunque dispositivo si apra il link.
     document.addEventListener('DOMContentLoaded', async () => {
-      const loading = document.getElementById('loading');
-      const successEl = document.getElementById('success');
-      const errorEl = document.getElementById('error');
-      const noTokenEl = document.getElementById('no-token');
-      const errorMsg = document.getElementById('error-msg');
-
+      const $ = (id) => document.getElementById(id);
       const params = new URLSearchParams(location.search);
       const token = params.get('token');
+      const next = window.LB_UI.safeNextPath(params.get('next'));
+      const auth = window.LB_API.authClient;
 
       if (!token) {
-        loading.hidden = true;
-        noTokenEl.hidden = false;
+        $('loading').hidden = true;
+        $('no-token').hidden = false;
         return;
       }
 
-      // Aspetta che il bootstrap sia pronto (per assicurarsi che LB_API sia disponibile)
-      if (!window.LB_AUTH_READY) {
-        await new Promise((res) => window.addEventListener('lb-auth-ready', res, { once: true }));
+      // Il token e' un JWT: l'email serve solo a precompilare il nuovo invio
+      function emailFromToken(t) {
+        try {
+          const part = t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+          return JSON.parse(atob(part)).email || '';
+        } catch (_) {
+          return '';
+        }
       }
 
-      if (!window.LB_API || window.LB_API_AVAILABLE === false) {
-        loading.hidden = true;
-        errorEl.hidden = false;
-        errorMsg.innerHTML = '<strong>Backend non raggiungibile.</strong> Riprova quando il server e\' online.';
-        return;
-      }
+      // La verifica della sessione all'apertura della pagina deve finire
+      // prima, altrimenti potrebbe segnare come ospite chi e' appena entrato
+      await window.LB_UI.whenAuthReady();
 
       try {
-        await window.LB_API.authClient.verifyEmail({ token });
-        loading.hidden = true;
-        successEl.hidden = false;
+        await auth.verifyEmail({ token });
+        // Toglie il token dall'indirizzo (cronologia, condivisione)
+        history.replaceState(null, '', location.pathname);
+        const target = next || 'profile.html';
+        // Link gia' usato: l'email era confermata e non si apre una sessione
+        const session = await auth.getSession({ fresh: true }).catch(() => null);
+        if (!session) {
+          $('success-msg').innerHTML = "<strong>L'email è già confermata.</strong> Accedi per continuare.";
+          $('continue-link').href = `login.html?next=${encodeURIComponent('/' + target.replace(/^\//, ''))}`;
+          $('continue-link').textContent = 'Accedi';
+          $('loading').hidden = true;
+          $('success').hidden = false;
+          return;
+        }
+        window.LB_AUTH_USER = session.user;
+        window.LB_UI.setAuthState('user');
+        $('continue-link').href = target;
+        $('loading').hidden = true;
+        $('success').hidden = false;
+        setTimeout(() => location.replace(target), 1500);
       } catch (err) {
-        loading.hidden = true;
-        errorEl.hidden = false;
-        const map = {
-          'INVALID_TOKEN': '<strong>Link non valido.</strong> Verifica di aver cliccato il link piu\' recente ricevuto per email.',
-          'EXPIRED_TOKEN': '<strong>Link scaduto.</strong> I link di verifica sono validi per 24 ore. Richiedi un nuovo invio.',
-          'ALREADY_VERIFIED': '<strong>Email gia\' verificata.</strong> Puoi accedere normalmente.',
+        const messages = {
+          TOKEN_EXPIRED: '<strong>Il link è scaduto.</strong> I link di conferma valgono 24 ore: chiedine uno nuovo qui sotto.',
+          INVALID_TOKEN: '<strong>Il link non è valido.</strong> Usa il link dell\'email più recente, oppure chiedine uno nuovo.',
+          USER_NOT_FOUND: '<strong>Nessun account per questo link.</strong> Forse l\'iscrizione non è andata a buon fine: puoi <a href="register.html">iscriverti di nuovo</a>.',
+          NETWORK_ERROR: '<strong>Server non raggiungibile.</strong> Riprova tra poco ricaricando la pagina.',
         };
-        errorMsg.innerHTML = map[err.code] || ('<strong>Errore:</strong> ' + (err.message || err.code));
+        $('error-msg').innerHTML = messages[err.code] || '<strong>Conferma non riuscita.</strong> Chiedi un nuovo link qui sotto.';
+        $('resend-email').value = emailFromToken(token);
+        $('resend-form').hidden = err.code === 'USER_NOT_FOUND' || err.code === 'NETWORK_ERROR';
+        $('loading').hidden = true;
+        $('error').hidden = false;
       }
+
+      $('resend-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = $('resend-email').value.trim();
+        const btn = e.target.querySelector('button');
+        if (!email) {
+          $('resend-msg').textContent = "Inserisci l'email dell'account.";
+          return;
+        }
+        btn.disabled = true;
+        try {
+          await auth.sendVerificationEmail({ email, callbackURL: auth.verifyPageUrl(next) });
+          $('resend-msg').textContent = `Se ${email} appartiene a un account da confermare, riceverai a breve un nuovo link.`;
+        } catch (err) {
+          $('resend-msg').textContent =
+            err.code === 'RATE_LIMITED'
+              ? 'Hai già chiesto diversi invii: riprova fra qualche minuto.'
+              : 'Invio non riuscito. Riprova tra poco.';
+          btn.disabled = false;
+        }
+      });
     });
   </script>
 </body>

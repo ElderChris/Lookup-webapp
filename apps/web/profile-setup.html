@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <!-- Beta 9: PWA meta tags -->
+  <!-- PWA meta tags -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#7a1e2b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -12,7 +12,11 @@
   <link rel="apple-touch-icon" href="/img/icon-180.png" />
 
   <title>Personalizza il tuo profilo — Lookup</title>
-  <link rel="stylesheet" href="css/styles.css?v=3.0.0-alpha.0" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="js/auth-hint.js"></script>
+  <!-- Leaflet per scegliere la posizione sulla mappa -->
+  <link rel="stylesheet" href="vendor/leaflet-1.9.4/leaflet.css" />
+  <script defer src="vendor/leaflet-1.9.4/leaflet.js"></script>
 </head>
 <body>
 
@@ -254,10 +258,10 @@
               </label>
             </div>
 
-            <!-- =========== Decorazione della copertina (v1.1) ===========
+            <!-- =========== Decorazione della copertina ===========
                  15 grafiche minimali (5 pattern + 5 icone + 5 glifi
                  tipografici) selezionabili come copertina della propria
-                 libreria. La selezione viene salvata in prefs.cover_design
+                 libreria. La selezione viene salvata nelle preferenze (coverDesign)
                  e si applica a tutte le anteprime e card nearby. -->
             <div class="form__group" style="margin-top: var(--sp-6);">
               <label class="form__label">Decorazione della libreria</label>
@@ -294,6 +298,28 @@
             </div>
           </section>
 
+          <!-- =========== Posizione =========== -->
+          <section class="builder-section" aria-labelledby="sec-location">
+            <h3 id="sec-location">La tua posizione</h3>
+            <p class="builder-section__lead">
+              Clicca sulla mappa nel punto in cui si trova la tua libreria. Gli altri
+              membri vedranno la posizione secondo il livello di privacy scelto qui sotto.
+            </p>
+            <div class="library-map-wrap">
+              <div class="library-map" id="location-map" style="height: 280px;"
+                   aria-label="Mappa per scegliere la posizione"></div>
+              <div class="library-map__caption" id="location-caption">Nessuna posizione impostata.</div>
+            </div>
+            <div class="form__row" style="gap: .75rem; flex-wrap: wrap;">
+              <button type="button" class="btn btn--ghost btn--small" id="location-gps">
+                <span aria-hidden="true">📍</span> Usa la mia posizione attuale
+              </button>
+              <button type="button" class="btn btn--ghost btn--small" id="location-clear" hidden>
+                Rimuovi la posizione
+              </button>
+            </div>
+          </section>
+
           <!-- =========== Privacy =========== -->
           <section class="builder-section" aria-labelledby="sec-privacy">
             <h3 id="sec-privacy">Privacy della posizione</h3>
@@ -307,7 +333,7 @@
               <label>
                 <input type="radio" name="privacy_level" value="0" />
                 <strong>Nascosta</strong>
-                Non comparirà sulla mappa
+                Né mappa né città visibili agli altri
               </label>
               <label>
                 <input type="radio" name="privacy_level" value="1" />
@@ -322,7 +348,7 @@
               <label>
                 <input type="radio" name="privacy_level" value="3" />
                 <strong>Esatta</strong>
-                Indirizzo preciso
+                Il punto scelto sulla mappa
               </label>
             </div>
 
@@ -332,7 +358,7 @@
             </p>
           </section>
 
-          <!-- Beta 5: Sicurezza (sessioni attive + cambio password) -->
+          <!-- Sicurezza (sessioni attive + cambio password) -->
           <section class="builder-section" aria-labelledby="sec-security">
             <h3 id="sec-security">Sicurezza dell'account</h3>
             <p class="form__help" style="margin-bottom: var(--sp-4);">
@@ -384,13 +410,39 @@
                 <div class="alert alert--error" id="pw-change-error" hidden></div>
               </form>
             </div>
+
+            <div style="margin-top: var(--sp-6);">
+              <h4 style="margin-top: 0;">Elimina l'account</h4>
+              <p class="form__help" style="margin-bottom: var(--sp-3);">
+                Cancella definitivamente account, profilo, volumi, prestiti e chat,
+                recensioni e post. Non si può annullare: se vuoi conservare una copia
+                dei tuoi dati, scaricala prima dal tuo profilo («Scarica i miei dati»).
+              </p>
+              <form class="form" id="delete-account-form" novalidate style="max-width: 480px;">
+                <div class="form__group">
+                  <label class="form__label" for="delete-password">Password attuale</label>
+                  <input type="password" id="delete-password" class="form__input" required
+                         autocomplete="current-password" />
+                </div>
+                <div class="form__group">
+                  <label style="display: flex; align-items: center; gap: .5rem;">
+                    <input type="checkbox" id="delete-confirm" />
+                    <span>Ho capito che l'eliminazione è definitiva</span>
+                  </label>
+                </div>
+                <button type="submit" class="btn btn--ghost btn--small btn--danger" id="delete-account-btn" disabled>
+                  Elimina definitivamente l'account
+                </button>
+                <div class="alert alert--error" id="delete-account-error" role="alert" hidden></div>
+              </form>
+            </div>
           </section>
 
         </div>
       </div>
     </section>
 
-    <!-- Beta 9: sezione installazione app (PWA) -->
+    <!-- sezione installazione app (PWA) -->
     <section class="install-app-section" id="install-section-profile" aria-labelledby="install-title-profile">
       <h2 class="install-app-section__title" id="install-title-profile">Sei da browser? Installa l'app</h2>
       <p class="install-app-section__desc">
@@ -411,18 +463,41 @@
 
   </main>
 
-  <footer class="site-footer">
+  <footer class="site-footer" role="contentinfo">
     <div class="container">
-      <div><h4>Lookup</h4><p style="color: rgba(244,239,230,.7); font-size: .9rem;">Un progetto di condivisione del patrimonio librario privato.</p></div>
-      <div><h4>Esplora</h4><a href="explore.html">Mappa</a></div>
-      <div><h4>Partecipa</h4><a href="add-book.html">Pubblica</a></div>
-      <div><h4>Info</h4><a href="#">Privacy</a></div>
-      <div class="site-footer__colophon"><span>© 2026 Lookup</span><span>v3.0.0-alpha.0</span></div>
+      <div>
+        <h4>Lookup</h4>
+        <p style="color: rgba(244,239,230,.7); font-size: .9rem;">
+          Condivisione dei libri privati e delle biblioteche di comunità, fra vicini.
+        </p>
+      </div>
+      <div>
+        <h4>Esplora</h4>
+        <a href="explore.html">Mappa dei libri</a>
+        <a href="stats.html">Statistiche</a>
+        <a href="loans.html" class="auth-only">I miei prestiti</a>
+      </div>
+      <div>
+        <h4>Partecipa</h4>
+        <a href="add-book.html" class="auth-only">Pubblica un libro</a>
+        <a href="profile.html" class="auth-only">Il tuo profilo</a>
+        <a href="register.html" class="guest-only">Iscriviti</a>
+        <a href="login.html" class="guest-only">Accedi</a>
+      </div>
+      <div>
+        <h4>Informazioni</h4>
+        <a href="privacy.html">Informativa sulla privacy</a>
+        <a href="terms.html">Termini di utilizzo</a>
+      </div>
+      <div class="site-footer__colophon">
+        <span>© 2026 Lookup</span>
+        <span>Codice con licenza GPL-3.0<span data-app-version></span></span>
+      </div>
     </div>
   </footer>
 
   <script type="module" src="js/api-bootstrap.js"></script>
-  <script type="module" src="js/app.js?v=3.0.0-alpha.0"></script>
+  <script type="module" src="js/app.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
 
@@ -431,69 +506,131 @@
          login; non è possibile personalizzare la libreria di altri.
          La pagina non accetta parametri ?user= proprio per evitare
          che qualcuno tenti di editare un profilo altrui.
-
-         Fase 3.2: aspetto il session lookup di bootstrap. Se non c'e'
-         sessione valida (nessun cookie Better Auth + nessun current_user_id
-         legacy), redirect al login. Altrimenti sync con LB_AUTH_USER
-         quando disponibile (backend), altrimenti fallback Storage. */
-      if (!window.LB_AUTH_READY) {
-        await new Promise((res) => window.addEventListener('lb-auth-ready', res, { once: true }));
-      }
-      const currentUser = API.requireAuth('login.html');
-      if (!currentUser) return;            // requireAuth ha già reindirizzato
+         Senza sessione valida (cookie Better Auth) si va al login. */
+      const currentUser = await window.LB_UI.requireUser('login.html');
+      if (!currentUser) return;            // requireUser ha già reindirizzato
       const userId = currentUser.id;
 
-      // Beta 3: prefs dal backend con fallback graceful
+      // Preferenze e libri dal server
       let prefs;
-      let prefsSource = 'legacy';
-      if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-        try {
-          const bePrefs = await window.LB_API.prefs.getMe();
-          // Adapter backend camelCase → legacy snake_case
-          prefs = {
-            view_mode: bePrefs.viewMode,
-            theme: bePrefs.theme,
-            avatar_style: bePrefs.avatarStyle,
-            avatar_symbol: bePrefs.avatarSymbol,
-            motto: bePrefs.motto,
-            sort_by: bePrefs.sortBy,
-            cover_design: bePrefs.coverDesign,
-            show_email: bePrefs.showEmail,
-          };
-          prefsSource = 'backend';
-        } catch (err) {
-          console.debug(`[profile-setup] prefs fallback legacy: ${err.code || err.message}`);
-        }
+      let userBooks;
+      let myProfile;
+      try {
+        const [bePrefs, booksRes, beMe] = await Promise.all([
+          window.LB_API.prefs.getMe(),
+          window.LB_API.books.listAll({ ownerId: userId }),
+          window.LB_API.users.getMe(),
+        ]);
+        myProfile = beMe;
+        prefs = bePrefs;
+        userBooks = booksRes.data;
+      } catch (err) {
+        console.debug(`[profile-setup] caricamento fallito: ${err.code || err.message}`);
+        UI.toast('Server non raggiungibile: impossibile caricare le impostazioni.', 'error');
+        document.getElementById('save-btn').disabled = true;
+        return;
       }
-      if (!prefs) prefs = API.getProfilePrefs(userId);
-      console.debug(`[profile-setup] prefs source: ${prefsSource}`);
+
+      /* ----- Posizione sulla mappa e livello di privacy ----- */
+      setRadioValue('privacy_level', String(myProfile.locationPrecision ?? 2));
+      let myLocation = myProfile.lat != null && myProfile.lng != null
+        ? { lat: myProfile.lat, lng: myProfile.lng }
+        : null;
+      let locationChanged = false;
+      const PRECISION_TEXT = {
+        0: 'gli altri non vedranno né la posizione né la città',
+        1: 'gli altri vedranno solo la città',
+        2: 'gli altri vedranno un punto approssimato entro circa 200 m',
+        3: 'gli altri vedranno questo punto esatto',
+      };
+      function selectedPrecision() {
+        return parseInt(document.querySelector('input[name="privacy_level"]:checked').value, 10);
+      }
+      function paintLocationCaption() {
+        const caption = document.getElementById('location-caption');
+        document.getElementById('location-clear').hidden = !myLocation;
+        caption.textContent = myLocation
+          ? `Posizione impostata (${myLocation.lat.toFixed(4)}, ${myLocation.lng.toFixed(4)}): ${PRECISION_TEXT[selectedPrecision()]}.`
+          : 'Nessuna posizione impostata: la tua libreria non comparirà sulla mappa.';
+      }
+      document.querySelectorAll('input[name="privacy_level"]').forEach((r) =>
+        r.addEventListener('change', paintLocationCaption));
+
+      let locationMarker = null;
+      const locationMap = (typeof L !== 'undefined')
+        ? L.map('location-map', { scrollWheelZoom: false }).setView(
+            myLocation ? [myLocation.lat, myLocation.lng] : [40.8518, 14.2681], // Napoli
+            myLocation ? 16 : 12)
+        : null;
+      if (locationMap) {
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19, attribution: '© OpenStreetMap'
+        }).addTo(locationMap);
+        locationMap.on('click', (e) => setLocation(e.latlng.lat, e.latlng.lng));
+      } else {
+        document.getElementById('location-map').innerHTML =
+          '<p style="padding: 1rem;">Mappa non disponibile: controlla la connessione.</p>';
+      }
+      function setLocation(lat, lng) {
+        myLocation = lat == null ? null : { lat: +lat.toFixed(6), lng: +lng.toFixed(6) };
+        locationChanged = true;
+        if (locationMap) {
+          if (locationMarker) { locationMarker.remove(); locationMarker = null; }
+          if (myLocation) locationMarker = L.marker([myLocation.lat, myLocation.lng]).addTo(locationMap);
+        }
+        paintLocationCaption();
+      }
+      if (myLocation && locationMap) {
+        locationMarker = L.marker([myLocation.lat, myLocation.lng]).addTo(locationMap);
+      }
+      paintLocationCaption();
+
+      document.getElementById('location-clear').addEventListener('click', () => setLocation(null));
+      document.getElementById('location-gps').addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          UI.toast('Il browser non permette di leggere la posizione.', 'error');
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setLocation(pos.coords.latitude, pos.coords.longitude);
+            if (locationMap) locationMap.setView([myLocation.lat, myLocation.lng], 16);
+          },
+          () => UI.toast('Posizione non disponibile: scegli il punto sulla mappa.', 'error'),
+          { enableHighAccuracy: true, timeout: 20000 }
+        );
+      });
+
+      function setRadioValue(name, value) {
+        const r = document.querySelector(`input[name="${name}"][value="${value}"]`);
+        if (r) r.checked = true;
+      }
 
       /* ----- Pre-popolamento dei campi con i valori esistenti ----- */
-      document.getElementById('display-name').value = currentUser.display_name || '';
+      document.getElementById('display-name').value = currentUser.displayName || '';
       document.getElementById('motto').value         = prefs.motto || '';
       document.getElementById('bio').value           = currentUser.bio || '';
       document.getElementById('city').value          = currentUser.city || '';
-      document.getElementById('email-pub').value     = String(prefs.show_email);
+      document.getElementById('email-pub').value     = String(prefs.showEmail);
 
-      // Radio: avatar_style, theme, view_mode, privacy_level
+      // Scelte a pulsanti: stile dell'avatar, tema, modalità di visualizzazione
       function setRadio(name, value) {
         const r = document.querySelector(`input[name="${name}"][value="${value}"]`);
         if (r) r.checked = true;
       }
-      setRadio('avatar_style', prefs.avatar_style);
-      setRadio('avatar_symbol', prefs.avatar_symbol);
+      setRadio('avatar_style', prefs.avatarStyle);
+      setRadio('avatar_symbol', prefs.avatarSymbol);
       setRadio('theme',        prefs.theme);
-      setRadio('view_mode',    prefs.view_mode);
-      setRadio('privacy_level', String(prefs.privacy_level));
-      document.getElementById('sort-by').value = prefs.sort_by;
+      setRadio('view_mode',    prefs.viewMode);
+      document.getElementById('sort-by').value = prefs.sortBy;
 
-      /* ----- Picker delle 15 grafiche cover (v1.1) -----
+      /* ----- Picker delle 15 grafiche cover -----
          Renderizza una griglia di anteprime: ciascuna mostra il design
          in miniatura con i colori del tema scelto. Click → seleziona. */
       const picker = document.getElementById('cover-picker');
       const defaultCover = window.LB_UI.isOrganization(currentUser) ? 'i-shelf' : 'g-section';
-      let selectedCover = prefs.cover_design || defaultCover;
-      const initialLetter = (currentUser.display_name || currentUser.username || 'A').trim()[0].toUpperCase();
+      let selectedCover = prefs.coverDesign || defaultCover;
+      const initialLetter = (currentUser.displayName || currentUser.username || 'A').trim()[0].toUpperCase();
       function paintCoverPicker() {
         const themeClass = `cover--${prefs.theme || 'classic'}`;
         picker.innerHTML = LIBRARY_COVER_DESIGNS.map(d => `
@@ -571,22 +708,22 @@
         document.getElementById('preview-theme').textContent = themeLabels[theme];
         document.getElementById('preview-view').textContent  = viewLabels[viewMode];
 
-        // Statistiche reali dell'utente
-        const userBooks = API.getBooksByUser(userId);
+        // Statistiche reali dell'utente (libri caricati all'avvio)
         document.getElementById('preview-books').textContent = userBooks.length;
         document.getElementById('preview-views').textContent =
-          userBooks.reduce((s, b) => s + b.views, 0).toLocaleString('it-IT');
+          userBooks.reduce((s, b) => s + (b.viewCount || 0), 0).toLocaleString('it-IT');
 
         // Mostra/nascondi selettore simbolo
         document.getElementById('symbol-picker').style.display =
           avatarStyle === 'symbol' ? 'block' : 'none';
 
         // Anteprima della libreria nella modalità scelta
-        renderLibraryPreview(viewMode, userBooks, themeColors[theme]);
+        renderLibraryPreview(viewMode, userBooks);
       }
 
-      /** Renderizza l'anteprima della libreria nella modalità scelta */
-      function renderLibraryPreview(mode, books, [c1, c2]) {
+      /** Renderizza l'anteprima della libreria nella modalità scelta
+          (BookDto del server; copertine come nella pagina della libreria) */
+      function renderLibraryPreview(mode, books) {
         const container = document.getElementById('library-preview');
 
         if (!books.length) {
@@ -596,9 +733,11 @@
           return;
         }
 
+        const esc = (v) => UI._escapeHtml(v);
+        const cover = (b) => window.LB_UI.bookCoverGradient(b);
+        const genre = (b) => window.LB_UI.bookCategory(b)?.name || '';
         // Limita a 6 libri di anteprima
         const sample = books.slice(0, 6);
-        const grad = `linear-gradient(135deg, ${c1}, ${c2})`;
 
         switch (mode) {
 
@@ -607,10 +746,10 @@
               ${sample.map(b => `
                 <div class="book-card">
                   <div class="book-card__cover book-card__cover--placeholder"
-                       style="background: ${b.cover_gradient || grad};">${b.title}</div>
-                  <span class="book-card__category">${b.category}</span>
-                  <h3 class="book-card__title">${b.title}</h3>
-                  <p class="book-card__author">${b.author}, ${b.year}</p>
+                       style="background: ${cover(b)};">${esc(b.title)}</div>
+                  <span class="book-card__category">${esc(genre(b))}</span>
+                  <h3 class="book-card__title">${esc(b.title)}</h3>
+                  <p class="book-card__author">${esc(b.author)}${b.year ? `, ${b.year}` : ''}</p>
                 </div>`).join('')}
             </div>`;
             break;
@@ -619,16 +758,16 @@
             container.innerHTML = `<div class="books-list">
               ${sample.map(b => `
                 <div class="books-list__item">
-                  <div class="books-list__cover" style="background: ${b.cover_gradient || grad};">
-                    ${b.title.split(' ').slice(0, 2).join(' ')}
+                  <div class="books-list__cover" style="background: ${cover(b)};">
+                    ${esc(b.title.split(' ').slice(0, 2).join(' '))}
                   </div>
                   <div class="books-list__main">
-                    <h4>${b.title}</h4>
-                    <span>${b.author} · ${b.year} · ${b.category}</span>
+                    <h4>${esc(b.title)}</h4>
+                    <span>${[b.author, b.year, genre(b)].filter(Boolean).map(esc).join(' · ')}</span>
                   </div>
                   <div class="books-list__meta">
-                    ${b.views} visualizzazioni<br/>
-                    <small>${b.condition}</small>
+                    ${b.viewCount || 0} visualizzazioni<br/>
+                    <small>${esc(b.condition || '')}</small>
                   </div>
                 </div>`).join('')}
             </div>`;
@@ -638,25 +777,26 @@
             container.innerHTML = `<div class="books-shelf">
               ${sample.map(b => `
                 <div class="books-shelf__book"
-                     style="background: ${b.cover_gradient || grad};"
-                     title="${b.title} — ${b.author}">
-                  ${b.title}
+                     style="background: ${cover(b)};"
+                     title="${esc(b.title)} — ${esc(b.author)}">
+                  ${esc(b.title)}
                 </div>`).join('')}
             </div>`;
             break;
 
-          case 'timeline':
+          case 'timeline': {
             // Ordine cronologico dal più antico al più recente
-            const sorted = [...sample].sort((a, b) => a.year - b.year);
+            const sorted = [...sample].sort((a, b) => (a.year || 0) - (b.year || 0));
             container.innerHTML = `<div class="books-timeline">
               ${sorted.map(b => `
                 <div class="books-timeline__item">
-                  <div class="books-timeline__year">${b.year}</div>
-                  <div class="books-timeline__title">${b.title}</div>
-                  <div class="books-timeline__author">${b.author} — ${b.category}</div>
+                  <div class="books-timeline__year">${b.year || '—'}</div>
+                  <div class="books-timeline__title">${esc(b.title)}</div>
+                  <div class="books-timeline__author">${esc(b.author)}${genre(b) ? ` — ${esc(genre(b))}` : ''}</div>
                 </div>`).join('')}
             </div>`;
             break;
+          }
         }
       }
 
@@ -688,60 +828,42 @@
         const city = document.getElementById('city').value.trim();
 
         const newPrefs = {
-          view_mode: document.querySelector('input[name="view_mode"]:checked').value,
-          theme:     document.querySelector('input[name="theme"]:checked').value,
-          avatar_style: document.querySelector('input[name="avatar_style"]:checked').value,
-          avatar_symbol: document.querySelector('input[name="avatar_symbol"]:checked')?.value || '§',
-          cover_design: selectedCover,
-          motto:     document.getElementById('motto').value.trim(),
-          sort_by:   document.getElementById('sort-by').value,
-          privacy_level: parseInt(document.querySelector('input[name="privacy_level"]:checked').value, 10),
-          show_email: document.getElementById('email-pub').value === 'true'
+          viewMode: document.querySelector('input[name="view_mode"]:checked').value,
+          theme: document.querySelector('input[name="theme"]:checked').value,
+          avatarStyle: document.querySelector('input[name="avatar_style"]:checked').value,
+          avatarSymbol: document.querySelector('input[name="avatar_symbol"]:checked')?.value || '§',
+          coverDesign: selectedCover,
+          motto: document.getElementById('motto').value.trim() || null,
+          sortBy: document.getElementById('sort-by').value,
+          showEmail: document.getElementById('email-pub').value === 'true',
         };
 
-        // Beta 3: salva sul backend (users.updateMe + prefs.updateMe)
-        // Fallback graceful legacy in caso di errore.
-        let savedBackend = false;
-        if (window.LB_API && window.LB_API_AVAILABLE !== false) {
-          try {
-            await window.LB_API.users.updateMe({
-              displayName,
-              bio,
-              city,
-            });
-            await window.LB_API.prefs.updateMe({
-              viewMode: newPrefs.view_mode,
-              theme: newPrefs.theme,
-              avatarStyle: newPrefs.avatar_style,
-              avatarSymbol: newPrefs.avatar_symbol,
-              motto: newPrefs.motto,
-              sortBy: newPrefs.sort_by,
-              coverDesign: newPrefs.cover_design,
-              showEmail: newPrefs.show_email,
-            });
-            savedBackend = true;
-          } catch (err) {
-            console.debug(`[profile-setup] backend save fallback legacy: ${err.code || err.message}`);
-          }
-        }
-        // Aggiorna anche il legacy Storage (per compat immediata pagine legacy)
+        // Salvataggio sul server: profilo e preferenze
+        const saveBtn = document.getElementById('save-btn');
+        saveBtn.disabled = true;
         try {
-          API.updateUser(userId, { display_name: displayName, bio, city });
-          API.setProfilePrefs(userId, newPrefs);
-        } catch (err) {
-          if (!savedBackend) {
-            UI.toast(err.message, 'error');
-            return;
+          // Livello di privacy sempre; coordinate solo se cambiate
+          const profilePatch = { displayName, bio, city, locationPrecision: selectedPrecision() };
+          if (locationChanged) {
+            profilePatch.lat = myLocation ? myLocation.lat : null;
+            profilePatch.lng = myLocation ? myLocation.lng : null;
           }
+          await window.LB_API.users.updateMe(profilePatch);
+          locationChanged = false;
+          await window.LB_API.prefs.updateMe(newPrefs);
+          // Nome nella barra di navigazione aggiornato subito
+          await window.LB_UI.refreshCurrentUser();
+          if (UI._refreshAvatar) UI._refreshAvatar();
+          UI.toast('Profilo salvato.', 'success');
+        } catch (err) {
+          UI.toast(err.message || 'Salvataggio non riuscito. Riprova tra poco.', 'error');
+        } finally {
+          saveBtn.disabled = false;
         }
-
-        UI.toast(savedBackend
-          ? 'Profilo salvato sul server.'
-          : 'Profilo salvato (offline).', 'info');
       });
 
       // =====================================================================
-      // Beta 5: Sicurezza — sessioni attive + cambio password
+      // Sicurezza — sessioni attive + cambio password
       // =====================================================================
       const sessionsList = document.getElementById('sessions-list');
 
@@ -765,16 +887,8 @@
         return `${browser} su ${os}`;
       }
 
-      /**
-       * Carica e renderizza la lista sessioni attive.
-       * L'endpoint list-sessions richiede backend disponibile.
-       */
+      /** Carica e mostra le sessioni attive. */
       async function renderSessions() {
-        if (!window.LB_API || window.LB_API_AVAILABLE === false) {
-          sessionsList.innerHTML = `<p style="padding: var(--sp-3); margin: 0; color: var(--color-ink-soft);">
-            <em>Backend non raggiungibile: gestione sessioni non disponibile.</em></p>`;
-          return;
-        }
         try {
           const sessions = await window.LB_API.authClient.listSessions();
           // Better Auth ritorna un array (o {sessions: [...]} in alcune versioni)
@@ -818,7 +932,13 @@
         const btn = e.target.closest('[data-revoke-session]');
         if (!btn) return;
         const token = btn.dataset.revokeSession;
-        if (!confirm('Terminare questa sessione? L\'accesso verrà revocato immediatamente.')) return;
+        const ok = await UI.confirm({
+          title: 'Terminare la sessione?',
+          message: "L'accesso da quel dispositivo verrà revocato immediatamente.",
+          okLabel: 'Termina',
+          danger: true,
+        });
+        if (!ok) return;
         try {
           await window.LB_API.authClient.revokeSession({ token });
           UI.toast('Sessione terminata.', 'info');
@@ -830,7 +950,13 @@
 
       // Click su "Termina tutte le altre sessioni"
       document.getElementById('revoke-all-btn').addEventListener('click', async () => {
-        if (!confirm('Terminare tutte le altre sessioni? Rimarrai loggato solo su questo dispositivo.')) return;
+        const ok = await UI.confirm({
+          title: 'Terminare le altre sessioni?',
+          message: 'Resterai collegato solo da questo dispositivo.',
+          okLabel: 'Termina tutte',
+          danger: true,
+        });
+        if (!ok) return;
         try {
           await window.LB_API.authClient.revokeSessions();
           UI.toast('Tutte le altre sessioni sono state terminate.', 'info');
@@ -861,12 +987,6 @@
           return;
         }
 
-        if (!window.LB_API || window.LB_API_AVAILABLE === false) {
-          errBox.textContent = 'Backend non raggiungibile: cambio password non disponibile offline.';
-          errBox.hidden = false;
-          return;
-        }
-
         try {
           await window.LB_API.authClient.changePassword({
             currentPassword,
@@ -885,6 +1005,45 @@
           errBox.textContent = map[err.code] || err.message || 'Errore cambio password.';
           errBox.hidden = false;
         }
+      });
+
+      // Eliminazione dell'account (password come conferma)
+      const deleteForm = document.getElementById('delete-account-form');
+      const deleteBtn = document.getElementById('delete-account-btn');
+      const deleteConfirm = document.getElementById('delete-confirm');
+      const syncDeleteBtn = () => { deleteBtn.disabled = !deleteConfirm.checked; };
+      deleteConfirm.addEventListener('change', syncDeleteBtn);
+      // La casella puo' essere gia' spuntata mentre la pagina caricava i dati
+      syncDeleteBtn();
+      deleteForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errBox = document.getElementById('delete-account-error');
+        const password = document.getElementById('delete-password').value;
+        errBox.hidden = true;
+        if (!password) {
+          errBox.textContent = 'Inserisci la password attuale.';
+          errBox.hidden = false;
+          return;
+        }
+        deleteBtn.disabled = true;
+        try {
+          await window.LB_API.authClient.deleteAccount({ password });
+        } catch (err) {
+          const map = {
+            INVALID_PASSWORD: 'La password non è corretta.',
+            RATE_LIMITED: 'Troppi tentativi. Riprova fra qualche minuto.',
+          };
+          errBox.textContent = map[err.code] || 'Eliminazione non riuscita: ' + (err.message || 'riprova tra poco.');
+          errBox.hidden = false;
+          deleteBtn.disabled = false;
+          return;
+        }
+        // Toglie i cookie della sessione (gia' cancellata sul server)
+        window.LB_EVENTS?.stop();
+        await window.LB_API.authClient.signOut().catch(() => {});
+        window.LB_UI.setAuthState('guest');
+        UI.toast('Account eliminato. Grazie per aver fatto parte di Lookup.', 'info');
+        setTimeout(() => location.replace('index.html'), 1500);
       });
 
     });

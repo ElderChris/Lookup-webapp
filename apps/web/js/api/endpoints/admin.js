@@ -1,5 +1,5 @@
 // =============================================================================
-// apps/web/js/api/endpoints/admin.js — Beta 4
+// apps/web/js/api/endpoints/admin.js
 // =============================================================================
 // Wrapper delle route /api/admin/*. Richiedono session con role='admin'.
 // =============================================================================
@@ -16,7 +16,7 @@ export function updateUser(userId, patch) {
   return apiClient.patch(`/api/admin/users/${encodeURIComponent(userId)}`, { body: patch });
 }
 
-/** Elimina utente (soft delete, admin only). */
+/** Elimina definitivamente un utente e i suoi dati (admin only). */
 export function deleteUser(userId) {
   return apiClient.delete(`/api/admin/users/${encodeURIComponent(userId)}`);
 }
@@ -36,9 +36,9 @@ export function deletePost(postId) {
   return apiClient.delete(`/api/admin/posts/${encodeURIComponent(postId)}`);
 }
 
-/** Crea libro per conto di un utente specifico (admin only). */
-export function addBookAs(body) {
-  return apiClient.post('/api/admin/books', { body });
+/** Tutti i volumi, qualunque stato (admin only). */
+export function listBooks(query = {}, options = {}) {
+  return apiClient.get('/api/admin/books', { query, ...options });
 }
 
 /** Modifica un libro come admin (owner override). */
@@ -60,7 +60,7 @@ export function auditLog(query = {}, options = {}) {
 }
 
 /**
- * Beta 7: stato delle queue background jobs.
+ * stato delle queue background jobs.
  * Ritorna counts (waiting/active/completed/failed) + next runs per ogni queue.
  */
 export function jobsStatus(options = {}) {
@@ -68,9 +68,8 @@ export function jobsStatus(options = {}) {
 }
 
 /**
- * Beta 7: trigger manuale di un job.
+ * trigger manuale di un job.
  * @param {'overdue-loans' | 'retention' | 'upcoming-deadline'} queueName
- *   'upcoming-deadline' e' stato aggiunto in Beta 7.1
  */
 export function runJob(queueName) {
   return apiClient.post(`/api/admin/jobs/${queueName}/run`);

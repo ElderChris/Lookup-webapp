@@ -1,71 +1,49 @@
 /* =============================================================================
    app.js — Entry point
    =============================================================================
-   Questo file è il punto di ingresso del frontend di Lookup.
-   Caricato come <script type="module"> dalle 15 pagine HTML, importa tutti
-   i moduli, esegue l'inizializzazione globale al DOMContentLoaded, ed
-   espone API/UI/Storage come globali window.* per compatibilità con gli
-   script inline delle pagine.
-
-   Architettura moduli (v3.0.0-alpha.0+):
-     data.js     → seed fixtures + costanti tassonomiche
-     storage.js  → wrapper localStorage (sarà refactored in Fase 2)
-     api.js      → logica applicativa (sarà endpoint REST in Fase 1)
-     ui.js       → rendering DOM e wiring eventi
-     app.js      → entry + init + window globals (questo file)
+   Punto di ingresso comune delle pagine (<script type="module">):
+   inizializza header, navigazione, notifiche e avatar quando la sessione
+   e' nota (evento `lb-auth-ready` di api-bootstrap.js). Tutti i dati
+   arrivano dal server (window.LB_API, vedi api-bootstrap.js).
    ============================================================================= */
 
-import { Storage } from './legacy/storage.js';
-import { API } from './legacy/api.js';
 import { UI } from './ui.js';
-import {
-  LIBRARY_COVER_DESIGNS,
-  LIBRARY_COVER_DESIGN_MAP,
-  LOAN_STATUS,
-  LOAN_STATUS_ORDER,
-  LOAN_STATUS_LABEL,
-  LOAN_STATUS_HINT,
-} from './data.js';
+import { LIBRARY_COVER_DESIGNS } from './coverDesigns.js';
 
 /* -----------------------------------------------------------------
-   ESPOSIZIONE GLOBALE
+   GLOBALI USATI DAGLI SCRIPT DELLE PAGINE
    ----------------------------------------------------------------- */
-/* I 15 HTML hanno script inline che usano API/UI/Storage come globali
-   (es. <script>API.getBooks()...</script>). Manteniamo questa convenzione
-   per non toccare gli HTML: gli inline script restano page-specific wiring
-   auto-contenuto. */
-window.API = API;
 window.UI = UI;
-window.Storage = Storage;
+// Selettore della copertina in profile-setup.html
 window.LIBRARY_COVER_DESIGNS = LIBRARY_COVER_DESIGNS;
-window.LIBRARY_COVER_DESIGN_MAP = LIBRARY_COVER_DESIGN_MAP;
-window.LOAN_STATUS = LOAN_STATUS;
-window.LOAN_STATUS_ORDER = LOAN_STATUS_ORDER;
-window.LOAN_STATUS_LABEL = LOAN_STATUS_LABEL;
-window.LOAN_STATUS_HINT = LOAN_STATUS_HINT;
 
 /* -----------------------------------------------------------------
-   INIZIALIZZAZIONE GLOBALE (al DOMContentLoaded)
+   DATI DEL PROTOTIPO NEL BROWSER
    -----------------------------------------------------------------
-   Beta 6 sess 2: rimosso `applySessionShim()`. Le pagine leggono ora
-   `window.LB_AUTH_USER` (popolato da api-bootstrap) direttamente, oppure
-   `window.LB_UI.currentUser()` che ritorna la shape legacy adattata.
+   Le versioni precedenti scrivevano a ogni pagina un intero insieme di dati
+   di esempio nel localStorage (utenti, libri, prestiti, notifiche finti),
+   che alcune pagine mostravano al posto dei dati reali. Non vengono piu'
+   creati; quelli gia' presenti si cancellano una volta, riconoscendoli
+   dalla chiave `data_version`. Resta solo l'indizio di accesso letto da
+   auth-hint.js. `auth_state` era lo stato di accesso del prototipo: lo
+   stato vero e' la sessione del server. */
+const KEEP_KEYS = new Set(['lb_auth_hint']);
 
-   Il legacy `API.getCurrentUser()` esiste ancora ma non e' piu' patchato:
-   ritorna null (a meno che il localStorage non contenga un `current_user_id`,
-   ma quello non viene piu' scritto). Le chiamate residue nel legacy
-   `api.js` sono dead code.
+function purgePrototypeData() {
+  try {
+    localStorage.removeItem('auth_state');
+    if (localStorage.getItem('data_version') === null) return;
+    Object.keys(localStorage)
+      .filter((key) => !KEEP_KEYS.has(key))
+      .forEach((key) => localStorage.removeItem(key));
+  } catch {
+    /* storage non disponibile (navigazione privata, quota): niente da fare */
+  }
+}
 
-   `Storage.get('users')` non contiene piu' l'utente corrente iniettato.
-   Le funzioni legacy che facevano join su quell'array (getBooksByOwner,
-   getFollowers, ecc.) non funzionano piu' per l'utente reale — ma sono
-   comunque dead code (le pagine usano i wrapper backend). */
+purgePrototypeData();
 
 function runInits() {
-  Storage.init();
-  API.seedSocialDemo();
-  // Beta 7: rimosso API.checkOverdueLoans() - ora gestito dal job backend
-  // BullMQ (src/jobs/overdueLoans.js) schedulato ogni ora.
   UI.initMobileNav();
   UI.highlightActiveNav();
   UI.initAuthToggle();
@@ -73,7 +51,7 @@ function runInits() {
   UI.initProfileAvatar();
   UI.initLikeChips();
   UI.initAdminLink();
-  UI.initOfflineBadge(); // Beta 9: badge PWA offline
+  UI.initOfflineBadge(); // badge PWA offline
 }
 
 document.addEventListener('DOMContentLoaded', () => {
