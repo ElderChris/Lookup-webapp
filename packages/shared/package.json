@@ -1,6 +1,6 @@
 {
   "name": "@lookup/shared",
-  "version": "3.0.0-beta.11",
+  "version": "3.0.0-beta.12",
   "private": true,
   "description": "Schemi Zod condivisi tra backend (apps/api) e frontend (apps/web). Validazione runtime + type inference.",
   "type": "module",

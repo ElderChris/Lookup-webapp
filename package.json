@@ -1,6 +1,6 @@
 {
   "name": "lookup",
-  "version": "3.0.0-beta.11",
+  "version": "3.0.0-beta.12",
   "private": true,
   "description": "Lookup — piattaforma di geolocalizzazione culturale per la condivisione del patrimonio librario privato.",
   "type": "module",

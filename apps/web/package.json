@@ -1,6 +1,6 @@
 {
   "name": "@lookup/web",
-  "version": "3.0.0-beta.11",
+  "version": "3.0.0-beta.12",
   "private": true,
   "description": "Frontend di Lookup — vanilla JS modules + static HTML, servito da nginx in production o python no-cache-server in dev.",
   "type": "module",
