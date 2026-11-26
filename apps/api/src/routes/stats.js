@@ -17,6 +17,9 @@
 // Helpers
 // -----------------------------------------------------------------------------
 
+import { UNCONFIRMED_WHERE } from '../lib/accountStatus.js';
+import { getCurrentUserId } from '../lib/authHelpers.js';
+
 function userSummaryDto(u) {
   if (!u) return null;
   return {
@@ -482,13 +485,14 @@ export default async function statsRoutes(fastify) {
         fastify.prisma.user.count(),
         fastify.prisma.user.count({ where: { accountType: 'person' } }),
         fastify.prisma.user.count({ where: { accountType: 'organization' } }),
-        fastify.prisma.user.count({ where: { status: 'active' } }),
-        fastify.prisma.user.count({ where: { status: 'pending' } }),
+        // Stessi criteri dei filtri dell'elenco utenti dell'amministrazione
+        fastify.prisma.user.count({ where: { status: 'active', emailVerified: true } }),
+        fastify.prisma.user.count({ where: UNCONFIRMED_WHERE }),
         fastify.prisma.user.count({ where: { status: 'suspended' } }),
         fastify.prisma.user.count({ where: { status: 'deleted' } }),
         fastify.prisma.book.count(),
         fastify.prisma.book.count({ where: { available: true } }),
-        fastify.prisma.post.count(),
+        fastify.prisma.post.count({ where: { status: 'active' } }),
         fastify.prisma.review.count(),
         fastify.prisma.follow.count(),
         fastify.prisma.like.count(),
@@ -669,8 +673,14 @@ export default async function statsRoutes(fastify) {
     async (request, reply) => {
       const { id } = request.params;
       const { days = 30 } = request.query;
-      const book = await fastify.prisma.book.findUnique({ where: { id }, select: { id: true } });
-      if (!book)
+      const book = await fastify.prisma.book.findUnique({
+        where: { id },
+        select: { id: true, ownerId: true, status: true },
+      });
+      // Volumi pubblicati per tutti; nascosti o ritirati solo per il proprietario
+      const visible =
+        book && (book.status === 'active' || (await getCurrentUserId(request)) === book.ownerId);
+      if (!visible)
         return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Libro non trovato' } });
 
       const now = new Date();

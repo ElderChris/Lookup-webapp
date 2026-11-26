@@ -83,6 +83,9 @@ model User {
   // Accettazione di termini e privacy al momento dell'iscrizione
   termsAcceptedAt DateTime? @map("terms_accepted_at") @db.Timestamptz
   publicProfile  Boolean   @default(true) @map("public_profile")
+  // "Accetto richieste di prestito": false = volumi fuori da ricerche, mappa
+  // ed elenchi (restano nella pagina della libreria), nuove richieste rifiutate
+  acceptsLoans   Boolean   @default(true) @map("accepts_loans")
 
   // Rotazione dei messaggi di benvenuto
   welcomeIndex   Int       @default(0) @map("welcome_index")
@@ -134,7 +137,6 @@ model UserPreference {
   motto         String?  @db.VarChar(120)
   sortBy        String   @default("recent") @map("sort_by") @db.VarChar(20)
   coverDesign   String?  @map("cover_design") @db.VarChar(40)
-  showEmail     Boolean  @default(false) @map("show_email")
 
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
 

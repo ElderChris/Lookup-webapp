@@ -296,6 +296,12 @@
           ${orgPanel}
 
           <div id="volumi">
+            ${user.acceptsLoans === false ? `
+            <p class="alert alert--info library-paused" role="note">
+              ${canEdit
+                ? 'Hai messo in pausa i prestiti: i tuoi volumi sono visibili solo qui e nessuno può chiederli. Riattivali dalle <a href="profile.html#panel-settings">impostazioni del profilo</a>.'
+                : 'Questa libreria ha messo in pausa i prestiti: i volumi si possono consultare, ma non chiedere in prestito per ora.'}
+            </p>` : ''}
             <div class="library-toolbar">
               <h2>I volumi della libreria</h2>
               <!-- rimossi i bottoni di switch layout: la pagina

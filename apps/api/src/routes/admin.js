@@ -11,7 +11,12 @@
 
 import { requireUserId } from '../lib/authHelpers.js';
 import { logAdminAction } from '../lib/adminAudit.js';
-import { activateVerifiedAccount, revokeSessions, deleteAccount } from '../lib/accountStatus.js';
+import {
+  activateVerifiedAccount,
+  revokeSessions,
+  deleteAccount,
+  UNCONFIRMED_WHERE,
+} from '../lib/accountStatus.js';
 import { sendAccountDeletedEmail } from '../lib/accountEmails.js';
 import { findActiveLoan, bookOnLoanError } from '../lib/loanStatus.js';
 
@@ -64,7 +69,12 @@ export default async function adminRoutes(fastify) {
       const { q, accountType, status, role, limit = 100, offset = 0 } = request.query;
       const where = {};
       if (accountType) where.accountType = accountType;
-      if (status) where.status = status;
+      // "Email da confermare" comprende anche gli account attivi mai
+      // confermati delle versioni precedenti; "attivi" solo i confermati
+      // (stessi criteri degli indicatori del pannello)
+      if (status === 'pending') Object.assign(where, UNCONFIRMED_WHERE);
+      else if (status === 'active') Object.assign(where, { status: 'active', emailVerified: true });
+      else if (status) where.status = status;
       if (role) where.role = role;
       if (q) {
         where.OR = [

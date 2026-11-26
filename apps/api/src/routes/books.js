@@ -65,6 +65,8 @@ function toDto(book) {
       avatarUrl: book.owner.avatarUrl,
     };
     if (book.owner.bio !== undefined) dto.owner.bio = book.owner.bio;
+    // Prestiti in pausa (impostazioni del proprietario): nel dettaglio
+    if (book.owner.acceptsLoans !== undefined) dto.owner.acceptsLoans = book.owner.acceptsLoans;
     // Posizione pubblica del proprietario (per la mappa), quando richiesta
     if (book.owner.publicLat !== undefined) {
       dto.owner.lat = book.owner.publicLat ?? null;
@@ -217,6 +219,7 @@ export default async function booksRoutes(fastify) {
         JOIN users u ON u.id = b.owner_id
         WHERE b.status = 'active'
           AND u.status = 'active'
+          AND u.accepts_loans
           AND u.public_location IS NOT NULL
           AND ST_DWithin(
             u.public_location,
@@ -240,6 +243,7 @@ export default async function booksRoutes(fastify) {
         JOIN users u ON u.id = b.owner_id
         WHERE b.status = 'active'
           AND u.status = 'active'
+          AND u.accepts_loans
           AND u.public_location IS NOT NULL
           AND ST_DWithin(
             u.public_location,
@@ -346,6 +350,10 @@ export default async function booksRoutes(fastify) {
       // --- Costruzione WHERE clause ---
       // Solo volumi pubblicati di account attivi
       const where = { status: 'active', owner: { status: 'active' } };
+      // Chi ha messo in pausa i prestiti esce da ricerche, mappa ed elenchi;
+      // i suoi volumi restano nella pagina della libreria (ownerId) e nei
+      // preferiti di chi li ha gia' segnati
+      if (!ownerId && !liked) where.owner.acceptsLoans = true;
 
       // Testo (lib/bookSearch.js): titolo, autore, ISBN, citta' pubblica del
       // proprietario e indirizzo pubblico degli enti, senza distinguere
@@ -502,6 +510,7 @@ export default async function booksRoutes(fastify) {
               accountType: true,
               avatarUrl: true,
               bio: true,
+              acceptsLoans: true,
             },
           },
           categories: {

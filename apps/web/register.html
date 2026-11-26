@@ -573,22 +573,25 @@
 
       /* ----- Nome utente libero? (controllo sul server all'uscita dal campo) ----- */
       const usernameInput = document.getElementById('username');
+      // Il risultato aggiorna il messaggio sotto il campo (validazione dal vivo)
+      const refreshUsernameFeedback = () => usernameInput.dispatchEvent(new Event('input'));
       async function checkUsername() {
         const value = usernameInput.value.trim().toLowerCase();
-        usernameInput.value = value;
+        if (usernameInput.value !== value) usernameInput.value = value;
+        const wasTaken = usernameInput.validity.customError;
         usernameInput.setCustomValidity('');
-        usernameInput.classList.remove('is-invalid-unique');
-        usernameInput.parentElement.querySelector('.form__error-unique')?.remove();
-        if (!/^[a-z0-9._]{3,30}$/.test(value)) return true;
+        if (!/^[a-z0-9._]{3,30}$/.test(value)) {
+          if (wasTaken) refreshUsernameFeedback();
+          return true; // il formato lo segnala la validazione dal vivo
+        }
         try {
           const res = await auth.checkUsername(value);
-          if (res.available) return true;
-          usernameInput.setCustomValidity('Nome utente già in uso.');
-          usernameInput.classList.add('is-invalid-unique');
-          const msg = document.createElement('span');
-          msg.className = 'form__error-unique';
-          msg.textContent = 'Nome utente già in uso: scegline un altro.';
-          usernameInput.parentElement.appendChild(msg);
+          if (res.available) {
+            if (wasTaken) refreshUsernameFeedback();
+            return true;
+          }
+          usernameInput.setCustomValidity('Nome utente già in uso: scegline un altro.');
+          refreshUsernameFeedback();
           return false;
         } catch (_) {
           return true; // controllo non disponibile: decide il server all'invio
@@ -621,7 +624,11 @@
           if (f.type === 'checkbox') return;
           f.classList.add('touched');
           f.dispatchEvent(new Event('blur'));
-          if (!f.checkValidity()) {
+          // Anche le regole della validazione dal vivo (es. nome utente di
+          // almeno 3 caratteri: il browser non applica minlength a un
+          // valore riscritto dallo script)
+          const liveInvalid = f.closest('.form__group')?.classList.contains('is-invalid');
+          if (!f.checkValidity() || liveInvalid) {
             const label =
               f.closest('.form__group')?.querySelector('.form__label')?.innerText || f.name;
             errors.push(label.replace(/\s*\*$/, '').trim());

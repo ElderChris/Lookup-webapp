@@ -200,7 +200,7 @@ const ORG_PROFILES = [
   {
     userId: 'usr_biblio_sanita',
     legalName: 'Biblioteca di Comunità Rione Sanità APS',
-    orgCategory: 'biblioteca',
+    orgCategory: 'biblioteca_comunita',
     contactPerson: 'Mariarosaria Carfora',
     publicEmail: 'info@bibliosanita.org',
     publicPhone: '081 1234567',
@@ -210,7 +210,7 @@ const ORG_PROFILES = [
   {
     userId: 'usr_lettori_erranti',
     legalName: 'Associazione I Lettori Erranti',
-    orgCategory: 'associazione',
+    orgCategory: 'associazione_culturale',
     contactPerson: 'Francesco Borrelli',
     publicEmail: 'contatti@lettorierranti.it',
     website: 'https://lettorierranti.it',
@@ -230,7 +230,7 @@ const ORG_PROFILES = [
   {
     userId: 'usr_centro_mezzo',
     legalName: 'Centro Culturale Mezzogiorno APS',
-    orgCategory: 'centro_culturale',
+    orgCategory: 'associazione_culturale',
     contactPerson: 'Elena Bruno',
     publicEmail: 'info@centromezzogiorno.it',
     publicAddress: 'Via dei Vergini 14, 80137 Napoli',

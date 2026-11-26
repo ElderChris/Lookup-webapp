@@ -81,6 +81,14 @@ export const books = {
   },
 
   /**
+   * GET /api/books/:id/timeline — visualizzazioni, "mi piace" e richieste
+   * di prestito per giorno (ultimi `days` giorni, predefinito 30).
+   */
+  timeline(id, days = 30) {
+    return apiClient.get(`/api/books/${encodeURIComponent(id)}/timeline`, { query: { days } });
+  },
+
+  /**
    * POST /api/books — crea un nuovo libro (richiede auth).
    * @param {object} body - { title, author, year?, publisher?, pages?, description?, coverUrl?, categoryIds, tags? }
    */

@@ -1925,6 +1925,8 @@ export const UI = {
           else if (field.validity.tooLong) msg = `Massimo ${field.maxLength} caratteri.`;
           else if (field.validity.rangeUnderflow) msg = `Valore minimo: ${field.min}.`;
           else if (field.validity.rangeOverflow) msg = `Valore massimo: ${field.max}.`;
+          // Messaggio impostato dalla pagina (es. "Nome utente già in uso")
+          else if (field.validity.customError) msg = field.validationMessage;
           else msg = 'Valore non valido.';
         }
 
@@ -2274,13 +2276,17 @@ export const UI = {
       }
       list.innerHTML = items
         .map(
-          (n) => `<a class="notif__item ${n.isRead ? '' : 'is-unread'}" href="${hrefFor(n)}">
-          ${icon(n.type)}
-          <span class="notif__item-body">
-            <span class="notif__item-msg">${messageHtml(n)}</span>
-            <span class="notif__item-time">${timeAgo(n.createdAt)}</span>
-          </span>
-        </a>`
+          (n) => `<div class="notif__row">
+          <a class="notif__item ${n.isRead ? '' : 'is-unread'}" href="${hrefFor(n)}">
+            ${icon(n.type)}
+            <span class="notif__item-body">
+              <span class="notif__item-msg">${messageHtml(n)}</span>
+              <span class="notif__item-time">${timeAgo(n.createdAt)}</span>
+            </span>
+          </a>
+          <button type="button" class="notif__remove" data-notif-remove="${n.id}"
+                  aria-label="Elimina la notifica" title="Elimina">×</button>
+        </div>`
         )
         .join('');
     };
@@ -2330,6 +2336,27 @@ export const UI = {
       else closePanel();
     });
     readAll.addEventListener('click', markAllRead);
+
+    // Elimina una notifica (× sulla riga)
+    list.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-notif-remove]');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const id = Number(btn.dataset.notifRemove);
+      btn.disabled = true;
+      try {
+        await window.LB_API.notifications.remove(id);
+      } catch (_err) {
+        btn.disabled = false;
+        UI.toast('Server non raggiungibile: notifica non eliminata.', 'error');
+        return;
+      }
+      const removed = (allItems || []).find((n) => n.id === id);
+      allItems = (allItems || []).filter((n) => n.id !== id);
+      if (removed && !removed.isRead) lastUnread = Math.max(0, lastUnread - 1);
+      paint(lastUnread);
+    });
 
     // wiring chip-filtro
     wrap.querySelectorAll('.notif__filter').forEach((btn) => {
