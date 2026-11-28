@@ -20,6 +20,7 @@
 
 import { requireUserId } from '../lib/authHelpers.js';
 import {
+  notifyBookAvailable,
   notifyLoanRequested,
   notifyLoanStatusChange,
   notifyNewLoanMessage,
@@ -641,6 +642,14 @@ export default async function loansRoutes(fastify) {
             role === 'requester' ? updated.requester.displayName : updated.lender.displayName,
         }
       );
+
+      // Volume di nuovo disponibile: avviso a chi gli ha messo "mi piace"
+      if (action === 'mark_returned') {
+        await notifyBookAvailable(
+          { prisma: fastify.prisma, log: request.log },
+          { bookId: loan.bookId, excludeUserIds: [loan.requesterId] }
+        );
+      }
 
       const unread = await unreadCounts(fastify.prisma, userId, [updated.id]);
       return loanDto(updated, userId, unread.get(updated.id) ?? 0);

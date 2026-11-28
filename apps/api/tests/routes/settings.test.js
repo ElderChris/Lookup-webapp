@@ -217,3 +217,48 @@ describe('Cronologia di un volume', () => {
     }
   });
 });
+
+describe('Volume di nuovo disponibile', () => {
+  it('chi ha messo «mi piace» riceve una notifica quando il prestito si chiude', async () => {
+    const app = await buildTestApp();
+    const book = SEED.BOOK_GATTOPARDO;
+    await prisma.like.createMany({
+      data: [
+        { userId: SEED.USER_ANNA, bookId: book },
+        { userId: SEED.USER_MARCO, bookId: book },
+      ],
+      skipDuplicates: true,
+    });
+    const before = new Date();
+    try {
+      const marco = await authHeaders(SEED.USER_MARCO);
+      const chiara = await authHeaders(SEED.USER_CHIARA);
+      const req = await app.inject({
+        method: 'POST',
+        url: `/api/books/${book}/loan-requests`,
+        headers: marco,
+        payload: {},
+      });
+      const id = req.json().id;
+      const step = (headers, action) =>
+        app.inject({ method: 'PATCH', url: `/api/loans/${id}`, headers, payload: { action } });
+      expect((await step(chiara, 'accept')).statusCode).toBe(200);
+      expect((await step(chiara, 'mark_borrowed')).statusCode).toBe(200);
+      expect((await step(marco, 'mark_returning')).statusCode).toBe(200);
+      expect((await step(chiara, 'mark_returned')).statusCode).toBe(200);
+
+      const notes = await prisma.notification.findMany({
+        where: { type: 'book_available', bookId: book, createdAt: { gte: before } },
+      });
+      // Anna si', Marco no (l'aveva in prestito), Chiara no (proprietaria)
+      expect(notes.map((n) => n.userId)).toEqual([SEED.USER_ANNA]);
+      expect(notes[0].message).toContain('Il Gattopardo');
+    } finally {
+      await prisma.notification.deleteMany({ where: { type: 'book_available' } });
+      await prisma.like.deleteMany({
+        where: { bookId: book, userId: { in: [SEED.USER_ANNA, SEED.USER_MARCO] } },
+      });
+      await prisma.book.update({ where: { id: book }, data: { available: true } });
+    }
+  });
+});

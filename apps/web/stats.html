@@ -44,13 +44,13 @@
     <section class="section container stats-page">
       <span class="eyebrow">cruscotto</span>
       <h1 class="stats-page__title">
-        Statistiche <em style="color: var(--color-burgundy);">in tempo reale</em>
+        Statistiche <em style="color: var(--color-burgundy);">della comunità</em>
       </h1>
       <p class="stats-page__lede">
-        Tutto quello che sta succedendo su Lookup, calcolato
-        in tempo reale dai dati persistenti della piattaforma.
-        Visualizzazioni, prestiti, recensioni e interazioni sono tracciati
-        come eventi timestampati: le timeline che vedi qui sotto riflettono
+        Tutto quello che sta succedendo su Lookup, calcolato dai dati
+        della piattaforma e aggiornato ogni pochi minuti: volumi, prestiti,
+        recensioni, messaggi e «mi piace» con la loro data, visualizzazioni
+        contate per giorno in forma anonima. Le timeline qui sotto riflettono
         attività vera, non valori simulati.
       </p>
 
@@ -77,11 +77,11 @@
 
       <!-- ============= SEZIONE 4: GENERI E INTERSEZIONI ============= -->
       <div class="stats-section-head">
-        <h2>Distribuzione per genere BISAC</h2>
-        <span class="stats-tag stats-tag--real">multi-tag reale</span>
+        <h2>Distribuzione per genere</h2>
+        <span class="stats-tag stats-tag--real">più generi per volume</span>
       </div>
       <p class="stats-section-lede">
-        Ogni volume porta 2–3 etichette BISAC (standard internazionale). Il
+        Ogni volume ha uno o più generi. Il
         sunburst gerarchico mostra macro-generi (anello esterno) e sotto-generi
         (anello interno); la matrice sotto rende esplicite le
         <strong>intersezioni</strong>: quante volte due macro-generi compaiono
@@ -89,7 +89,7 @@
       </p>
       <div class="stats-genre-grid">
         <div class="chart-wrap chart-wrap--square">
-          <canvas id="chart-sunburst" role="img" aria-label="Sunburst gerarchia BISAC"></canvas>
+          <canvas id="chart-sunburst" role="img" aria-label="Sunburst dei generi"></canvas>
         </div>
         <div class="cooccurrence-matrix-wrap">
           <h3 style="font-size: 1rem; margin: 0 0 .75rem;">Matrice di co-occorrenza</h3>
@@ -137,13 +137,13 @@
       <!-- grafico timeline creativo (ridgeline) dei top 10 utenti -->
       <div class="ridgeline-section">
         <h3 class="ridgeline-section__title">
-          Cronache dei più attivi <span class="ridgeline-section__sub">— ultimi 12 mesi</span>
+          Cronache dei più attivi <span class="ridgeline-section__sub">— ultimi 6 mesi</span>
         </h3>
         <p class="ridgeline-section__lede">
           Una <em>strofa visiva</em> per ciascuno dei dieci utenti più attivi:
-          ogni linea racconta le sue settimane di lavoro nelle librerie diffuse
-          — pubblicazioni, prestiti, recensioni, messaggi — sovrapposte come
-          tracce in una partitura.
+          ogni linea racconta le sue settimane nelle librerie diffuse
+          — post pubblicati, richieste di prestito, recensioni scritte —
+          sovrapposte come tracce in una partitura.
         </p>
         <div id="ridgeline-canvas-wrap"></div>
       </div>

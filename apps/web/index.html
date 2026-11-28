@@ -80,7 +80,7 @@
           <p class="hero__lead">
             Pubblica i volumi della tua collezione privata, scopri cosa custodiscono
             i lettori a pochi passi da te, e partecipa a una rete diffusa di
-            consultazioni e prestiti.
+            prestiti gratuiti.
           </p>
         </div>
 
@@ -108,7 +108,7 @@
       <div class="hero__actions">
         <a href="register.html" class="btn btn--primary btn--lg btn--pulse guest-only">
           <span class="btn__icon" aria-hidden="true">→</span>
-          Inizia a scambiare
+          Iscriviti gratis
         </a>
         <a href="add-book.html" class="btn btn--primary btn--lg btn--pulse auth-only">
           <span class="btn__icon" aria-hidden="true">+</span>
@@ -146,7 +146,7 @@
         <div>
           <span class="eyebrow">la tua home</span>
           <h1 id="welcome-title" class="home-welcome__title" data-name="" aria-busy="true"></h1>
-          <p class="home-welcome__sub">Ecco cosa è successo nelle librerie che segui e fra i tuoi volumi preferiti.</p>
+          <p class="home-welcome__sub">Le novità delle librerie che segui e i volumi a cui hai messo «mi piace».</p>
         </div>
         <a href="add-book.html" class="btn btn--primary btn--lg btn--pulse">
           <span class="btn__icon" aria-hidden="true">+</span> Pubblica un volume
@@ -232,9 +232,9 @@
           </div>
           <h3 class="how-step__title">Pubblica i tuoi volumi</h3>
           <p class="how-step__desc">
-            Titolo, autore, categoria, una foto della copertina. Il modulo
-            controlla i dati in tempo reale e genera automaticamente le
-            miniature ottimizzate.
+            Titolo, autore, genere e una breve descrizione; con l'ISBN la
+            copertina arriva da Open Library. Il modulo controlla i dati
+            mentre li scrivi.
           </p>
         </li>
 
@@ -251,11 +251,11 @@
               <path d="M60 42 L 50 42" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="2 3"/>
             </svg>
           </div>
-          <h3 class="how-step__title">Scambia, presta, consulta</h3>
+          <h3 class="how-step__title">Presta e prendi in prestito</h3>
           <p class="how-step__desc">
-            Altri lettori della zona possono chiederti un prestito o una
-            consultazione. Tu gestisci tutto in autonomia, con la privacy
-            che hai scelto.
+            Chi abita vicino può chiederti un volume in prestito, gratis:
+            accetti o rifiuti, vi accordate nella chat e segui il prestito
+            fino alla restituzione, con la privacy che hai scelto.
           </p>
         </li>
       </ol>
@@ -287,8 +287,8 @@
       <h2 class="install-app-section__title" id="install-title-index">Anche su Android o iOS</h2>
       <p class="install-app-section__desc">
         Installa Lookup sul tuo telefono per un'esperienza più fluida:
-        icona sulla home, apertura istantanea, notifiche in tempo reale
-        anche quando il browser è chiuso.
+        icona sulla schermata Home e apertura a tutto schermo, come
+        un'app. Le notifiche arrivano in tempo reale mentre Lookup è aperto.
       </p>
       <button type="button" class="btn btn--primary install-app-section__cta" id="install-btn-index">
         Apri l'app
@@ -307,7 +307,7 @@
   <div class="floating-cta guest-only" aria-hidden="true">
     <a href="register.html" class="btn btn--primary btn--lg btn--pulse">
       <span class="btn__icon" aria-hidden="true">→</span>
-      Inizia a scambiare
+      Iscriviti gratis
     </a>
   </div>
 
@@ -615,7 +615,7 @@
           } else {
             likedBox.innerHTML = `<div class="empty-feed">
               <p>Non hai ancora preferiti. Premi il <strong>cuore</strong> su un volume
-              per salvarlo ed essere avvisato quando un titolo in prestito torna disponibile.</p>
+              per salvarlo: se è in prestito, quando torna disponibile ricevi un avviso nell'app e via email.</p>
               <a href="explore.html" class="btn btn--ghost">Cerca volumi</a>
             </div>`;
           }
@@ -634,7 +634,7 @@
         renderPersonalizedHome();
       });
 
-      /* Effetto "ripple" sui CTA grandi (Inizia a scambiare, Esplora
+      /* Effetto "ripple" sui CTA grandi (Iscriviti gratis, Esplora
          la mappa, e i CTA della sezione "Come funziona"). Si attiva
          al click con un'animazione concentrica sul punto premuto. */
       document.querySelectorAll('.btn--lg').forEach(btn => {
