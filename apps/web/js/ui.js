@@ -2204,6 +2204,7 @@ export const UI = {
       loan_deadline_upcoming_lender: ['calendar', 'warning'],
       new_review: ['star', 'warning'],
       new_follower: ['userPlus', 'neutral'],
+      book_available: ['checkCircle', 'success'],
       post_reaction: ['heart', 'neutral'],
     };
     const icon = (t) => {
@@ -2230,10 +2231,13 @@ export const UI = {
     const matchesFilter = (n) => {
       const t = n.type || '';
       if (activeFilter === 'all') return true;
-      if (activeFilter === 'loans') return t.startsWith('loan_');
+      if (activeFilter === 'loans') return t.startsWith('loan_') || t === 'book_available';
       if (activeFilter === 'reviews') return t === 'new_review';
       if (activeFilter === 'social') return t === 'new_follower' || t === 'post_reaction';
-      return !t.startsWith('loan_') && !['new_review', 'new_follower', 'post_reaction'].includes(t);
+      return (
+        !t.startsWith('loan_') &&
+        !['new_review', 'new_follower', 'post_reaction', 'book_available'].includes(t)
+      );
     };
 
     // Dove porta una notifica
@@ -2270,7 +2274,7 @@ export const UI = {
       if (!items.length) {
         list.innerHTML =
           activeFilter === 'all'
-            ? `<p class="notif__empty">Nessuna notifica. Segui una libreria o metti «mi piace» a un volume per ricevere aggiornamenti.</p>`
+            ? `<p class="notif__empty">Nessuna notifica. Qui arrivano richieste e messaggi dei prestiti, recensioni, nuovi follower, reazioni ai tuoi post e i volumi con il tuo «mi piace» che tornano disponibili.</p>`
             : `<p class="notif__empty">Nessuna notifica in questa categoria.</p>`;
         return;
       }

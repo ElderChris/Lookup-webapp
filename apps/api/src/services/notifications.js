@@ -19,6 +19,7 @@
 //   - loan_borrowed | loan_returning | loan_returned
 //   - loan_message
 //   - post_reaction
+//   - book_available (volume con il proprio "mi piace" di nuovo disponibile)
 //
 // Convenzione: la notifica appartiene al destinatario (userId = chi la riceve).
 // Il campo `actorId` è chi ha generato l'evento.
@@ -26,6 +27,7 @@
 
 import { publishToUser } from '../lib/eventBus.js';
 import { notificationsSent } from '../lib/metrics.js';
+import { sendBookAvailableEmail } from '../lib/availabilityEmails.js';
 
 /**
  * Helper bassissimo livello: crea una notifica.
@@ -209,4 +211,68 @@ export async function notifyPostReaction(
     type: 'post_reaction',
     message: `${reactorDisplayName} ha reagito con ${emoji} al tuo post: "${previewTrimmed}"`,
   });
+}
+
+/**
+ * Un volume torna disponibile (prestito restituito): notifica nell'app ed
+ * email a chi gli ha messo "mi piace", tranne il proprietario e chi lo
+ * aveva in prestito. Niente avvisi se il volume non e' pubblicato o se il
+ * proprietario ha messo in pausa i prestiti.
+ * Non bloccante: le email partono dopo la risposta.
+ *
+ * @param {object} ctx - { prisma, log }
+ * @param {{ bookId: number, excludeUserIds?: string[] }} args
+ */
+export async function notifyBookAvailable(ctx, { bookId, excludeUserIds = [] }) {
+  try {
+    const book = await ctx.prisma.book.findUnique({
+      where: { id: bookId },
+      select: {
+        id: true,
+        title: true,
+        author: true,
+        status: true,
+        available: true,
+        ownerId: true,
+        owner: { select: { displayName: true, status: true, acceptsLoans: true } },
+        likes: {
+          where: { user: { status: 'active' } },
+          select: { user: { select: { id: true, email: true, displayName: true } } },
+        },
+      },
+    });
+    if (
+      !book ||
+      !book.available ||
+      book.status !== 'active' ||
+      book.owner.status !== 'active' ||
+      !book.owner.acceptsLoans
+    ) {
+      return 0;
+    }
+    const skip = new Set([book.ownerId, ...excludeUserIds]);
+    const likers = book.likes.map((l) => l.user).filter((u) => !skip.has(u.id));
+    for (const user of likers) {
+      await emit(ctx, {
+        userId: user.id,
+        actorId: book.ownerId,
+        bookId: book.id,
+        type: 'book_available',
+        message: `"${book.title}" è di nuovo disponibile nella libreria di ${book.owner.displayName}`,
+      });
+    }
+    // Email dopo la risposta all'utente che ha confermato la restituzione
+    setImmediate(() => {
+      Promise.allSettled(
+        likers.map((u) => sendBookAvailableEmail(u, book, book.owner.displayName, ctx.log))
+      ).then((results) => {
+        const failed = results.filter((r) => r.status === 'rejected').length;
+        if (failed) ctx.log.warn({ bookId, failed }, '[notifications] book_available email failed');
+      });
+    });
+    return likers.length;
+  } catch (err) {
+    ctx.log.warn({ err: err.message, bookId }, 'book_available notification failed');
+    return 0;
+  }
 }

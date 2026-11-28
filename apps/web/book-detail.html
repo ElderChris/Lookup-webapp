@@ -56,7 +56,7 @@
     <!-- Libri simili dello stesso proprietario -->
     <section class="section container">
       <div class="section-header">
-        <h2>Altri volumi di questo lettore</h2>
+        <h2>Altri volumi di questa libreria</h2>
         <span class="section-meta" id="other-books-count">—</span>
       </div>
       <div class="books-grid" id="other-books"></div>
@@ -107,7 +107,7 @@
       <div class="form__check">
         <input type="checkbox" id="loan-consent" required />
         <label for="loan-consent">
-          Acconsento alla condivisione del mio nome e contatto email con il proprietario del volume, al solo fine di questa richiesta.
+          Acconsento a condividere con il proprietario del volume il mio nome visualizzato e i messaggi della chat del prestito, al solo fine di questa richiesta. La mia email resta privata.
         </label>
       </div>
       <div style="display: flex; gap: .75rem; justify-content: flex-end;">
@@ -235,7 +235,7 @@
               <span id="like-count" style="font-family:var(--font-mono);">(${book.likesCount ?? 0})</span>
             </button>
             ${!book.available && !isOwner
-              ? '<span class="like-waiting">⏳ metti «mi piace» per essere avvisato quando torna disponibile</span>'
+              ? '<span class="like-waiting">⏳ metti «mi piace»: quando torna disponibile ricevi un avviso nell\'app e via email</span>'
               : ''}
             ${isOwner ? `
             <a href="add-book.html?id=${book.id}" class="btn btn--ghost btn--small" id="edit-book-btn">
